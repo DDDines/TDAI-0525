@@ -38,6 +38,16 @@ GENERIC_COMMERCE_PATTERNS = (
     re.compile(r"\bentrega\s+rapida\b", re.IGNORECASE),
     re.compile(r"\bfrete\b", re.IGNORECASE),
 )
+TITLE_CTA_PATTERN = re.compile(
+    r"\b(?:exiba|exibir|descubra|transforme|aproveite|garanta|ideal|perfeito|perfeita|"
+    r"seu|sua|seus|suas|compre|leve|tenha|melhore|renove|encante|celebre)\b",
+    re.IGNORECASE,
+)
+TITLE_GENERIC_PATTERN = re.compile(r"\b(?:decor|decoracao|decorativo|decorativa)\b", re.IGNORECASE)
+DESCRIPTION_CTA_PATTERN = re.compile(
+    r"\b(?:adquira|compre|garanta|aproveite|invista|descubra|impulsione?|transforme|renove|eleve)\b",
+    re.IGNORECASE,
+)
 
 
 class WorkflowValidationFailure(Exception):
@@ -101,6 +111,7 @@ def validate_generated_text(
     required_tokens: Sequence[str],
     min_words: int,
     max_words: int,
+    check_title_style: bool = False,
 ) -> List[str]:
     """Apply deterministic anti-hallucination checks to a generated output."""
     issues: List[str] = []
@@ -129,6 +140,13 @@ def validate_generated_text(
     for pattern in GENERIC_COMMERCE_PATTERNS:
         if pattern.search(normalized_output):
             issues.append(f"boilerplate comercial: {pattern.pattern}")
+    if check_title_style:
+        if TITLE_CTA_PATTERN.search(normalized_output):
+            issues.append("cta/promocional indevido")
+        if TITLE_GENERIC_PATTERN.search(normalized_output):
+            issues.append("complemento generico")
+    elif DESCRIPTION_CTA_PATTERN.search(normalized_output):
+        issues.append("cta/promocional na descricao")
 
     normalized_required_tokens = [normalize_text(token) for token in required_tokens if normalize_text(token)]
     matched_tokens = [token for token in normalized_required_tokens if token in lowered_output]
@@ -371,6 +389,7 @@ class LocalWorkflowValidator:
                 required_tokens=required_tokens,
                 min_words=3,
                 max_words=16,
+                check_title_style=True,
             )
             title_issues.extend([f"titulo_{index}: {issue}" for issue in current_issues])
         if len({normalize_text(item) for item in titles if normalize_text(item)}) != len(titles):

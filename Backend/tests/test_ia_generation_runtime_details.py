@@ -1,4 +1,4 @@
-"""Detailed coverage for IA generation runtime helpers and provider branches."""
+﻿"""Detailed coverage for IA generation runtime helpers and provider branches."""
 
 from __future__ import annotations
 
@@ -464,8 +464,31 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
     )
     assert verbose_titles == ["Paralama Dianteiro Caminhao Acme - Fixacao Reforcada"]
 
+    preserved_identity_titles = runtime._sanitize_title_candidates(
+        "1. Tiara Corona Sempre Uma Princesa\n2. Moldura Princess Crown\n3. Princess Frame",
+        source_title="Always a Princess Crown Frame",
+    )
+    assert preserved_identity_titles[0] == "Always a Princess Crown Frame"
+    assert "Tiara Corona Sempre Uma Princesa" not in preserved_identity_titles
+
+    accent_deduped_titles = runtime._sanitize_title_candidates(
+        "1. Bomba de combustivel Bosch 12V flex\n2. Bomba de Combustível Bosch 12V Flex\n3. Bomba de Combustível Eletrônica 12V Bosch Flex",
+        source_title="Bomba de combustivel Bosch 12V flex",
+    )
+    assert accent_deduped_titles == [
+        "Bomba de combustivel Bosch 12V flex",
+        "Bomba de Combustível Eletrônica 12V Bosch Flex",
+    ]
+
+    safe_fallback_titles = runtime._sanitize_title_candidates(
+        "1. Exiba seus Tiers com o Tier Displayer\n2. Tier Displayer Decor",
+        source_title="Tier Displayer",
+        desired_count=3,
+    )
+    assert safe_fallback_titles == ["Tier Displayer"]
+
     produto = SimpleNamespace(
-        nome_base="Reservatorio Comércio Eletrônico 9999",
+        nome_base="Reservatorio ComÃ©rcio EletrÃ´nico 9999",
         nome_chat_api=None,
         marca="Marca 1234567890",
         modelo="Modelo X",
@@ -555,7 +578,7 @@ async def test_ia_generation_runtime_impl_paths_with_provider_and_suggestions(mo
         user=SimpleNamespace(id=1, is_superuser=False),
         num_titulos=2,
     )
-    assert titles == ["Titulo Valido"]
+    assert titles == ["Paralama Dianteiro"]
 
     description = await runtime._gerar_descricao_com_openai_impl(
         db=object(),
@@ -659,3 +682,4 @@ async def test_ia_generation_runtime_impl_handles_not_found_auth_and_empty_attri
     )
     assert response.sugestoes_atributos == []
     assert response.modelo_ia_utilizado.startswith("gemini")
+

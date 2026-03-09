@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from types import SimpleNamespace
 
 import httpx
@@ -358,6 +359,11 @@ def test_ia_generation_runtime_local_helper_edge_paths(monkeypatch):
     )
     assert cleaned_description == "Produto robusto."
 
+    description_without_cta = runtime._sanitize_generated_description(
+        "Estrutura resistente para exposicao. Adquira ja e impulsione suas vendas."
+    )
+    assert description_without_cta == "Estrutura resistente para exposicao."
+
     prefixed_description = runtime._sanitize_generated_description(
         "Descricao do produto: Paralama reforcado para uso severo."
     )
@@ -368,6 +374,14 @@ def test_ia_generation_runtime_local_helper_edge_paths(monkeypatch):
     )
     assert titles == ["Paralama"]
 
+    preserved_titles = runtime._sanitize_title_candidates(
+        "1. Crown Princess Decor\n2. Tiara Corona Sempre Uma Princesa",
+        source_title="Always a Princess Crown Frame",
+    )
+    assert preserved_titles[0] == "Always a Princess Crown Frame"
+    assert "Tiara Corona Sempre Uma Princesa" not in preserved_titles
+    assert "Crown Princess Decor" not in preserved_titles
+
     monkeypatch.setattr(ia_service, "URL_PATTERN", _SearchPatternStub(search_result=True))
     monkeypatch.setattr(ia_service, "EMAIL_PATTERN", _SearchPatternStub(search_result=False))
     monkeypatch.setattr(ia_service, "PHONE_OR_ID_BLOCK_PATTERN", _SearchPatternStub(search_result=False))
@@ -377,6 +391,14 @@ def test_ia_generation_runtime_local_helper_edge_paths(monkeypatch):
     monkeypatch.setattr(ia_service, "TITLE_CONTACT_MARKER_PATTERN", _MarkerPatternStub(start_index=8))
     trimmed_titles = runtime._sanitize_title_candidates("Paralama contato loja")
     assert trimmed_titles == ["Paralama"]
+
+    monkeypatch.setattr(ia_service, "TITLE_CONTACT_MARKER_PATTERN", re.compile(r"\b(?:loja|contato)\b", re.IGNORECASE))
+    fallback_rotations = runtime._sanitize_title_candidates(
+        "1. Descubra o Tier Displayer",
+        source_title="Tier Displayer",
+        desired_count=3,
+    )
+    assert fallback_rotations == ["Tier Displayer"]
 
     short_titles = runtime._build_local_title_candidates(
         _produto_base(nome_base="abc", marca="", modelo="", sku="", categoria_original=""),
@@ -505,6 +527,25 @@ async def test_ia_generation_runtime_openai_title_fallback_after_empty_llm(monke
     )
     assert rebuilt_titles[0].startswith("Paralama Dianteiro")
 
+    monkeypatch.setattr(
+        ia_service.IAGenerationRuntime,
+        "_get_ai_provider_workflow",
+        staticmethod(
+            lambda: _ProviderWorkflowStub(
+                openai_result="1. Tiara Corona Sempre Uma Princesa\n2. Moldura Princess Crown"
+            )
+        ),
+    )
+    _ProductRepositoryStub.produto = _produto_base(nome_base="Always a Princess Crown Frame")
+    preserved_titles = await runtime._gerar_titulos_com_openai_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        num_titulos=2,
+    )
+    assert preserved_titles[0] == "Always a Princess Crown Frame"
+    assert "Tiara Corona Sempre Uma Princesa" not in preserved_titles
+
 
 @pytest.mark.asyncio
 async def test_ia_generation_runtime_records_openai_compatible_provider_metadata(monkeypatch):
@@ -600,7 +641,24 @@ async def test_ia_generation_runtime_gemini_title_and_description_additional_pat
         user=SimpleNamespace(id=1, is_superuser=False),
         num_titulos=2,
     )
-    assert kept_titles == ["Titulo Gemini Valido"]
+    assert kept_titles == ["Paralama Dianteiro"]
+
+    monkeypatch.setattr(
+        ia_service.IAGenerationRuntime,
+        "_get_ai_provider_workflow",
+        staticmethod(
+            lambda: _ProviderWorkflowStub(gemini_result="1. Tiara Corona Sempre Uma Princesa\n2. Moldura Princess Crown")
+        ),
+    )
+    _ProductRepositoryStub.produto = _produto_base(nome_base="Always a Princess Crown Frame")
+    preserved_titles = await runtime._gerar_titulos_com_gemini_impl(
+        db=object(),
+        produto_id=1,
+        user=SimpleNamespace(id=1, is_superuser=False),
+        num_titulos=2,
+    )
+    assert preserved_titles[0] == "Always a Princess Crown Frame"
+    assert "Tiara Corona Sempre Uma Princesa" not in preserved_titles
 
     _ProductRepositoryStub.produto = None
     with pytest.raises(HTTPException) as description_not_found:

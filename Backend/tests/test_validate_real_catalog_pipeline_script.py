@@ -71,8 +71,8 @@ def test_validate_generated_product_snapshot_accepts_clean_output():
             "Porta Retrato Princess Crown",
         ],
         "descricao": (
-            "Transforme momentos especiais em lembranças duradouras com o Always a Princess "
-            "Crown Frame, um porta-retrato delicado e elegante para destacar fotos infantis."
+            "O Always a Princess Crown Frame e um porta-retrato delicado e elegante para destacar "
+            "fotos infantis em ambientes decorativos, com apresentacao visual limpa e duravel."
         ),
     }
 
@@ -94,6 +94,47 @@ def test_validate_generated_product_snapshot_flags_missing_titles_and_contact_no
     assert "descricao com telefone suspeito" in issues
     assert "descricao com url" in issues
     assert any(issue.startswith("descricao com boilerplate comercial:") for issue in issues)
+
+
+def test_validate_generated_product_snapshot_flags_title_cta_and_generic_suffix():
+    snapshot = {
+        "status_titulo_ia": "CONCLUIDO",
+        "status_descricao_ia": "CONCLUIDO",
+        "titulos": [
+            "Tier Displayer",
+            "Exiba seus Tiers com o Tier Displayer",
+            "Princess Frame Decor",
+        ],
+        "descricao": (
+            "Produto apresentado com descricao factual, neutra e suficientemente longa para passar "
+            "nas validacoes sem telefone, email, urls ou ruido comercial."
+        ),
+    }
+
+    issues = MODULE.validate_generated_product_snapshot(snapshot)
+
+    assert any(issue.startswith("titulo com CTA/promocional:") for issue in issues)
+    assert any(issue.startswith("titulo com complemento generico:") for issue in issues)
+
+
+def test_validate_generated_product_snapshot_flags_description_cta():
+    snapshot = {
+        "status_titulo_ia": "CONCLUIDO",
+        "status_descricao_ia": "CONCLUIDO",
+        "titulos": [
+            "Tier Displayer",
+            "Display Tier",
+            "Tier para Display",
+        ],
+        "descricao": (
+            "Estrutura escalonada para exposicao organizada de produtos em loja. "
+            "Adquira ja e impulsione suas vendas com este display."
+        ),
+    }
+
+    issues = MODULE.validate_generated_product_snapshot(snapshot)
+
+    assert "descricao com CTA/promocional" in issues
 
 
 def test_run_accepts_fornecedor_preview_with_import_file_id_only(tmp_path):
@@ -215,3 +256,5 @@ def test_create_supplier_uses_unique_suffix_in_name_and_site(tmp_path):
     assert captured["headers"] == {"Authorization": "Bearer token"}
     assert str(captured["json"]["nome"]).startswith("Smoke ")
     assert "/smoke-" in str(captured["json"]["site_url"])
+
+

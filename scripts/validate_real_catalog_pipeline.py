@@ -33,6 +33,16 @@ GENERIC_COMMERCE_PATTERNS = (
     re.compile(r"\bcompra\s+online\b", re.IGNORECASE),
     re.compile(r"\bpolitica\s+de\b", re.IGNORECASE),
 )
+TITLE_CTA_PATTERN = re.compile(
+    r"\b(?:exiba|exibir|descubra|transforme|aproveite|garanta|ideal|perfeito|perfeita|"
+    r"seu|sua|seus|suas|compre|leve|tenha|melhore|renove|encante|celebre)\b",
+    re.IGNORECASE,
+)
+TITLE_GENERIC_PATTERN = re.compile(r"\b(?:decor|decoracao|decorativo|decorativa)\b", re.IGNORECASE)
+DESCRIPTION_CTA_PATTERN = re.compile(
+    r"\b(?:adquira|compre|garanta|aproveite|invista|descubra|impulsione?|transforme|renove|eleve)\b",
+    re.IGNORECASE,
+)
 
 
 class CatalogValidationFailure(Exception):
@@ -162,6 +172,14 @@ def validate_generated_product_snapshot(snapshot: Dict[str, Any]) -> List[str]:
         issues.append("nenhum titulo sugerido foi salvo")
     if len([title for title in titles if str(title or "").strip()]) < 3:
         issues.append("menos de 3 titulos sugeridos")
+    normalized_titles = [" ".join(str(title or "").split()) for title in titles if str(title or "").strip()]
+    if len({title.casefold() for title in normalized_titles}) != len(normalized_titles):
+        issues.append("titulos duplicados")
+    for title in normalized_titles:
+        if TITLE_CTA_PATTERN.search(title):
+            issues.append(f"titulo com CTA/promocional: {title}")
+        if TITLE_GENERIC_PATTERN.search(title):
+            issues.append(f"titulo com complemento generico: {title}")
     if len(description.split()) < 20:
         issues.append("descricao curta demais")
     if PHONE_PATTERN.search(description):
@@ -170,6 +188,8 @@ def validate_generated_product_snapshot(snapshot: Dict[str, Any]) -> List[str]:
         issues.append("descricao com email")
     if URL_PATTERN.search(description):
         issues.append("descricao com url")
+    if DESCRIPTION_CTA_PATTERN.search(description):
+        issues.append("descricao com CTA/promocional")
     for pattern in GENERIC_COMMERCE_PATTERNS:
         if pattern.search(description):
             issues.append(f"descricao com boilerplate comercial: {pattern.pattern}")

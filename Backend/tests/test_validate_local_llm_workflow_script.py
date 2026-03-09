@@ -26,6 +26,19 @@ def test_validate_generated_text_flags_boilerplate_and_missing_identity():
     assert "identidade do produto insuficiente" in issues
 
 
+def test_validate_generated_text_flags_title_cta_and_generic_suffix():
+    issues = MODULE.validate_generated_text(
+        output_text="Exiba seus Tiers com o Tier Displayer Decor",
+        required_tokens=("tier", "displayer"),
+        min_words=3,
+        max_words=20,
+        check_title_style=True,
+    )
+
+    assert "cta/promocional indevido" in issues
+    assert "complemento generico" in issues
+
+
 def test_validate_generated_text_accepts_concrete_product_copy():
     issues = MODULE.validate_generated_text(
         output_text=(
@@ -38,6 +51,17 @@ def test_validate_generated_text_accepts_concrete_product_copy():
     )
 
     assert issues == []
+
+
+def test_validate_generated_text_flags_description_cta_when_not_title_mode():
+    issues = MODULE.validate_generated_text(
+        output_text="Estrutura resistente para exposicao. Adquira ja o seu display.",
+        required_tokens=("display",),
+        min_words=4,
+        max_words=40,
+    )
+
+    assert "cta/promocional na descricao" in issues
 
 
 def test_build_smoke_product_payload_contains_realistic_identity():

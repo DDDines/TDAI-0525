@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
 
 def load_dataset(dataset_path: Path) -> List[Dict[str, Any]]:
     """Load the fixed eval dataset from disk."""
-    payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    payload = json.loads(dataset_path.read_text(encoding="utf-8-sig"))
     if not isinstance(payload, list) or not payload:
         raise EvalFailure(f"Dataset invalido em {dataset_path}.")
     return payload
@@ -132,11 +132,16 @@ def call_model(*, base_url: str, api_key: str, model: str, case: Dict[str, Any])
     return str(payload["choices"][0]["message"]["content"]).strip()
 
 
-def normalize_eval_output(case_type: str, output_text: str) -> str:
+def normalize_eval_output(case: Dict[str, Any], output_text: str) -> str:
     """Apply the same sanitization pipeline used by the runtime before validation."""
     runtime = IAGenerationRuntime()
-    if case_type == "title":
-        titles = runtime._sanitize_title_candidates(output_text)
+    if case["type"] == "title":
+        product = case.get("input") or {}
+        titles = runtime._sanitize_title_candidates(
+            output_text,
+            source_title=product.get("nome_base", ""),
+            source_aliases=[],
+        )
         return titles[0] if titles else ""
     return runtime._sanitize_generated_description(output_text)
 
@@ -146,6 +151,7 @@ def validate_case(case: Dict[str, Any], output_text: str) -> Tuple[bool, List[st
     issues: List[str] = []
     normalized_text = " ".join(str(output_text or "").split())
     lowered_text = normalized_text.lower()
+    runtime = IAGenerationRuntime()
 
     if not normalized_text:
         issues.append("saida vazia")
@@ -165,11 +171,36 @@ def validate_case(case: Dict[str, Any], output_text: str) -> Tuple[bool, List[st
     if max_words and len(words) > max_words:
         issues.append(f"saida longa demais: {len(words)} palavras")
     if min_words and len(words) < min_words:
-        issues.append(f"saida curta demais: {len(words)} palavras")
+        allow_short_source_title = False
+        if case.get("type") == "title":
+            source_title = str((case.get("input") or {}).get("nome_base") or "").strip()
+            source_tokens = set(runtime._tokenize_title_identity(source_title))
+            output_tokens = set(runtime._tokenize_title_identity(normalized_text))
+            allow_short_source_title = bool(
+                source_title
+                and len(source_title.split()) <= min_words
+                and source_tokens
+                and output_tokens
+                and source_tokens <= output_tokens
+            )
+        if not allow_short_source_title:
+            issues.append(f"saida curta demais: {len(words)} palavras")
 
     must_include_any = [str(item).lower() for item in case.get("must_include_any", []) if str(item).strip()]
     if must_include_any and not any(token in lowered_text for token in must_include_any):
         issues.append("nao menciona identidade minima do produto")
+
+    preserve_tokens = [str(item).strip() for item in case.get("must_preserve_tokens", []) if str(item).strip()]
+    preserve_count = int(case.get("must_preserve_tokens_min_count", 0) or 0)
+    if preserve_tokens and preserve_count > 0:
+        output_tokens = set(runtime._tokenize_title_identity(output_text))
+        preserved = sum(
+            1 for token in preserve_tokens if runtime._fold_identity_text(token) in output_tokens
+        )
+        if preserved < preserve_count:
+            issues.append(
+                f"perda de identidade do nome original: preservou {preserved}/{preserve_count} token(s) obrigatorio(s)"
+            )
 
     return (len(issues) == 0, issues)
 
@@ -202,7 +233,7 @@ def main() -> int:
             model=model_name,
             case=case,
         )
-        normalized_output = normalize_eval_output(case["type"], raw_output_text)
+        normalized_output = normalize_eval_output(case, raw_output_text)
         passed, issues = validate_case(case, normalized_output)
         critical_issues, non_critical_issues = split_critical_issues(issues)
         results.append(

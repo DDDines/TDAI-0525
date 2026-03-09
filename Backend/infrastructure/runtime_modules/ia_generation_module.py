@@ -5,6 +5,7 @@
 import httpx # Para chamadas HTTP assÃ­ncronas
 import json
 import re
+import unicodedata
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 import logging # Adicionado para logging
@@ -93,6 +94,40 @@ TITLE_BOLD_SEGMENT_PATTERN = re.compile(r"\*\*(.+?)\*\*")
 TRAILING_EXPLANATION_PATTERN = re.compile(r"\s+\((?:[^()]|\([^()]*\)){8,}\)\s*$")
 DESCRIPTION_META_PREFIX_PATTERN = re.compile(
     r"^\s*(?:descri[cç][aã]o(?:\s+do\s+produto)?|texto\s+final|resposta\s+final)\s*:\s*",
+    re.IGNORECASE,
+)
+DESCRIPTION_PROMOTIONAL_PATTERN = re.compile(
+    r"\b(?:adquira|compre|garanta|aproveite|invista|descubra|impulsione?|transforme|"
+    r"renove|eleve|leve\s+agora)\b",
+    re.IGNORECASE,
+)
+TITLE_IDENTITY_STOPWORDS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "para",
+    "com",
+    "sem",
+    "de",
+    "da",
+    "do",
+    "das",
+    "dos",
+    "e",
+    "a",
+    "o",
+    "as",
+    "os",
+}
+TITLE_PROMOTIONAL_TOKEN_PATTERN = re.compile(
+    r"\b(?:exiba|exibir|descubra|transforme|aproveite|garanta|ideal|perfeito|perfeita|"
+    r"seu|sua|seus|suas|compre|leve|tenha|melhore|renove|encante|celebre)\b",
+    re.IGNORECASE,
+)
+TITLE_GENERIC_SUFFIX_PATTERN = re.compile(
+    r"\b(?:decor|decoracao|decorativo|decorativa|colecao|colecao|produto|item)\b",
     re.IGNORECASE,
 )
 
@@ -794,6 +829,8 @@ class IAGenerationRuntime:
             normalized_chunk = " ".join(str(chunk or "").strip().split())
             if IAGenerationRuntime._looks_like_company_timeline_claim(normalized_chunk):
                 continue
+            if DESCRIPTION_PROMOTIONAL_PATTERN.search(normalized_chunk):
+                continue
             filtered_chunks.append(normalized_chunk)
 
         if filtered_chunks:
@@ -801,49 +838,251 @@ class IAGenerationRuntime:
         return text
 
     @staticmethod
-    def _sanitize_title_candidates(raw_text: str) -> List[str]:
+    def _clean_single_title_candidate(raw_line: Any) -> str:
+        """Normalize a single raw title line without applying product-specific identity rules."""
+        cleaned = str(raw_line or "").strip()
+        if not cleaned:
+            return ""
+        bold_match = TITLE_BOLD_SEGMENT_PATTERN.search(cleaned)
+        if bold_match:
+            cleaned = bold_match.group(1).strip()
+        cleaned = re.sub(r"^\s*(?:[-*•]+|\d+[)\].:-])\s*", "", cleaned).strip()
+        cleaned = re.sub(r"^(?:titulo|t[ií]tulo)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip(' "\'`')
+        if TITLE_META_LINE_PATTERN.search(cleaned):
+            return ""
+        cleaned = TRAILING_EXPLANATION_PATTERN.sub("", cleaned).strip()
+        cleaned = re.split(
+            r"\s+(?:[-–—]\s+)?(?:por que funciona|foco|seo|atra[cç][aã]o)\s*:\s*",
+            cleaned,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
+        cleaned = URL_PATTERN.sub(" ", cleaned)
+        cleaned = EMAIL_PATTERN.sub(" ", cleaned)
+        cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)
+        marker_match = TITLE_CONTACT_MARKER_PATTERN.search(cleaned)
+        if marker_match:
+            cleaned = cleaned[: marker_match.start()]
+        cleaned = TITLE_CONTACT_MARKER_PATTERN.sub(" ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip(" -|,;:/")
+        if len(cleaned) < 4:
+            return ""
+        if IAGenerationRuntime._looks_like_company_timeline_claim(cleaned):
+            return ""
+        if URL_PATTERN.search(cleaned) or EMAIL_PATTERN.search(cleaned) or PHONE_OR_ID_BLOCK_PATTERN.search(cleaned):
+            return ""
+        return cleaned
+
+    @staticmethod
+    def _fold_identity_text(value: Any) -> str:
+        """Fold unicode accents and case for robust identity comparisons."""
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        return "".join(char for char in normalized if not unicodedata.combining(char)).lower()
+
+    @classmethod
+    def _tokenize_title_identity(cls, value: Any) -> List[str]:
+        """Tokenize a title into comparable identity tokens, skipping low-signal stopwords."""
+        cleaned = cls._clean_single_title_candidate(value)
+        if not cleaned:
+            return []
+        folded = cls._fold_identity_text(cleaned)
+        tokens = re.findall(r"[a-z0-9][a-z0-9./-]{1,}", folded)
+        return [token for token in tokens if len(token) >= 3 and token not in TITLE_IDENTITY_STOPWORDS]
+
+    @classmethod
+    def _build_source_title_variants(
+        cls,
+        *,
+        source_title: Any = None,
+        source_aliases: Optional[List[Any]] = None,
+    ) -> List[str]:
+        """Build a normalized list of source titles that define the product identity."""
+        variants: List[str] = []
+        seen: set[str] = set()
+        for raw_value in [source_title, *(source_aliases or [])]:
+            cleaned = cls._clean_single_title_candidate(raw_value)
+            if not cleaned:
+                continue
+            normalized = cls._fold_identity_text(cleaned)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            variants.append(cleaned)
+        return variants
+
+    @classmethod
+    def _candidate_preserves_source_identity(cls, candidate: str, *, source_variants: List[str]) -> bool:
+        """Reject candidates that drift too far from the original product name identity."""
+        if not source_variants:
+            return True
+        candidate_tokens = set(cls._tokenize_title_identity(candidate))
+        if not candidate_tokens:
+            return False
+
+        for source_variant in source_variants:
+            source_tokens = set(cls._tokenize_title_identity(source_variant))
+            if not source_tokens:
+                continue
+            overlap = len(candidate_tokens & source_tokens)
+            source_size = len(source_tokens)
+            if source_size >= 3 and overlap >= 2:
+                return True
+            if source_size == 2 and overlap >= 1:
+                return True
+            if source_size == 1 and overlap >= 1:
+                return True
+        return False
+
+    @classmethod
+    def _candidate_is_promotional_or_generic(cls, candidate: str, *, source_variants: List[str]) -> bool:
+        """Reject title candidates that sound like CTA, sales copy, or generic suffix padding."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        if not cleaned_candidate:
+            return True
+
+        source_text = " ".join(source_variants)
+        folded_source = cls._fold_identity_text(source_text)
+        folded_candidate = cls._fold_identity_text(cleaned_candidate)
+
+        if TITLE_PROMOTIONAL_TOKEN_PATTERN.search(folded_candidate):
+            return True
+
+        generic_match = TITLE_GENERIC_SUFFIX_PATTERN.search(folded_candidate)
+        if generic_match and generic_match.group(0).strip() not in folded_source:
+            return True
+        return False
+
+    @classmethod
+    def _build_deterministic_title_fallbacks(
+        cls,
+        *,
+        source_variants: List[str],
+        desired_count: int,
+    ) -> List[str]:
+        """Build safe, source-preserving title variations when LLM output is weak."""
+        if not source_variants or desired_count <= 0:
+            return []
+
+        primary_source = source_variants[0]
+        clean_primary = cls._clean_single_title_candidate(primary_source)
+        if not clean_primary:
+            return []
+
+        words = clean_primary.split()
+        fallbacks: List[str] = [clean_primary]
+
+        rotations: List[List[str]] = []
+        if len(words) >= 3:
+            rotations.append(words[-1:] + words[:-1])
+        if len(words) >= 4:
+            rotations.append(words[-2:] + words[:-2])
+
+        for rotated_words in rotations:
+            rotated = " ".join(rotated_words).strip()
+            if rotated:
+                fallbacks.append(rotated)
+
+        for alias in source_variants[1:]:
+            cleaned_alias = cls._clean_single_title_candidate(alias)
+            if cleaned_alias:
+                fallbacks.append(cleaned_alias)
+
+        unique: List[str] = []
+        seen: set[str] = set()
+        for candidate in fallbacks:
+            normalized = cls._fold_identity_text(candidate)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique.append(candidate)
+            if len(unique) >= desired_count:
+                break
+        return unique
+
+    @classmethod
+    def _reconcile_title_candidates_with_source(
+        cls,
+        candidates: List[str],
+        *,
+        source_title: Any = None,
+        source_aliases: Optional[List[Any]] = None,
+        desired_count: Optional[int] = None,
+    ) -> List[str]:
+        """Force at least one strong source-preserving title and drop severe identity drift."""
+        source_variants = cls._build_source_title_variants(
+            source_title=source_title,
+            source_aliases=source_aliases,
+        )
+        filtered_candidates = [
+            candidate
+            for candidate in candidates
+            if cls._candidate_preserves_source_identity(candidate, source_variants=source_variants)
+            and not cls._candidate_is_promotional_or_generic(candidate, source_variants=source_variants)
+        ]
+
+        unique: List[str] = []
+        seen: set[str] = set()
+        if source_variants:
+            primary_source = source_variants[0]
+            unique.append(primary_source)
+            seen.add(cls._fold_identity_text(primary_source))
+
+        for candidate in filtered_candidates:
+            normalized = cls._fold_identity_text(candidate)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique.append(candidate)
+
+        requested_count = max(1, int(desired_count or 0))
+        if requested_count and len(unique) < requested_count:
+            for fallback in cls._build_deterministic_title_fallbacks(
+                source_variants=source_variants,
+                desired_count=requested_count,
+            ):
+                normalized = cls._fold_identity_text(fallback)
+                if normalized in seen:
+                    continue
+                seen.add(normalized)
+                unique.append(fallback)
+                if len(unique) >= requested_count:
+                    break
+        return unique
+
+    @classmethod
+    def _sanitize_title_candidates(
+        cls,
+        raw_text: str,
+        *,
+        source_title: Any = None,
+        source_aliases: Optional[List[Any]] = None,
+        desired_count: Optional[int] = None,
+    ) -> List[str]:
         """Normalize raw LLM output into clean title candidates."""
         if not raw_text:
-            return []
+            return cls._reconcile_title_candidates_with_source(
+                [],
+                source_title=source_title,
+                source_aliases=source_aliases,
+                desired_count=desired_count,
+            )
         candidates: List[str] = []
         seen_normalized: set[str] = set()
         for line in str(raw_text).splitlines():
-            cleaned = line.strip()
+            cleaned = cls._clean_single_title_candidate(line)
             if not cleaned:
                 continue
-            bold_match = TITLE_BOLD_SEGMENT_PATTERN.search(cleaned)
-            if bold_match:
-                cleaned = bold_match.group(1).strip()
-            cleaned = re.sub(r"^\s*(?:[-*•]+|\d+[)\].:-])\s*", "", cleaned).strip()
-            cleaned = re.sub(r"^(?:titulo|t[ií]tulo)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
-            cleaned = cleaned.strip(' "\'`')
-            if TITLE_META_LINE_PATTERN.search(cleaned):
-                continue
-            cleaned = TRAILING_EXPLANATION_PATTERN.sub("", cleaned).strip()
-            cleaned = re.split(r"\s+(?:[-–—]\s+)?(?:por que funciona|foco|seo|atra[cç][aã]o)\s*:\s*", cleaned, maxsplit=1, flags=re.IGNORECASE)[0]
-            cleaned = URL_PATTERN.sub(" ", cleaned)
-            cleaned = EMAIL_PATTERN.sub(" ", cleaned)
-            cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)
-            marker_match = TITLE_CONTACT_MARKER_PATTERN.search(cleaned)
-            if marker_match:
-                cleaned = cleaned[: marker_match.start()]
-            cleaned = TITLE_CONTACT_MARKER_PATTERN.sub(" ", cleaned)
-            cleaned = re.sub(r"\s+", " ", cleaned).strip(" -|,;:/")
-            if len(cleaned) < 4:
-                continue
-            if IAGenerationRuntime._looks_like_company_timeline_claim(cleaned):
-                continue
-            if (
-                URL_PATTERN.search(cleaned)
-                or EMAIL_PATTERN.search(cleaned)
-                or PHONE_OR_ID_BLOCK_PATTERN.search(cleaned)
-            ):
-                continue
-            normalized = cleaned.casefold()
+            normalized = cls._fold_identity_text(cleaned)
             if normalized not in seen_normalized:
                 seen_normalized.add(normalized)
                 candidates.append(cleaned)
-        return candidates
+        return cls._reconcile_title_candidates_with_source(
+            candidates,
+            source_title=source_title,
+            source_aliases=source_aliases,
+            desired_count=desired_count,
+        )
 
     @staticmethod
     def _build_local_title_candidates(db_produto: Any, *, num_titulos: int) -> List[str]:
@@ -1009,7 +1248,12 @@ class IAGenerationRuntime:
             api_key=api_key,
             max_tokens=150 * max(1, int(num_titulos or 1)),
         )
-        titulos_list = self._sanitize_title_candidates(titulos_str)
+        titulos_list = self._sanitize_title_candidates(
+            titulos_str,
+            source_title=db_produto.nome_base or db_produto.nome_chat_api or "",
+            source_aliases=[db_produto.nome_chat_api or ""],
+            desired_count=max(1, int(num_titulos or 1)),
+        )
         if not titulos_list:
             titulos_list = self._build_local_title_candidates(
                 db_produto,
@@ -1167,7 +1411,12 @@ class IAGenerationRuntime:
             api_key=api_key,
             max_tokens=150 * max(1, int(num_titulos or 1)),
         )
-        titulos_list = self._sanitize_title_candidates(resultado)
+        titulos_list = self._sanitize_title_candidates(
+            resultado,
+            source_title=db_produto.nome_base or db_produto.nome_chat_api or "",
+            source_aliases=[db_produto.nome_chat_api or ""],
+            desired_count=max(1, int(num_titulos or 1)),
+        )
         if not titulos_list:
             titulos_list = self._build_local_title_candidates(
                 db_produto,

@@ -1,1202 +1,1263 @@
-[
-  {
-    "id": "case-01",
-    "type": "title",
-    "input": {
-      "nome_base": "Paralama Dianteiro",
-      "descricao_original": "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
-      "marca": "Acme",
-      "modelo": "Truck X"
+﻿[
+    {
+        "id":  "case-01",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Paralama Dianteiro",
+                      "descricao_original":  "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
+                      "marca":  "Acme",
+                      "modelo":  "Truck X"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "paralama",
+                                 "acme"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "paralama",
-      "acme"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-02",
-    "type": "description",
-    "input": {
-      "nome_base": "Reservatorio de Ar 20 Litros",
-      "descricao_original": "Peca de sistema pneum?tico para linha pesada.",
-      "marca": "Rochepecas",
-      "modelo": "RA20"
+    {
+        "id":  "case-02",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Reservatorio de Ar 20 Litros",
+                      "descricao_original":  "Peca de sistema pneum?tico para linha pesada.",
+                      "marca":  "Rochepecas",
+                      "modelo":  "RA20"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "reservatorio",
+                                 "rochepecas"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "reservatorio",
-      "rochepecas"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-03",
-    "type": "title",
-    "input": {
-      "nome_base": "Coluna Externa Cabine",
-      "descricao_original": "Revestimento lateral para acabamento externo de cabines.",
-      "marca": "CabParts",
-      "modelo": "CX-90"
+    {
+        "id":  "case-03",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Coluna Externa Cabine",
+                      "descricao_original":  "Revestimento lateral para acabamento externo de cabines.",
+                      "marca":  "CabParts",
+                      "modelo":  "CX-90"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "coluna",
+                                 "cabparts"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "coluna",
-      "cabparts"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-04",
-    "type": "description",
-    "input": {
-      "nome_base": "Mola Mestre Suspensao",
-      "descricao_original": "Componente de suspensao com alta resistencia mec?nica.",
-      "marca": "HeavyRide",
-      "modelo": "MR-4"
+    {
+        "id":  "case-04",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Mola Mestre Suspensao",
+                      "descricao_original":  "Componente de suspensao com alta resistencia mec?nica.",
+                      "marca":  "HeavyRide",
+                      "modelo":  "MR-4"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "mola",
+                                 "heavyride"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "mola",
-      "heavyride"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-05",
-    "type": "title",
-    "input": {
-      "nome_base": "Lente Lanterna Traseira",
-      "descricao_original": "Lente vermelha com encaixe original e boa visibilidade.",
-      "marca": "Lumix",
-      "modelo": "LT-11"
+    {
+        "id":  "case-05",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Lente Lanterna Traseira",
+                      "descricao_original":  "Lente vermelha com encaixe original e boa visibilidade.",
+                      "marca":  "Lumix",
+                      "modelo":  "LT-11"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "lente",
+                                 "lumix"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "lente",
-      "lumix"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-06",
-    "type": "description",
-    "input": {
-      "nome_base": "Suporte de Parachoque",
-      "descricao_original": "Suporte estrutural para fixacao frontal com geometria precisa.",
-      "marca": "FrontFix",
-      "modelo": "SP-01"
+    {
+        "id":  "case-06",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Suporte de Parachoque",
+                      "descricao_original":  "Suporte estrutural para fixacao frontal com geometria precisa.",
+                      "marca":  "FrontFix",
+                      "modelo":  "SP-01"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "suporte",
+                                 "frontfix"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "suporte",
-      "frontfix"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-07",
-    "type": "title",
-    "input": {
-      "nome_base": "Tampa Lateral Motor",
-      "descricao_original": "Protecao lateral para conjunto de motor diesel.",
-      "marca": "DieselPro",
-      "modelo": "TM-77"
+    {
+        "id":  "case-07",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tampa Lateral Motor",
+                      "descricao_original":  "Protecao lateral para conjunto de motor diesel.",
+                      "marca":  "DieselPro",
+                      "modelo":  "TM-77"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tampa",
+                                 "dieselpro"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "tampa",
-      "dieselpro"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-08",
-    "type": "description",
-    "input": {
-      "nome_base": "Painel Acabamento Interno",
-      "descricao_original": "Painel interno para cabines com instalacao simplificada.",
-      "marca": "Cabline",
-      "modelo": "PA-10"
+    {
+        "id":  "case-08",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Painel Acabamento Interno",
+                      "descricao_original":  "Painel interno para cabines com instalacao simplificada.",
+                      "marca":  "Cabline",
+                      "modelo":  "PA-10"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "painel",
+                                 "cabline"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "painel",
-      "cabline"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-09",
-    "type": "title",
-    "input": {
-      "nome_base": "Filtro de Ar Primario",
-      "descricao_original": "Elemento filtrante para retencao de particulas em operacao severa.",
-      "marca": "AirFlow",
-      "modelo": "FA-30"
+    {
+        "id":  "case-09",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Filtro de Ar Primario",
+                      "descricao_original":  "Elemento filtrante para retencao de particulas em operacao severa.",
+                      "marca":  "AirFlow",
+                      "modelo":  "FA-30"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "filtro",
+                                 "airflow"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "filtro",
-      "airflow"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-10",
-    "type": "description",
-    "input": {
-      "nome_base": "Defletor de Ar Superior",
-      "descricao_original": "Defletor aerodinamico para cabines de estrada.",
-      "marca": "RoadShape",
-      "modelo": "DA-2"
+    {
+        "id":  "case-10",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Defletor de Ar Superior",
+                      "descricao_original":  "Defletor aerodinamico para cabines de estrada.",
+                      "marca":  "RoadShape",
+                      "modelo":  "DA-2"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "defletor",
+                                 "roadshape"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "defletor",
-      "roadshape"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-11",
-    "type": "title",
-    "input": {
-      "nome_base": "Paralama Dianteiro",
-      "descricao_original": "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
-      "marca": "Acme",
-      "modelo": "Truck X"
+    {
+        "id":  "case-11",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Paralama Dianteiro",
+                      "descricao_original":  "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
+                      "marca":  "Acme",
+                      "modelo":  "Truck X"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "paralama",
+                                 "acme"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "paralama",
-      "acme"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-12",
-    "type": "description",
-    "input": {
-      "nome_base": "Reservatorio de Ar 20 Litros",
-      "descricao_original": "Peca de sistema pneum?tico para linha pesada.",
-      "marca": "Rochepecas",
-      "modelo": "RA20"
+    {
+        "id":  "case-12",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Reservatorio de Ar 20 Litros",
+                      "descricao_original":  "Peca de sistema pneum?tico para linha pesada.",
+                      "marca":  "Rochepecas",
+                      "modelo":  "RA20"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "reservatorio",
+                                 "rochepecas"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "reservatorio",
-      "rochepecas"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-13",
-    "type": "title",
-    "input": {
-      "nome_base": "Coluna Externa Cabine",
-      "descricao_original": "Revestimento lateral para acabamento externo de cabines.",
-      "marca": "CabParts",
-      "modelo": "CX-90"
+    {
+        "id":  "case-13",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Coluna Externa Cabine",
+                      "descricao_original":  "Revestimento lateral para acabamento externo de cabines.",
+                      "marca":  "CabParts",
+                      "modelo":  "CX-90"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "coluna",
+                                 "cabparts"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "coluna",
-      "cabparts"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-14",
-    "type": "description",
-    "input": {
-      "nome_base": "Mola Mestre Suspensao",
-      "descricao_original": "Componente de suspensao com alta resistencia mec?nica.",
-      "marca": "HeavyRide",
-      "modelo": "MR-4"
+    {
+        "id":  "case-14",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Mola Mestre Suspensao",
+                      "descricao_original":  "Componente de suspensao com alta resistencia mec?nica.",
+                      "marca":  "HeavyRide",
+                      "modelo":  "MR-4"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "mola",
+                                 "heavyride"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "mola",
-      "heavyride"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-15",
-    "type": "title",
-    "input": {
-      "nome_base": "Lente Lanterna Traseira",
-      "descricao_original": "Lente vermelha com encaixe original e boa visibilidade.",
-      "marca": "Lumix",
-      "modelo": "LT-11"
+    {
+        "id":  "case-15",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Lente Lanterna Traseira",
+                      "descricao_original":  "Lente vermelha com encaixe original e boa visibilidade.",
+                      "marca":  "Lumix",
+                      "modelo":  "LT-11"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "lente",
+                                 "lumix"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "lente",
-      "lumix"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-16",
-    "type": "description",
-    "input": {
-      "nome_base": "Suporte de Parachoque",
-      "descricao_original": "Suporte estrutural para fixacao frontal com geometria precisa.",
-      "marca": "FrontFix",
-      "modelo": "SP-01"
+    {
+        "id":  "case-16",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Suporte de Parachoque",
+                      "descricao_original":  "Suporte estrutural para fixacao frontal com geometria precisa.",
+                      "marca":  "FrontFix",
+                      "modelo":  "SP-01"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "suporte",
+                                 "frontfix"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "suporte",
-      "frontfix"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-17",
-    "type": "title",
-    "input": {
-      "nome_base": "Tampa Lateral Motor",
-      "descricao_original": "Protecao lateral para conjunto de motor diesel.",
-      "marca": "DieselPro",
-      "modelo": "TM-77"
+    {
+        "id":  "case-17",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tampa Lateral Motor",
+                      "descricao_original":  "Protecao lateral para conjunto de motor diesel.",
+                      "marca":  "DieselPro",
+                      "modelo":  "TM-77"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tampa",
+                                 "dieselpro"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "tampa",
-      "dieselpro"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-18",
-    "type": "description",
-    "input": {
-      "nome_base": "Painel Acabamento Interno",
-      "descricao_original": "Painel interno para cabines com instalacao simplificada.",
-      "marca": "Cabline",
-      "modelo": "PA-10"
+    {
+        "id":  "case-18",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Painel Acabamento Interno",
+                      "descricao_original":  "Painel interno para cabines com instalacao simplificada.",
+                      "marca":  "Cabline",
+                      "modelo":  "PA-10"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "painel",
+                                 "cabline"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "painel",
-      "cabline"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-19",
-    "type": "title",
-    "input": {
-      "nome_base": "Filtro de Ar Primario",
-      "descricao_original": "Elemento filtrante para retencao de particulas em operacao severa.",
-      "marca": "AirFlow",
-      "modelo": "FA-30"
+    {
+        "id":  "case-19",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Filtro de Ar Primario",
+                      "descricao_original":  "Elemento filtrante para retencao de particulas em operacao severa.",
+                      "marca":  "AirFlow",
+                      "modelo":  "FA-30"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "filtro",
+                                 "airflow"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "filtro",
-      "airflow"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-20",
-    "type": "description",
-    "input": {
-      "nome_base": "Defletor de Ar Superior",
-      "descricao_original": "Defletor aerodinamico para cabines de estrada.",
-      "marca": "RoadShape",
-      "modelo": "DA-2"
+    {
+        "id":  "case-20",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Defletor de Ar Superior",
+                      "descricao_original":  "Defletor aerodinamico para cabines de estrada.",
+                      "marca":  "RoadShape",
+                      "modelo":  "DA-2"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "defletor",
+                                 "roadshape"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "defletor",
-      "roadshape"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-21",
-    "type": "title",
-    "input": {
-      "nome_base": "Paralama Dianteiro",
-      "descricao_original": "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
-      "marca": "Acme",
-      "modelo": "Truck X"
+    {
+        "id":  "case-21",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Paralama Dianteiro",
+                      "descricao_original":  "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
+                      "marca":  "Acme",
+                      "modelo":  "Truck X"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "paralama",
+                                 "acme"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "paralama",
-      "acme"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-22",
-    "type": "description",
-    "input": {
-      "nome_base": "Reservatorio de Ar 20 Litros",
-      "descricao_original": "Peca de sistema pneum?tico para linha pesada.",
-      "marca": "Rochepecas",
-      "modelo": "RA20"
+    {
+        "id":  "case-22",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Reservatorio de Ar 20 Litros",
+                      "descricao_original":  "Peca de sistema pneum?tico para linha pesada.",
+                      "marca":  "Rochepecas",
+                      "modelo":  "RA20"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "reservatorio",
+                                 "rochepecas"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "reservatorio",
-      "rochepecas"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-23",
-    "type": "title",
-    "input": {
-      "nome_base": "Coluna Externa Cabine",
-      "descricao_original": "Revestimento lateral para acabamento externo de cabines.",
-      "marca": "CabParts",
-      "modelo": "CX-90"
+    {
+        "id":  "case-23",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Coluna Externa Cabine",
+                      "descricao_original":  "Revestimento lateral para acabamento externo de cabines.",
+                      "marca":  "CabParts",
+                      "modelo":  "CX-90"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "coluna",
+                                 "cabparts"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "coluna",
-      "cabparts"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-24",
-    "type": "description",
-    "input": {
-      "nome_base": "Mola Mestre Suspensao",
-      "descricao_original": "Componente de suspensao com alta resistencia mec?nica.",
-      "marca": "HeavyRide",
-      "modelo": "MR-4"
+    {
+        "id":  "case-24",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Mola Mestre Suspensao",
+                      "descricao_original":  "Componente de suspensao com alta resistencia mec?nica.",
+                      "marca":  "HeavyRide",
+                      "modelo":  "MR-4"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "mola",
+                                 "heavyride"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "mola",
-      "heavyride"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-25",
-    "type": "title",
-    "input": {
-      "nome_base": "Lente Lanterna Traseira",
-      "descricao_original": "Lente vermelha com encaixe original e boa visibilidade.",
-      "marca": "Lumix",
-      "modelo": "LT-11"
+    {
+        "id":  "case-25",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Lente Lanterna Traseira",
+                      "descricao_original":  "Lente vermelha com encaixe original e boa visibilidade.",
+                      "marca":  "Lumix",
+                      "modelo":  "LT-11"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "lente",
+                                 "lumix"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "lente",
-      "lumix"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-26",
-    "type": "description",
-    "input": {
-      "nome_base": "Suporte de Parachoque",
-      "descricao_original": "Suporte estrutural para fixacao frontal com geometria precisa.",
-      "marca": "FrontFix",
-      "modelo": "SP-01"
+    {
+        "id":  "case-26",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Suporte de Parachoque",
+                      "descricao_original":  "Suporte estrutural para fixacao frontal com geometria precisa.",
+                      "marca":  "FrontFix",
+                      "modelo":  "SP-01"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "suporte",
+                                 "frontfix"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "suporte",
-      "frontfix"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-27",
-    "type": "title",
-    "input": {
-      "nome_base": "Tampa Lateral Motor",
-      "descricao_original": "Protecao lateral para conjunto de motor diesel.",
-      "marca": "DieselPro",
-      "modelo": "TM-77"
+    {
+        "id":  "case-27",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tampa Lateral Motor",
+                      "descricao_original":  "Protecao lateral para conjunto de motor diesel.",
+                      "marca":  "DieselPro",
+                      "modelo":  "TM-77"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tampa",
+                                 "dieselpro"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "tampa",
-      "dieselpro"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-28",
-    "type": "description",
-    "input": {
-      "nome_base": "Painel Acabamento Interno",
-      "descricao_original": "Painel interno para cabines com instalacao simplificada.",
-      "marca": "Cabline",
-      "modelo": "PA-10"
+    {
+        "id":  "case-28",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Painel Acabamento Interno",
+                      "descricao_original":  "Painel interno para cabines com instalacao simplificada.",
+                      "marca":  "Cabline",
+                      "modelo":  "PA-10"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "painel",
+                                 "cabline"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "painel",
-      "cabline"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-29",
-    "type": "title",
-    "input": {
-      "nome_base": "Filtro de Ar Primario",
-      "descricao_original": "Elemento filtrante para retencao de particulas em operacao severa.",
-      "marca": "AirFlow",
-      "modelo": "FA-30"
+    {
+        "id":  "case-29",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Filtro de Ar Primario",
+                      "descricao_original":  "Elemento filtrante para retencao de particulas em operacao severa.",
+                      "marca":  "AirFlow",
+                      "modelo":  "FA-30"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "filtro",
+                                 "airflow"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "filtro",
-      "airflow"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-30",
-    "type": "description",
-    "input": {
-      "nome_base": "Defletor de Ar Superior",
-      "descricao_original": "Defletor aerodinamico para cabines de estrada.",
-      "marca": "RoadShape",
-      "modelo": "DA-2"
+    {
+        "id":  "case-30",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Defletor de Ar Superior",
+                      "descricao_original":  "Defletor aerodinamico para cabines de estrada.",
+                      "marca":  "RoadShape",
+                      "modelo":  "DA-2"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "defletor",
+                                 "roadshape"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "defletor",
-      "roadshape"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-31",
-    "type": "title",
-    "input": {
-      "nome_base": "Paralama Dianteiro",
-      "descricao_original": "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
-      "marca": "Acme",
-      "modelo": "Truck X"
+    {
+        "id":  "case-31",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Paralama Dianteiro",
+                      "descricao_original":  "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
+                      "marca":  "Acme",
+                      "modelo":  "Truck X"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "paralama",
+                                 "acme"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "paralama",
-      "acme"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-32",
-    "type": "description",
-    "input": {
-      "nome_base": "Reservatorio de Ar 20 Litros",
-      "descricao_original": "Peca de sistema pneum?tico para linha pesada.",
-      "marca": "Rochepecas",
-      "modelo": "RA20"
+    {
+        "id":  "case-32",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Reservatorio de Ar 20 Litros",
+                      "descricao_original":  "Peca de sistema pneum?tico para linha pesada.",
+                      "marca":  "Rochepecas",
+                      "modelo":  "RA20"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "reservatorio",
+                                 "rochepecas"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "reservatorio",
-      "rochepecas"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-33",
-    "type": "title",
-    "input": {
-      "nome_base": "Coluna Externa Cabine",
-      "descricao_original": "Revestimento lateral para acabamento externo de cabines.",
-      "marca": "CabParts",
-      "modelo": "CX-90"
+    {
+        "id":  "case-33",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Coluna Externa Cabine",
+                      "descricao_original":  "Revestimento lateral para acabamento externo de cabines.",
+                      "marca":  "CabParts",
+                      "modelo":  "CX-90"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "coluna",
+                                 "cabparts"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "coluna",
-      "cabparts"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-34",
-    "type": "description",
-    "input": {
-      "nome_base": "Mola Mestre Suspensao",
-      "descricao_original": "Componente de suspensao com alta resistencia mec?nica.",
-      "marca": "HeavyRide",
-      "modelo": "MR-4"
+    {
+        "id":  "case-34",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Mola Mestre Suspensao",
+                      "descricao_original":  "Componente de suspensao com alta resistencia mec?nica.",
+                      "marca":  "HeavyRide",
+                      "modelo":  "MR-4"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "mola",
+                                 "heavyride"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "mola",
-      "heavyride"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-35",
-    "type": "title",
-    "input": {
-      "nome_base": "Lente Lanterna Traseira",
-      "descricao_original": "Lente vermelha com encaixe original e boa visibilidade.",
-      "marca": "Lumix",
-      "modelo": "LT-11"
+    {
+        "id":  "case-35",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Lente Lanterna Traseira",
+                      "descricao_original":  "Lente vermelha com encaixe original e boa visibilidade.",
+                      "marca":  "Lumix",
+                      "modelo":  "LT-11"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "lente",
+                                 "lumix"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "lente",
-      "lumix"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-36",
-    "type": "description",
-    "input": {
-      "nome_base": "Suporte de Parachoque",
-      "descricao_original": "Suporte estrutural para fixacao frontal com geometria precisa.",
-      "marca": "FrontFix",
-      "modelo": "SP-01"
+    {
+        "id":  "case-36",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Suporte de Parachoque",
+                      "descricao_original":  "Suporte estrutural para fixacao frontal com geometria precisa.",
+                      "marca":  "FrontFix",
+                      "modelo":  "SP-01"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "suporte",
+                                 "frontfix"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "suporte",
-      "frontfix"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-37",
-    "type": "title",
-    "input": {
-      "nome_base": "Tampa Lateral Motor",
-      "descricao_original": "Protecao lateral para conjunto de motor diesel.",
-      "marca": "DieselPro",
-      "modelo": "TM-77"
+    {
+        "id":  "case-37",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tampa Lateral Motor",
+                      "descricao_original":  "Protecao lateral para conjunto de motor diesel.",
+                      "marca":  "DieselPro",
+                      "modelo":  "TM-77"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tampa",
+                                 "dieselpro"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "tampa",
-      "dieselpro"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-38",
-    "type": "description",
-    "input": {
-      "nome_base": "Painel Acabamento Interno",
-      "descricao_original": "Painel interno para cabines com instalacao simplificada.",
-      "marca": "Cabline",
-      "modelo": "PA-10"
+    {
+        "id":  "case-38",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Painel Acabamento Interno",
+                      "descricao_original":  "Painel interno para cabines com instalacao simplificada.",
+                      "marca":  "Cabline",
+                      "modelo":  "PA-10"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "painel",
+                                 "cabline"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "painel",
-      "cabline"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-39",
-    "type": "title",
-    "input": {
-      "nome_base": "Filtro de Ar Primario",
-      "descricao_original": "Elemento filtrante para retencao de particulas em operacao severa.",
-      "marca": "AirFlow",
-      "modelo": "FA-30"
+    {
+        "id":  "case-39",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Filtro de Ar Primario",
+                      "descricao_original":  "Elemento filtrante para retencao de particulas em operacao severa.",
+                      "marca":  "AirFlow",
+                      "modelo":  "FA-30"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "filtro",
+                                 "airflow"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "filtro",
-      "airflow"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-40",
-    "type": "description",
-    "input": {
-      "nome_base": "Defletor de Ar Superior",
-      "descricao_original": "Defletor aerodinamico para cabines de estrada.",
-      "marca": "RoadShape",
-      "modelo": "DA-2"
+    {
+        "id":  "case-40",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Defletor de Ar Superior",
+                      "descricao_original":  "Defletor aerodinamico para cabines de estrada.",
+                      "marca":  "RoadShape",
+                      "modelo":  "DA-2"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "defletor",
+                                 "roadshape"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "defletor",
-      "roadshape"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-41",
-    "type": "title",
-    "input": {
-      "nome_base": "Paralama Dianteiro",
-      "descricao_original": "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
-      "marca": "Acme",
-      "modelo": "Truck X"
+    {
+        "id":  "case-41",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Paralama Dianteiro",
+                      "descricao_original":  "Aplicacao pesada para cabine de caminhao com fixacao reforcada.",
+                      "marca":  "Acme",
+                      "modelo":  "Truck X"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "paralama",
+                                 "acme"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "paralama",
-      "acme"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-42",
-    "type": "description",
-    "input": {
-      "nome_base": "Reservatorio de Ar 20 Litros",
-      "descricao_original": "Peca de sistema pneum?tico para linha pesada.",
-      "marca": "Rochepecas",
-      "modelo": "RA20"
+    {
+        "id":  "case-42",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Reservatorio de Ar 20 Litros",
+                      "descricao_original":  "Peca de sistema pneum?tico para linha pesada.",
+                      "marca":  "Rochepecas",
+                      "modelo":  "RA20"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "reservatorio",
+                                 "rochepecas"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "reservatorio",
-      "rochepecas"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-43",
-    "type": "title",
-    "input": {
-      "nome_base": "Coluna Externa Cabine",
-      "descricao_original": "Revestimento lateral para acabamento externo de cabines.",
-      "marca": "CabParts",
-      "modelo": "CX-90"
+    {
+        "id":  "case-43",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Coluna Externa Cabine",
+                      "descricao_original":  "Revestimento lateral para acabamento externo de cabines.",
+                      "marca":  "CabParts",
+                      "modelo":  "CX-90"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "coluna",
+                                 "cabparts"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "coluna",
-      "cabparts"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-44",
-    "type": "description",
-    "input": {
-      "nome_base": "Mola Mestre Suspensao",
-      "descricao_original": "Componente de suspensao com alta resistencia mec?nica.",
-      "marca": "HeavyRide",
-      "modelo": "MR-4"
+    {
+        "id":  "case-44",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Mola Mestre Suspensao",
+                      "descricao_original":  "Componente de suspensao com alta resistencia mec?nica.",
+                      "marca":  "HeavyRide",
+                      "modelo":  "MR-4"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "mola",
+                                 "heavyride"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "mola",
-      "heavyride"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-45",
-    "type": "title",
-    "input": {
-      "nome_base": "Lente Lanterna Traseira",
-      "descricao_original": "Lente vermelha com encaixe original e boa visibilidade.",
-      "marca": "Lumix",
-      "modelo": "LT-11"
+    {
+        "id":  "case-45",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Lente Lanterna Traseira",
+                      "descricao_original":  "Lente vermelha com encaixe original e boa visibilidade.",
+                      "marca":  "Lumix",
+                      "modelo":  "LT-11"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "lente",
+                                 "lumix"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "lente",
-      "lumix"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-46",
-    "type": "description",
-    "input": {
-      "nome_base": "Suporte de Parachoque",
-      "descricao_original": "Suporte estrutural para fixacao frontal com geometria precisa.",
-      "marca": "FrontFix",
-      "modelo": "SP-01"
+    {
+        "id":  "case-46",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Suporte de Parachoque",
+                      "descricao_original":  "Suporte estrutural para fixacao frontal com geometria precisa.",
+                      "marca":  "FrontFix",
+                      "modelo":  "SP-01"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "suporte",
+                                 "frontfix"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "suporte",
-      "frontfix"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-47",
-    "type": "title",
-    "input": {
-      "nome_base": "Tampa Lateral Motor",
-      "descricao_original": "Protecao lateral para conjunto de motor diesel.",
-      "marca": "DieselPro",
-      "modelo": "TM-77"
+    {
+        "id":  "case-47",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tampa Lateral Motor",
+                      "descricao_original":  "Protecao lateral para conjunto de motor diesel.",
+                      "marca":  "DieselPro",
+                      "modelo":  "TM-77"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tampa",
+                                 "dieselpro"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "tampa",
-      "dieselpro"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-48",
-    "type": "description",
-    "input": {
-      "nome_base": "Painel Acabamento Interno",
-      "descricao_original": "Painel interno para cabines com instalacao simplificada.",
-      "marca": "Cabline",
-      "modelo": "PA-10"
+    {
+        "id":  "case-48",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Painel Acabamento Interno",
+                      "descricao_original":  "Painel interno para cabines com instalacao simplificada.",
+                      "marca":  "Cabline",
+                      "modelo":  "PA-10"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "painel",
+                                 "cabline"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "painel",
-      "cabline"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  },
-  {
-    "id": "case-49",
-    "type": "title",
-    "input": {
-      "nome_base": "Filtro de Ar Primario",
-      "descricao_original": "Elemento filtrante para retencao de particulas em operacao severa.",
-      "marca": "AirFlow",
-      "modelo": "FA-30"
+    {
+        "id":  "case-49",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Filtro de Ar Primario",
+                      "descricao_original":  "Elemento filtrante para retencao de particulas em operacao severa.",
+                      "marca":  "AirFlow",
+                      "modelo":  "FA-30"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "filtro",
+                                 "airflow"
+                             ],
+        "max_words":  18,
+        "min_words":  3
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "filtro",
-      "airflow"
-    ],
-    "max_words": 18,
-    "min_words": 3
-  },
-  {
-    "id": "case-50",
-    "type": "description",
-    "input": {
-      "nome_base": "Defletor de Ar Superior",
-      "descricao_original": "Defletor aerodinamico para cabines de estrada.",
-      "marca": "RoadShape",
-      "modelo": "DA-2"
+    {
+        "id":  "case-50",
+        "type":  "description",
+        "input":  {
+                      "nome_base":  "Defletor de Ar Superior",
+                      "descricao_original":  "Defletor aerodinamico para cabines de estrada.",
+                      "marca":  "RoadShape",
+                      "modelo":  "DA-2"
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "defletor",
+                                 "roadshape"
+                             ],
+        "max_words":  110,
+        "min_words":  20
     },
-    "forbidden_patterns": [
-      "fundada em",
-      "desde 20",
-      "anos de mercado",
-      "whatsapp",
-      "www.",
-      "@"
-    ],
-    "must_include_any": [
-      "defletor",
-      "roadshape"
-    ],
-    "max_words": 110,
-    "min_words": 20
-  }
+    {
+        "id":  "case-51",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Always a Princess Crown Frame",
+                      "descricao_original":  "Elegant frame with crown theme for display of printed photos.",
+                      "marca":  "DEMDACO",
+                      "modelo":  ""
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "princess",
+                                 "crown",
+                                 "frame"
+                             ],
+        "must_preserve_tokens":  [
+                                     "always",
+                                     "princess",
+                                     "crown",
+                                     "frame"
+                                 ],
+        "must_preserve_tokens_min_count":  3,
+        "max_words":  18,
+        "min_words":  3
+    },
+    {
+        "id":  "case-52",
+        "type":  "title",
+        "input":  {
+                      "nome_base":  "Tier Displayer",
+                      "descricao_original":  "Multi-level display stand for merchandising and catalog presentation.",
+                      "marca":  "DEMDACO",
+                      "modelo":  ""
+                  },
+        "forbidden_patterns":  [
+                                   "fundada em",
+                                   "desde 20",
+                                   "anos de mercado",
+                                   "whatsapp",
+                                   "www.",
+                                   "@"
+                               ],
+        "must_include_any":  [
+                                 "tier",
+                                 "display"
+                             ],
+        "must_preserve_tokens":  [
+                                     "tier",
+                                     "displayer"
+                                 ],
+        "must_preserve_tokens_min_count":  1,
+        "max_words":  18,
+        "min_words":  2
+    }
 ]
