@@ -603,7 +603,7 @@ class _FileProcessingImplementation:
                         else:
                             idx_col = 0
                         key = headers[idx_col]
-                        row[key] = f'{row[key]} {seg['text']}'.strip() if row[key] else seg['text']
+                        row[key] = f"{row[key]} {seg['text']}".strip() if row[key] else seg['text']
                     ocr_rows.append(row)
                 filtered_rows = helper.filter_ocr_rows(ocr_rows)
                 if not filtered_rows:
