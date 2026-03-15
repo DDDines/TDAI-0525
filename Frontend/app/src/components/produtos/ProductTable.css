@@ -124,9 +124,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.1rem;
-  width: 2rem;
-  height: 2rem;
+  width: 2.15rem;
+  height: 2.15rem;
   padding: 0;
   border: 1px solid rgba(203, 213, 225, 0.9);
   border-radius: 999px;
@@ -154,14 +153,9 @@
   box-shadow: none;
 }
 
-.selection-menu-trigger svg:first-child {
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-.selection-menu-trigger svg:last-child {
-  width: 0.7rem;
-  height: 0.7rem;
+.selection-menu-trigger svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .selection-menu-dropdown {

@@ -8,14 +8,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  LuCheckCheck,
-  LuChevronDown,
   LuCircleCheck,
   LuCircleMinus,
   LuCircleX,
   LuClock3,
   LuFileText,
   LuGlobe,
+  LuListChecks,
   LuLoaderCircle,
   LuPencil,
   LuTriangleAlert,
@@ -302,8 +301,7 @@ function ProductTable({
                   disabled={safeProdutos.length === 0 || tableLoading}
                   onClick={() => setIsSelectionMenuOpen((current) => !current)}
                 >
-                  <LuCheckCheck aria-hidden="true" />
-                  <LuChevronDown aria-hidden="true" />
+                  <LuListChecks aria-hidden="true" />
                 </button>
 
                 {isSelectionMenuOpen ? (
