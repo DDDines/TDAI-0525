@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from Backend.application.services.web_data_extractor.contracts import (
     WebDataExtractorPort,
@@ -34,9 +34,13 @@ class WebDataExtractorSearchService:
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Execute buscar urls google as part of this module workflow."""
         return await self._port.buscar_urls_google(
             query=query,
             num_results=num_results,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
         )

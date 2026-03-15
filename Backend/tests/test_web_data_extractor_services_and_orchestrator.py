@@ -38,9 +38,17 @@ class _PortStub:
         self.calls.append(("buscar_urls_publicas", query, num_results))
         return [f"public:{query}:{num_results}"]
 
-    async def buscar_urls_google(self, *, query: str, num_results: int):
-        self.calls.append(("buscar_urls_google", query, num_results))
-        return [f"google:{query}:{num_results}"]
+    async def buscar_urls_google(
+        self,
+        *,
+        query: str,
+        num_results: int,
+        api_key=None,
+        search_engine_id=None,
+    ):
+        self.calls.append(("buscar_urls_google", query, num_results, api_key, search_engine_id))
+        suffix = f":{api_key}:{search_engine_id}" if api_key or search_engine_id else ""
+        return [f"google:{query}:{num_results}{suffix}"]
 
     async def coletar_conteudo_pagina_playwright(self, *, url: str):
         self.calls.append(("coletar_conteudo_pagina_playwright", url))
@@ -66,6 +74,8 @@ class _PortStub:
         campos_desejados,
         produto_nome_base,
         user,
+        page_image_data_url=None,
+        page_image_data_urls=None,
     ):
         self.calls.append(
             (
@@ -75,6 +85,8 @@ class _PortStub:
                 tuple(campos_desejados or []),
                 produto_nome_base,
                 user,
+                page_image_data_url,
+                tuple(page_image_data_urls or []),
             )
         )
         return {"nome": produto_nome_base}
@@ -100,7 +112,12 @@ async def test_web_data_extractor_wrapper_services_delegate_to_port():
 
     assert search.busca_publica_disponivel() is True
     assert await search.buscar_urls_publicas(query="produto", num_results=4) == ["public:produto:4"]
-    assert await search.buscar_urls_google(query="produto", num_results=2) == ["google:produto:2"]
+    assert await search.buscar_urls_google(
+        query="produto",
+        num_results=2,
+        api_key="google-key",
+        search_engine_id="cse-id",
+    ) == ["google:produto:2:google-key:cse-id"]
     assert await content.coletar_conteudo_pagina_playwright(url="https://example.com") == "<html>https://example.com</html>"
     assert content.extrair_texto_principal_com_trafilatura(html_content="<html/>") == "texto principal"
     assert metadata.extrair_metadados_estruturados(html_content="<html/>", url="https://example.com") == {
@@ -114,6 +131,8 @@ async def test_web_data_extractor_wrapper_services_delegate_to_port():
         campos_desejados=["marca"],
         produto_nome_base="Produto",
         user="user-1",
+        page_image_data_url="data:image/png;base64,AAA",
+        page_image_data_urls=["data:image/png;base64,BBB", "data:image/png;base64,CCC"],
     ) == {"nome": "Produto"}
     produto = SimpleNamespace(id=5)
     assert await llm.extract_relevant_data_from_url(session="db", url="https://example.com", produto=produto) is produto
@@ -127,7 +146,12 @@ async def test_web_data_extractor_orchestrator_exposes_all_service_paths():
 
     assert service.busca_publica_disponivel() is True
     assert await service.buscar_urls_publicas("produto", 3) == ["public:produto:3"]
-    assert await service.buscar_urls_google("produto", 1) == ["google:produto:1"]
+    assert await service.buscar_urls_google(
+        "produto",
+        1,
+        api_key="google-key",
+        search_engine_id="cse-id",
+    ) == ["google:produto:1:google-key:cse-id"]
     assert await service.coletar_conteudo_pagina_playwright("https://example.com") == "<html>https://example.com</html>"
     assert service.extrair_texto_principal_com_trafilatura("<html/>") == "texto principal"
     assert service.extrair_metadados_estruturados("<html/>", "https://example.com") == {
@@ -142,6 +166,8 @@ async def test_web_data_extractor_orchestrator_exposes_all_service_paths():
         ["nome"],
         "Produto Base",
         "user-1",
+        "data:image/png;base64,AAA",
+        ["data:image/png;base64,BBB", "data:image/png;base64,CCC"],
     ) == {"nome": "Produto Base"}
     assert await service.extract_relevant_data_from_url(session="db", url="https://example.com", produto=produto) is produto
     assert service.extract_text_from_image_region(b"img") == "ocr-text"

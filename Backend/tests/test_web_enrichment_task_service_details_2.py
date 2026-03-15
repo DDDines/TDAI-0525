@@ -166,17 +166,23 @@ async def test_busca_e_llm_cover_no_results_and_error_payload_paths():
     async def _buscar_urls_google(**kwargs):
         return []
 
+    async def _buscar_urls_publicas(**kwargs):
+        return []
+
     async def _extrair_dados_produto_com_llm(**kwargs):
         return {"erro_llm": "timeout"}
 
     workflow.web_extractor = SimpleNamespace(
         buscar_urls_google=_buscar_urls_google,
+        buscar_urls_publicas=_buscar_urls_publicas,
         extrair_dados_produto_com_llm=_extrair_dados_produto_com_llm,
     )
 
     urls = await workflow._buscar_urls(
         query_candidates=["a", "b"],
         busca_web_disponivel=True,
+        google_api_key=None,
+        google_search_engine_id=None,
         log_mensagens=logs,
     )
     assert urls == []
@@ -184,6 +190,7 @@ async def test_busca_e_llm_cover_no_results_and_error_payload_paths():
 
     collected, status = await workflow._executar_llm(
         openai_api_configurada=True,
+        usar_ia=True,
         db_produto_obj=SimpleNamespace(nome_base="Produto", dados_brutos_web={}),
         user=SimpleNamespace(id=1),
         dados_extraidos_agregados={"nome": "Produto"},
@@ -202,6 +209,7 @@ async def test_executar_llm_skips_when_no_text_and_no_metadata():
 
     collected, status = await workflow._executar_llm(
         openai_api_configurada=True,
+        usar_ia=None,
         db_produto_obj=SimpleNamespace(nome_base="Produto", dados_brutos_web=None),
         user=SimpleNamespace(id=1),
         dados_extraidos_agregados={},

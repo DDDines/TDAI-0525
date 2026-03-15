@@ -103,7 +103,7 @@ def test_validate_generated_product_snapshot_flags_title_cta_and_generic_suffix(
         "titulos": [
             "Tier Displayer",
             "Exiba seus Tiers com o Tier Displayer",
-            "Princess Frame Decor",
+            "Princess Frame Original",
         ],
         "descricao": (
             "Produto apresentado com descricao factual, neutra e suficientemente longa para passar "
@@ -135,6 +135,119 @@ def test_validate_generated_product_snapshot_flags_description_cta():
     issues = MODULE.validate_generated_product_snapshot(snapshot)
 
     assert "descricao com CTA/promocional" in issues
+
+
+def test_validate_generated_product_snapshot_flags_low_value_placeholder_summary():
+    snapshot = {
+        "status_titulo_ia": "CONCLUIDO",
+        "status_descricao_ia": "CONCLUIDO",
+        "titulos": [
+            "Tier Displayer",
+            "Tier Displayer Expositor",
+            "Expositor Tier Displayer",
+        ],
+        "descricao": (
+            "Tier Displayer\nResumo tecnico:\n"
+            "Tier Displayer e um componente para exibicao em camadas.\n"
+            "Sua funcao especifica depende do contexto de uso nao automotivo.\n"
+            "Aplicacao:\nNao informado.\n"
+            "Referencia:\nNao informado.\n"
+            "Material:\nNao informado.\n"
+            "Conteudo da embalagem:\nNao informado.\n"
+            "Especificacoes tecnicas:\n- Sem especificacoes tecnicas adicionais.\n"
+            "Destaques tecnicos:\n- Exibicao em camadas."
+        ),
+    }
+
+    issues = MODULE.validate_generated_product_snapshot(snapshot)
+
+    assert "descricao com resumo generico/placeholder" in issues
+
+
+def test_validate_generated_product_snapshot_flags_non_automotive_item_with_vehicle_copy():
+    snapshot = {
+        "nome_base": "Princess Frame",
+        "status_titulo_ia": "CONCLUIDO",
+        "status_descricao_ia": "CONCLUIDO",
+        "titulos": [
+            "Princess Frame",
+            "Princess Frame Decoracao Infantil",
+            "Frame Princess",
+        ],
+        "descricao": (
+            "Princess Frame\nResumo tecnico:\n"
+            "Estrutura decorativa para fotos infantis.\n"
+            "Aplicacao:\nNao informado.\n"
+            "Referencia:\nNao informado.\n"
+            "Material:\nNao informado.\n"
+            "Conteudo da embalagem:\nNao informado.\n"
+            "Especificacoes tecnicas:\n- Sem especificacoes tecnicas adicionais.\n"
+            "Destaques tecnicos:\n- Estrutura de suporte para painel e acessorios do veiculo."
+        ),
+    }
+
+    issues = MODULE.validate_generated_product_snapshot(snapshot)
+
+    assert "descricao com contexto automotivo indevido" in issues
+
+
+def test_trigger_generation_waits_each_stage_sequentially(tmp_path):
+    args = argparse.Namespace(
+        base_url="http://127.0.0.1:8000",
+        api_prefix="/api/v1",
+        admin_email="admin@example.com",
+        admin_password="password",
+        catalog_url="https://example.com/catalog.pdf",
+        catalog_path=str(tmp_path / "catalog.pdf"),
+        supplier_name="Smoke",
+        supplier_site_url="https://example.com",
+        flow="fornecedores",
+        product_type_id=None,
+        start_page=1,
+        sample_products=1,
+        import_timeout_seconds=30,
+        generation_timeout_seconds=30,
+        report_path=str(tmp_path / "report.json"),
+        keep_import=True,
+        expect_no_products=False,
+    )
+    validator = MODULE.RealCatalogPipelineValidator(args)
+    validator._token = "token"
+
+    captured_posts = []
+    waited_fields = []
+
+    class DummyResponse:
+        def raise_for_status(self):
+            return None
+
+    class DummyClient:
+        def post(self, url, headers=None, json=None):
+            captured_posts.append((url, headers, json))
+            return DummyResponse()
+
+        def close(self):
+            return None
+
+    validator._client = DummyClient()
+    validator.wait_for_generation_status = (
+        lambda *, product_id, status_field: waited_fields.append((product_id, status_field)) or {"id": product_id}
+    )
+
+    try:
+        validator.trigger_generation(55)
+    finally:
+        validator.close()
+
+    assert [item[0] for item in captured_posts] == [
+        "http://127.0.0.1:8000/api/v1/geracao/titulos/openai/55",
+        "http://127.0.0.1:8000/api/v1/geracao/descricao/openai/55",
+    ]
+    assert all(item[1] == {"Authorization": "Bearer token"} for item in captured_posts)
+    assert waited_fields == [
+        (55, "status_titulo_ia"),
+        (55, "status_descricao_ia"),
+    ]
 
 
 def test_run_accepts_fornecedor_preview_with_import_file_id_only(tmp_path):

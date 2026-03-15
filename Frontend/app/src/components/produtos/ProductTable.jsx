@@ -4,47 +4,210 @@
  * Defines responsibilities and integration points for components produtos.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { LuFileText, LuPencil } from 'react-icons/lu';
-import LoadingPopup from '../common/LoadingPopup.jsx';
+import {
+  LuCheckCheck,
+  LuChevronDown,
+  LuCircleCheck,
+  LuCircleMinus,
+  LuCircleX,
+  LuClock3,
+  LuFileText,
+  LuGlobe,
+  LuLoaderCircle,
+  LuPencil,
+  LuTriangleAlert,
+  LuType,
+} from 'react-icons/lu';
 import logger from '../../utils/logger';
 import './ProductTable.css';
 
 const STATUS_CONFIG = {
-  NAO_INICIADO: { class: 'grey', text: '-', title: 'Nao iniciado' },
-  PENDENTE: { class: 'orange', text: 'P', title: 'Pendente' },
-  EM_PROGRESSO: { class: 'blue', text: '...', title: 'Em progresso' },
-  CONCLUIDO: { class: 'green', text: 'OK', title: 'Concluido' },
-  CONCLUIDO_SUCESSO: { class: 'green', text: 'OK', title: 'Concluido' },
-  CONCLUIDO_COM_DADOS_PARCIAIS: { class: 'blue', text: 'PAR', title: 'Concluido com dados parciais' },
-  FALHA: { class: 'red', text: 'X', title: 'Falha' },
-  FALHOU: { class: 'red', text: 'X', title: 'Falhou' },
-  FALHA_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de API externa' },
-  FALHA_CONFIGURACAO_API_EXTERNA: { class: 'red', text: 'X', title: 'Falha de configuracao da API' },
-  NENHUMA_FONTE_ENCONTRADA: { class: 'grey', text: '-', title: 'Nenhuma fonte encontrada' },
-  NAO_APLICAVEL: { class: 'grey', text: '-', title: 'Nao aplicavel' },
+  NAO_INICIADO: { class: 'grey', label: 'Nao iniciado', title: 'Nao iniciado', icon: LuCircleMinus },
+  PENDENTE: { class: 'orange', label: 'Pendente', title: 'Pendente', icon: LuClock3 },
+  EM_PROGRESSO: { class: 'blue', label: 'Em progresso', title: 'Em progresso', icon: LuLoaderCircle },
+  CONCLUIDO: { class: 'green', label: 'Concluido', title: 'Concluido', icon: LuCircleCheck },
+  CONCLUIDO_SUCESSO: { class: 'green', label: 'Concluido', title: 'Concluido', icon: LuCircleCheck },
+  CONCLUIDO_COM_DADOS_PARCIAIS: {
+    class: 'blue',
+    label: 'Parcial',
+    title: 'Concluido com dados parciais',
+    icon: LuTriangleAlert,
+  },
+  FALHA: { class: 'red', label: 'Falha', title: 'Falha', icon: LuCircleX },
+  FALHOU: { class: 'red', label: 'Falha', title: 'Falhou', icon: LuCircleX },
+  FALHA_API_EXTERNA: { class: 'red', label: 'Falha API', title: 'Falha de API externa', icon: LuCircleX },
+  FALHA_CONFIGURACAO_API_EXTERNA: {
+    class: 'red',
+    label: 'Config.',
+    title: 'Falha de configuracao da API',
+    icon: LuTriangleAlert,
+  },
+  NENHUMA_FONTE_ENCONTRADA: {
+    class: 'grey',
+    label: 'Sem fonte',
+    title: 'Nenhuma fonte encontrada',
+    icon: LuCircleMinus,
+  },
+  NAO_APLICAVEL: { class: 'grey', label: 'Nao aplic.', title: 'Nao aplicavel', icon: LuCircleMinus },
 };
 
 const PROCESS_STATUS_CONFIG = [
-  { key: 'status_enriquecimento_web', label: 'Web' },
-  { key: 'status_titulo_ia', label: 'Tit' },
-  { key: 'status_descricao_ia', label: 'Desc' },
+  { key: 'status_enriquecimento_web', title: 'Enriquecimento web', icon: LuGlobe },
+  { key: 'status_titulo_ia', title: 'Titulos', icon: LuType },
+  { key: 'status_descricao_ia', title: 'Descricao', icon: LuFileText },
 ];
 
-function StatusIcon({ status }) {
+function normalizeStatusValue(status) {
   const rawStatus =
     typeof status === 'object' && status !== null && 'value' in status ? status.value : status;
-  const normalizedStatus = String(rawStatus ?? '')
+  return String(rawStatus ?? '')
     .split('.')
     .pop()
     .toUpperCase();
-  const cfg = STATUS_CONFIG[normalizedStatus] || { class: 'grey', text: '?', title: 'Desconhecido' };
-  const { class: colorClass, text, title } = cfg;
+}
+
+function getStatusConfig(status) {
+  const normalizedStatus = normalizeStatusValue(status);
+  const cfg = STATUS_CONFIG[normalizedStatus] || {
+    class: 'grey',
+    label: 'Desconhecido',
+    title: 'Desconhecido',
+    icon: LuTriangleAlert,
+  };
+  return { normalizedStatus, cfg };
+}
+
+function extractWebFailureReason(produto) {
+  const historico = Array.isArray(produto?.log_enriquecimento_web?.historico_mensagens)
+    ? produto.log_enriquecimento_web.historico_mensagens
+    : [];
+  const relevantes = historico.filter((item) =>
+    /falha|erro|alerta|nenhuma fonte|configuracao|api/i.test(String(item || ''))
+  );
+  return String(relevantes.at(-1) || historico.at(-1) || '').trim();
+}
+
+function extractGenerationFailureReason(produto, generationTitle) {
+  const logEntries = Array.isArray(produto?.log_processamento) ? produto.log_processamento : [];
+  const prefix = `IA ${generationTitle}`;
+  const matchingEntry = [...logEntries].reverse().find((entry) => {
+    const action = String(entry?.action || '');
+    return action.includes(prefix) && /falha|erro/i.test(action);
+  });
+  return String(matchingEntry?.action || '').trim();
+}
+
+function resolveStatusReason(produto, processKey) {
+  if (processKey === 'status_enriquecimento_web') {
+    return extractWebFailureReason(produto);
+  }
+  if (processKey === 'status_titulo_ia') {
+    return extractGenerationFailureReason(produto, 'Titulo');
+  }
+  if (processKey === 'status_descricao_ia') {
+    return extractGenerationFailureReason(produto, 'Descricao');
+  }
+  return '';
+}
+
+function cleanTooltipNoise(text) {
+  return String(text || '')
+    .replace(/traceback[\s\S]*$/i, '')
+    .replace(/file\s+["'][^"']+["'].*$/gim, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractUserFacingReason(rawReason) {
+  const normalized = cleanTooltipNoise(rawReason)
+    .replace(/^enriquecimento web:\s*/i, '')
+    .replace(/^ia\s+(titulo|descricao):\s*/i, '')
+    .replace(/^falhou?\.\s*/i, '')
+    .replace(/^falha\s*(?:\(\d{3}\))?\s*[:.-]?\s*/i, '')
+    .replace(/^erro critico inesperado no processo:\s*/i, '')
+    .replace(/^erro critico inesperado\s*[:.-]?\s*/i, '')
+    .replace(/^erro\s*[:.-]?\s*/i, '')
+    .trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  const lowered = normalized.toLowerCase();
+
+  if (/unexpected keyword argument ['"]api_key['"]/.test(normalized)) {
+    return 'Falha interna na integracao de busca Google.';
+  }
+  if (/401|unauthorized|nao autorizado|não autorizado/.test(lowered)) {
+    return 'Credencial invalida ou sem autorizacao.';
+  }
+  if (/403|forbidden|acesso negado/.test(lowered)) {
+    return 'Acesso negado pela API configurada.';
+  }
+  if (/404|not found|nao encontrado|não encontrado/.test(lowered)) {
+    return 'Fonte ou recurso nao encontrado.';
+  }
+  if (/409/.test(lowered)) {
+    return 'Conflito ao processar a solicitacao.';
+  }
+  if (/422/.test(lowered)) {
+    const detail = normalized
+      .replace(/^falha\s*\(422\)\s*-\s*/i, '')
+      .replace(/^422\s*[-: ]\s*/i, '')
+      .trim();
+    return detail || 'Entrada invalida para processar o conteudo.';
+  }
+  if (/429|rate limit|limite de requisi/.test(lowered)) {
+    return 'Limite de requisicoes atingido. Tente novamente em instantes.';
+  }
+  if (/500|502|503|504|bad gateway|service unavailable|gateway timeout/.test(lowered)) {
+    return 'Servico externo indisponivel no momento.';
+  }
+  if (/timeout|timed out|tempo limite/.test(lowered)) {
+    return 'Tempo limite excedido ao consultar a fonte.';
+  }
+  if (/nenhuma fonte/.test(lowered)) {
+    return 'Nenhuma fonte relevante foi encontrada.';
+  }
+  if (/configura/.test(lowered) && /api|google|gemini|openai|cse/.test(lowered)) {
+    return 'Configuracao da integracao incompleta ou invalida.';
+  }
+
+  const withoutPrefix = normalized
+    .replace(/^\(?\d{3}\)?\s*[-: ]\s*/i, '')
+    .replace(/^[A-Z_ ]+:\s*/i, '')
+    .trim();
+
+  return withoutPrefix || 'Falha ao processar esta etapa.';
+}
+
+function buildStatusTooltip(processInfo, cfgTitle, reason) {
+  const humanReason = extractUserFacingReason(reason);
+  return humanReason
+    ? `${processInfo.title}: ${cfgTitle}. ${humanReason}`
+    : `${processInfo.title}: ${cfgTitle}`;
+}
+
+function ProcessStatusIcon({ produto, processInfo }) {
+  const { normalizedStatus, cfg } = getStatusConfig(produto?.[processInfo.key]);
+  const reason = resolveStatusReason(produto, processInfo.key);
+  const tooltip = buildStatusTooltip(processInfo, cfg.title, reason);
+  const ProcessIcon = processInfo.icon;
+
   return (
-    <span className={`status-icon ${colorClass}`} title={title}>
-      {text}
+    <span
+      className={`status-process-indicator ${cfg.class}`}
+      title={tooltip}
+      aria-label={tooltip}
+      data-status-key={processInfo.key}
+    >
+      <ProcessIcon
+        className={`status-process-icon ${normalizedStatus === 'EM_PROGRESSO' ? 'is-spinning' : ''}`}
+        aria-hidden="true"
+      />
     </span>
   );
 }
@@ -54,13 +217,8 @@ function StatusSummary({ produto, showAiColumns }) {
   return (
     <div className="status-summary">
       {processes.map((processInfo) => (
-        <span
-          key={`${produto?.id || 'produto'}-${processInfo.key}`}
-          className="status-process-chip"
-          title={processInfo.label}
-        >
-          <span className="status-process-label">{processInfo.label}</span>
-          <StatusIcon status={produto?.[processInfo.key]} />
+        <span key={`${produto?.id || 'produto'}-${processInfo.key}`} className="status-process-chip">
+          <ProcessStatusIcon produto={produto} processInfo={processInfo} />
         </span>
       ))}
     </div>
@@ -76,12 +234,15 @@ function ProductTable({
   onSelectProduto,
   selectedProdutos,
   onSelectAllProdutos,
+  selectionMenuItems = [],
   showAiColumns = true,
   loading,
   isLoading,
 }) {
   const tableLoading = Boolean(loading || isLoading);
   const totalColumns = 8;
+  const [isSelectionMenuOpen, setIsSelectionMenuOpen] = useState(false);
+  const selectionMenuRef = useRef(null);
 
   logger.log('ProductTable: produtos:', produtos);
   logger.log('ProductTable: loading:', tableLoading);
@@ -97,17 +258,86 @@ function ProductTable({
   const safeProdutos = Array.isArray(produtos) ? produtos : [];
   const selectedSet = selectedProdutos instanceof Set ? selectedProdutos : new Set();
   const isAllSelected = safeProdutos.length > 0 && selectedSet.size === safeProdutos.length;
+  const hasSelectionMenu = Array.isArray(selectionMenuItems) && selectionMenuItems.length > 0;
+
+  useEffect(() => {
+    if (!isSelectionMenuOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (selectionMenuRef.current && !selectionMenuRef.current.contains(event.target)) {
+        setIsSelectionMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsSelectionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSelectionMenuOpen]);
 
   const renderTableHeader = () => (
     <thead>
       <tr>
-        <th>
-          <input
-            type="checkbox"
-            checked={isAllSelected}
-            onChange={(e) => onSelectAllProdutos(e.target.checked)}
-            disabled={safeProdutos.length === 0 || tableLoading}
-          />
+        <th className="selection-column-header">
+          <div className="selection-header-controls">
+            {hasSelectionMenu ? (
+              <div className="selection-menu" ref={selectionMenuRef}>
+                <button
+                  type="button"
+                  className={`selection-menu-trigger${selectedSet.size > 0 ? ' is-active' : ''}`}
+                  aria-label="Opcoes de selecao"
+                  aria-haspopup="menu"
+                  aria-expanded={isSelectionMenuOpen}
+                  disabled={safeProdutos.length === 0 || tableLoading}
+                  onClick={() => setIsSelectionMenuOpen((current) => !current)}
+                >
+                  <LuCheckCheck aria-hidden="true" />
+                  <LuChevronDown aria-hidden="true" />
+                </button>
+
+                {isSelectionMenuOpen ? (
+                  <div className="selection-menu-dropdown" role="menu" aria-label="Opcoes de selecao">
+                    {selectionMenuItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        role="menuitem"
+                        className={`selection-menu-item${item.tone === 'danger' ? ' is-danger' : ''}`}
+                        onClick={() => {
+                          setIsSelectionMenuOpen(false);
+                          item.onClick?.();
+                        }}
+                        disabled={Boolean(item.disabled)}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <label className="selection-header-toggle" title="Selecionar pagina atual">
+                <input
+                  type="checkbox"
+                  aria-label="Selecionar pagina atual"
+                  checked={isAllSelected}
+                  onChange={(e) => onSelectAllProdutos(e.target.checked)}
+                  disabled={safeProdutos.length === 0 || tableLoading}
+                />
+              </label>
+            )}
+          </div>
         </th>
         <th onClick={() => onSort('id')}>ID</th>
         <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
@@ -126,7 +356,10 @@ function ProductTable({
         <tbody>
           <tr>
             <td colSpan={totalColumns} className="table-cell-message">
-              <LoadingPopup isOpen={true} message="Carregando produtos..." />
+              <div className="table-inline-loading" role="status" aria-live="polite">
+                <span className="table-inline-spinner" aria-hidden="true" />
+                <span>Carregando produtos...</span>
+              </div>
             </td>
           </tr>
         </tbody>

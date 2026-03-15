@@ -168,7 +168,7 @@ test('extractGeneratedTitles and normalizeDynamicAttrsToTemplateKeys sanitize he
       titulos_sugeridos: ['Titulo A', 'Titulo B'],
       dados_brutos_web: { titulos_sugeridos_gerados: ['titulo a', 'Titulo C', ''] },
     })
-  ).toEqual(['Titulo A', 'Titulo B', 'Titulo C']);
+  ).toEqual(['Titulo A', 'Titulo B']);
 
   expect(
     normalizeDynamicAttrsToTemplateKeys(
@@ -433,6 +433,36 @@ describe('ProductEditModal', () => {
     expect(screen.getByRole('button', { name: /Salvar Produto/i })).toBeInTheDocument();
   });
 
+  test('keeps the content tab active after the full product payload arrives asynchronously', async () => {
+    const fullProductRequest = createDeferred();
+    productService.getProdutoById.mockImplementationOnce(() => fullProductRequest.promise);
+
+    renderModal({
+      product: {
+        id: 10,
+        nome_base: 'Produto parcial',
+        fornecedor_id: 1,
+        product_type_id: 1,
+        dynamic_attributes: {},
+        log_enriquecimento_web: { historico_mensagens: [] },
+        titulos_sugeridos: [],
+      },
+    });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    expect(screen.getByRole('button', { name: /Enriquecer Web/i })).toBeInTheDocument();
+
+    await act(async () => {
+      fullProductRequest.resolve(baseProduct);
+      await fullProductRequest.promise;
+    });
+    await flushAsync();
+
+    expect(screen.getByRole('button', { name: /Enriquecer Web/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Gerar Títulos/i })).toBeInTheDocument();
+  });
+
   test('fetches the supplier by id when it is missing from the initial dependency list', async () => {
     fornecedorService.getFornecedores.mockResolvedValueOnce({ items: [fornecedores[1]] });
     fornecedorService.getFornecedorById.mockResolvedValueOnce({
@@ -452,7 +482,9 @@ describe('ProductEditModal', () => {
 
     await screen.findByDisplayValue('Produto Base');
     expect(fornecedorService.getFornecedorById).toHaveBeenCalledWith(1);
-    expect(screen.getAllByRole('option', { name: /Fornecedor 1/i }).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByRole('option', { name: /Fornecedor 1/i }).length).toBeGreaterThan(0);
+    });
   });
 
   test('logs supplier fallback lookup errors without breaking the modal', async () => {
@@ -732,7 +764,7 @@ describe('ProductEditModal', () => {
     expect(await screen.findByDisplayValue('Descricao limpa gerada')).toBeInTheDocument();
     expect(screen.getByText('Titulo 1')).toBeInTheDocument();
     expect(screen.getByText('Titulo 2')).toBeInTheDocument();
-    expect(showInfoToast.mock.calls.map((call) => call[0]).join(' ')).toMatch(/modo b.sico/i);
+    expect(showInfoToast.mock.calls.map((call) => call[0]).join(' ')).not.toMatch(/modo b.sico/i);
   });
 
   test('uses AI generation endpoints when AI features are enabled', async () => {
@@ -763,6 +795,7 @@ describe('ProductEditModal', () => {
     await screen.findByLabelText(/Nome Base/i);
     await user.click(screen.getByRole('button', { name: /Conte/i }));
 
+    await user.click(screen.getByRole('checkbox', { name: /^Usar IA$/i }));
     await user.click(screen.getByRole('button', { name: /Gerar T/i }));
     await waitFor(() => {
       expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(10);
@@ -777,8 +810,8 @@ describe('ProductEditModal', () => {
 
     expect(await screen.findByText('Titulo IA')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('Descricao IA gerada')).toBeInTheDocument();
-    expect(showInfoToast).toHaveBeenCalledWith('Geração de títulos iniciada. Verifique em breve.');
-    expect(showInfoToast).toHaveBeenCalledWith('Geração de descrição iniciada. Verifique em breve.');
+    expect(showInfoToast).not.toHaveBeenCalledWith('Geração de títulos com IA iniciada. Verifique em breve.');
+    expect(showInfoToast).not.toHaveBeenCalledWith('Geração de descrição com IA iniciada. Verifique em breve.');
   });
 
   test('shows refresh errors after generation when post-processing fetch fails', async () => {
@@ -1249,6 +1282,21 @@ describe('ProductEditModal', () => {
     expect(showSuccessToast).not.toHaveBeenCalledWith(
       'Comando de enriquecimento enviado. Atualizando status do produto em segundo plano.'
     );
+  });
+
+  test('uses explicit IA opt-in for web enrichment in complete mode', async () => {
+    renderModal({ product: { id: 10 }, showAiFeatures: true });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+    await user.click(screen.getByLabelText(/Usar IA no enriquecimento web/i));
+    await user.click(screen.getByRole('button', { name: /Enriquecer Web \+ IA/i }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(10, {
+        usarIA: true,
+      });
+    });
   });
 
   test('recovers from transient polling errors while tracking web enrichment', async () => {

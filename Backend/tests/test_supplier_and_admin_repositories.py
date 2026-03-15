@@ -101,12 +101,14 @@ def test_fornecedor_repository_crud_search_mapping_and_catalog_file_paths():
                     "nome": "Fornecedor Um",
                     "email_contato": "contato@example.com",
                     "site_url": 123,
+                    "logo_url": 321,
                     "link_busca_padrao": 456,
                 }
             ),
             user_id=owner.id,
         )
         assert created.site_url == "123"
+        assert created.logo_url == "321"
         assert created.link_busca_padrao == "456"
         assert repo.get_fornecedor(fornecedor_id=created.id).id == created.id
 
@@ -137,12 +139,14 @@ def test_fornecedor_repository_crud_search_mapping_and_catalog_file_paths():
                 {
                     "nome": "Fornecedor Atualizado",
                     "site_url": 789,
+                    "logo_url": 987,
                     "default_column_mapping": {"sku": "SKU"},
                 }
             ),
         )
         assert updated.nome == "Fornecedor Atualizado"
         assert updated.site_url == "789"
+        assert updated.logo_url == "987"
 
         mapped = repo.set_default_column_mapping(
             db_fornecedor=updated,

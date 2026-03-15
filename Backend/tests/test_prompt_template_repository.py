@@ -87,7 +87,7 @@ def test_prompt_template_repository_render_prompt_uses_partial_safe_defaults(db_
 
     assert rendered.source == "default"
     assert "Reservatorio" in rendered.conteudo
-    assert "Marca:" in rendered.conteudo
+    assert "Marca confirmada:" in rendered.conteudo
 
 
 def test_prompt_template_repository_sync_default_templates_creates_new_versions(db_session):

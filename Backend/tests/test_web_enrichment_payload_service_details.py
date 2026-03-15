@@ -96,6 +96,13 @@ def test_application_and_weak_value_heuristics_cover_remaining_branches():
     assert (
         _payload_service._is_weak_existing_field(
             "descricao_original",
+            "Garanta freios e suspensao com alta performance e seguranca. Sua compra online protegida.",
+        )
+        is True
+    )
+    assert (
+        _payload_service._is_weak_existing_field(
+            "descricao_original",
             "Mercedes Actros 2016-2018 dianteiro",
         )
         is True
@@ -113,6 +120,7 @@ def test_application_and_weak_value_heuristics_cover_remaining_branches():
     assert _payload_service._is_weak_existing_field("marca", None) is True
     assert _payload_service._is_weak_existing_field("marca", "generico") is True
     assert _payload_service._is_weak_existing_field("marca", "sm") is True
+    assert _payload_service._is_weak_existing_field("marca", "Mercadocar") is True
     assert _payload_service._is_weak_existing_field("marca", "Randon") is False
     assert _payload_service._is_weak_existing_field("sku", "ABC123") is False
 
@@ -121,6 +129,14 @@ def test_application_and_weak_value_heuristics_cover_remaining_branches():
     assert _payload_service._is_weak_dynamic_value("descricao", "todos") is True
     assert _payload_service._is_weak_dynamic_value("descricao", "curta") is True
     assert _payload_service._is_weak_dynamic_value("descricao", "Actros 2016-2018") is True
+    assert (
+        _payload_service._is_weak_dynamic_value(
+            "descricao",
+            "Garanta freios e suspensao com alta performance e seguranca.",
+        )
+        is True
+    )
+    assert _payload_service._is_weak_dynamic_value("titulo", "Reservatorio de Ar 20 Litros - ROCHEPECAS") is True
     assert _payload_service._is_weak_dynamic_value("id", "ABC123MARCA") is True
     assert _payload_service._is_weak_dynamic_value("aplicacao", "todos") is True
     assert _payload_service._is_weak_dynamic_value("material", "geral") is True
@@ -319,6 +335,63 @@ def test_build_payload_handles_signal_extraction_specs_and_ignored_notes():
     assert update_fields["dynamic_attributes"]["material"] == "plastico injetado"
     assert update_fields["dynamic_attributes"]["peso"] == "10kg"
     assert any(note.startswith("dynamic_attributes=") for note in notes)
+
+
+def test_build_payload_prefers_short_supplier_description_over_structured_seo_dump():
+    """Keep the visible product description concise when supplier enrichment already has a short factual description."""
+    produto = _make_product(descricao_original="Garanta sua compra online protegida")
+    dados = {
+        "fonte_principal_fornecedor": True,
+        "descricao_curta": "Reservatório de ar de 20 litros para Mercedes Benz LN 608/708.",
+        "descricao_detalhada_seo": (
+            "Reservatório de ar de 20 litros para Mercedes Benz LN 608/708. "
+            "Destaques: URL da fonte: https://fornecedor.example/produto Controle sua privacidade"
+        ),
+    }
+
+    update_fields, notes, _ = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
+
+    assert update_fields["descricao_original"] == "Reservatório de ar de 20 litros para Mercedes Benz LN 608/708."
+    assert "descricao_original:substituido_valor_fraco" in notes
+
+
+def test_build_payload_discards_unrelated_web_payload_for_generic_seed():
+    """Block visible updates when the web payload does not match the product seed."""
+    produto = _make_product(
+        marca="wera",
+        dynamic_attributes={},
+        product_type=SimpleNamespace(
+            attribute_templates=[
+                SimpleNamespace(attribute_key="titulo", label="Titulo"),
+                SimpleNamespace(attribute_key="descricao", label="Descricao"),
+                SimpleNamespace(attribute_key="material", label="Material"),
+            ]
+        ),
+    )
+    setattr(produto, "nome_base", "Wera tool kit")
+    dados = {
+        "nome": "Estribo Strada 2021 2022 Cabine Dupla AlumÃ­nio Preto",
+        "descricao_curta": (
+            "Estribo SUV II para Strada 2021 em diante aluminio preto com kit aplicacao. "
+            "Protege a lateral do veiculo contra pedras e barro."
+        ),
+        "imagem_url": "https://cdn.awsli.com.br/1991/1991068/produto/19021944890526e4ff6.jpg",
+        "marca": "Bepo",
+        "especificacoes_tecnicas_dict": {
+            "Aplicacao": "Strada 2021 em diante cabine simples e dupla",
+            "Material": "Aluminio",
+            "Acabamento": "Preto",
+        },
+    }
+
+    update_fields, notes, ignored = _payload_service.build_payload_enriquecimento_visivel(produto, dados)
+
+    assert update_fields == {}
+    assert notes == []
+    assert ignored == [
+        "validacao_relevancia=marca divergente da referencia do produto; conteudo indica outra categoria/produto"
+    ]
+    assert dados["validacao_relevancia_payload"]["aprovado"] is False
 
 
 def test_build_payload_handles_template_entries_without_attr_key_and_dedupes_ignored_dynamic_notes():

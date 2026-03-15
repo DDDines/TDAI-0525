@@ -11,8 +11,8 @@ from Backend.testing.runtime_apis import web_extractor as web_module
 
 
 class _UrlOpenResponse:
-    def __init__(self, body: str, content_type: str = "text/html"):
-        self._body = body.encode("utf-8")
+    def __init__(self, body: str | bytes, content_type: str = "text/html"):
+        self._body = body if isinstance(body, bytes) else body.encode("utf-8")
         self.headers = {"Content-Type": content_type}
 
     def read(self):
@@ -250,3 +250,113 @@ def test_search_engine_public_sync_proxy_fallback_and_non_html_http(monkeypatch)
 
     monkeypatch.setattr(web_module, "urlopen", lambda req, timeout=20: _UrlOpenResponse("bin", "application/pdf"))
     assert fetch_runtime.coletar_conteudo_pagina_http_sync("https://example.com/file") is None
+
+
+def test_content_fetch_engine_extracts_visual_pdf_context_when_text_is_missing(monkeypatch):
+    search_runtime = web_module.WebSearchEngineRuntime()
+    fetch_runtime = web_module.WebContentFetchEngineRuntime(search_runtime=search_runtime)
+
+    class _FakeRaster:
+        def __init__(self, token):
+            self._token = token
+
+        def save(self, buffer, format):
+            buffer.write(f"png-{self._token}".encode("ascii"))
+
+    class _FakePageImage:
+        def __init__(self, token):
+            self.original = _FakeRaster(token)
+
+    class _FakePdfPage:
+        def __init__(self, token):
+            self._token = token
+
+        def extract_text(self, **kwargs):
+            return ""
+
+        def to_image(self, resolution):
+            return _FakePageImage(self._token)
+
+    class _FakePdfContext:
+        def __enter__(self):
+            return SimpleNamespace(pages=[_FakePdfPage("A"), _FakePdfPage("B")])
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        web_module,
+        "urlopen",
+        lambda req, timeout=20: _UrlOpenResponse(b"%PDF-1.4", "application/pdf"),
+    )
+    monkeypatch.setattr(web_module.pdfplumber, "open", lambda fp: _FakePdfContext())
+
+    html = fetch_runtime.coletar_conteudo_pagina_http_sync("https://example.com/manual.pdf")
+
+    assert 'data-tdai-page-image="1"' in html
+    assert 'data-tdai-page-image="2"' in html
+    assert "Documento PDF sem texto extraivel" in html
+
+
+def test_content_fetch_engine_prioritizes_relevant_pdf_pages_for_visual_context(monkeypatch):
+    search_runtime = web_module.WebSearchEngineRuntime()
+    fetch_runtime = web_module.WebContentFetchEngineRuntime(search_runtime=search_runtime)
+
+    monkeypatch.setenv("PDF_LLM_MAX_PAGE_IMAGES", "2")
+    monkeypatch.setenv("PDF_LLM_PAGE_SCAN_LIMIT", "4")
+
+    class _FakeRaster:
+        def __init__(self, token):
+            self._token = token
+
+        def save(self, buffer, format):
+            buffer.write(f"png-{self._token}".encode("ascii"))
+
+    class _FakePageImage:
+        def __init__(self, token):
+            self.original = _FakeRaster(token)
+
+    class _FakePdfPage:
+        def __init__(self, token, text):
+            self._token = token
+            self._text = text
+
+        def extract_text(self, **kwargs):
+            return self._text
+
+        def to_image(self, resolution):
+            return _FakePageImage(self._token)
+
+    class _FakePdfContext:
+        def __enter__(self):
+            return SimpleNamespace(
+                pages=[
+                    _FakePdfPage("cover", "Catalogo geral sumario institucional pagina 1"),
+                    _FakePdfPage(
+                        "pump",
+                        "Produto Bomba de combustivel Bosch Referencia 0580454087B Aplicacao motores flex",
+                    ),
+                    _FakePdfPage(
+                        "spec",
+                        "Especificacoes tecnicas Codigo SKU 12972WV87B Voltagem 12V Conteudo da embalagem 1 unidade",
+                    ),
+                    _FakePdfPage("about", "Quem somos historia da empresa e politica de qualidade"),
+                ]
+            )
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(
+        web_module,
+        "urlopen",
+        lambda req, timeout=20: _UrlOpenResponse(b"%PDF-1.4", "application/pdf"),
+    )
+    monkeypatch.setattr(web_module.pdfplumber, "open", lambda fp: _FakePdfContext())
+
+    html = fetch_runtime.coletar_conteudo_pagina_http_sync("https://example.com/catalogo.pdf")
+
+    assert 'data-tdai-page-image="2"' in html
+    assert 'data-tdai-page-image="3"' in html
+    assert 'data-tdai-page-image="1"' not in html
+    assert 'data-tdai-page-image="4"' not in html

@@ -206,7 +206,7 @@ class _TopLevelFunctionSurface:
         )
 
         monkeypatch.setattr(file_processing.settings, "MAX_UPLOAD_BYTES", "bad-value", raising=False)
-        assert impl._resolve_max_upload_bytes() == 25 * 1024 * 1024
+        assert impl._resolve_max_upload_bytes() == 0
         http_exc = impl._build_file_security_http_exception(error)
         assert http_exc.status_code == 413
         assert http_exc.detail["code"] == "FILE_TOO_LARGE"

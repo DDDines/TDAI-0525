@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
+from html import unescape
 import re
 import unicodedata
+from urllib.parse import unquote
 
 
 class WebEnrichmentNormalizationService:
@@ -55,6 +57,15 @@ class WebEnrichmentNormalizationService:
         text = str(value or "")
         if not text:
             return ""
+
+        for _ in range(3):
+            decoded = unquote(text)
+            if decoded == text:
+                break
+            text = decoded
+        text = unescape(text)
+        text = re.sub(r"[?&](?:utm_[^=\s]+|fbclid|gclid|msclkid|vqd|ig|cid)=[^\s&]+", "", text)
+        text = re.sub(r"https?://[^\s]+", lambda match: unquote(match.group(0)), text)
 
         for _ in range(6):
             if not self._has_markers(text):
@@ -143,6 +154,9 @@ class WebEnrichmentNormalizationService:
             text = " | ".join(parts)
         else:
             text = str(value).strip()
+        if not text:
+            return None
+        text = self.normalize_human_text(text)
         if not text:
             return None
         return text[:max_len] if len(text) > max_len else text

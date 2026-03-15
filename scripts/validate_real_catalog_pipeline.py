@@ -25,6 +25,8 @@ DEFAULT_SUPPLIER_NAME = "Smoke DEMDACO Catalog"
 DEFAULT_SUPPLIER_SITE = "https://www.demdaco.com"
 TERMINAL_IMPORT_STATUSES = {"IMPORTED", "DONE", "FAILED", "PARTIAL"}
 SUCCESS_GENERATION_STATUS = "CONCLUIDO"
+PENDING_GENERATION_STATUSES = {"PENDENTE", "EM_PROGRESSO"}
+FAILURE_GENERATION_STATUSES = {"FALHA"}
 PHONE_PATTERN = re.compile(r"(?:\+?\d[\d\s()./-]{7,}\d)")
 EMAIL_PATTERN = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b", re.IGNORECASE)
 URL_PATTERN = re.compile(r"\b(?:https?://|www\.)\S+\b", re.IGNORECASE)
@@ -38,9 +40,23 @@ TITLE_CTA_PATTERN = re.compile(
     r"seu|sua|seus|suas|compre|leve|tenha|melhore|renove|encante|celebre)\b",
     re.IGNORECASE,
 )
-TITLE_GENERIC_PATTERN = re.compile(r"\b(?:decor|decoracao|decorativo|decorativa)\b", re.IGNORECASE)
+TITLE_GENERIC_PATTERN = re.compile(r"\b(?:decor|decoracao|decorativo|decorativa|original|display)\b", re.IGNORECASE)
 DESCRIPTION_CTA_PATTERN = re.compile(
     r"\b(?:adquira|compre|garanta|aproveite|invista|descubra|impulsione?|transforme|renove|eleve)\b",
+    re.IGNORECASE,
+)
+DESCRIPTION_LOW_VALUE_PATTERN = re.compile(
+    r"(?:depende\s+do\s+contexto|elementos?\s+decorativos?\s+ou\s+funcionais|"
+    r"aplicacoes?\s+diversas|protecao\s+e\s+acabamento\s+visual|"
+    r"oferecer\s+suporte\s+e\s+revestimento)",
+    re.IGNORECASE,
+)
+AUTOMOTIVE_CONTEXT_PATTERN = re.compile(
+    r"\b(?:veicul[oa]?|veicular|montadora|linha\s+leve|linha\s+pesada|compatibilidade\s+automotiva)\b",
+    re.IGNORECASE,
+)
+AUTOMOTIVE_IDENTITY_PATTERN = re.compile(
+    r"\b(?:automot|veicul|montadora|caminh(?:ao|ão)|carro|moto|paralama|embreagem|farol|freio|motor|scania|volvo|mercedes|iveco|ford\s+cargo|volkswagen|toyota|chevrolet|fiat|renault|hyundai|nissan)\b",
     re.IGNORECASE,
 )
 
@@ -195,9 +211,18 @@ def validate_generated_product_snapshot(snapshot: Dict[str, Any]) -> List[str]:
         issues.append("descricao com url")
     if DESCRIPTION_CTA_PATTERN.search(description):
         issues.append("descricao com CTA/promocional")
+    if DESCRIPTION_LOW_VALUE_PATTERN.search(description):
+        issues.append("descricao com resumo generico/placeholder")
     for pattern in GENERIC_COMMERCE_PATTERNS:
         if pattern.search(description):
             issues.append(f"descricao com boilerplate comercial: {pattern.pattern}")
+    identity_text = " ".join(
+        str(part or "").strip()
+        for part in [snapshot.get("nome_base"), *normalized_titles]
+        if str(part or "").strip()
+    )
+    if not AUTOMOTIVE_IDENTITY_PATTERN.search(identity_text) and AUTOMOTIVE_CONTEXT_PATTERN.search(description):
+        issues.append("descricao com contexto automotivo indevido")
 
     return issues
 
@@ -391,9 +416,36 @@ class RealCatalogPipelineValidator:
         return results
 
     def trigger_generation(self, product_id: int) -> None:
-        for route in (f"/geracao/titulos/openai/{product_id}", f"/geracao/descricao/openai/{product_id}"):
+        ordered_generation_steps = (
+            (f"/geracao/titulos/openai/{product_id}", "status_titulo_ia"),
+            (f"/geracao/descricao/openai/{product_id}", "status_descricao_ia"),
+        )
+        for route, status_field in ordered_generation_steps:
             response = self._client.post(self._api_url(route), headers=self._headers())
             response.raise_for_status()
+            self.wait_for_generation_status(product_id=product_id, status_field=status_field)
+
+    def wait_for_generation_status(self, *, product_id: int, status_field: str) -> Dict[str, Any]:
+        deadline = time.time() + self._args.generation_timeout_seconds
+        while time.time() < deadline:
+            response = self._client.get(self._api_url(f"/produtos/{product_id}"), headers=self._headers())
+            response.raise_for_status()
+            payload = response.json()
+            current_status = str(payload.get(status_field) or "").upper()
+            if current_status == SUCCESS_GENERATION_STATUS:
+                return payload
+            if current_status in FAILURE_GENERATION_STATUSES:
+                raise CatalogValidationFailure(
+                    f"Produto {product_id} falhou em {status_field}."
+                )
+            if current_status and current_status not in PENDING_GENERATION_STATUSES:
+                raise CatalogValidationFailure(
+                    f"Produto {product_id} retornou status inesperado em {status_field}: {current_status}."
+                )
+            time.sleep(2)
+        raise CatalogValidationFailure(
+            f"Produto {product_id} nao concluiu {status_field} em {self._args.generation_timeout_seconds}s."
+        )
 
     def wait_for_generated_product(self, product_id: int) -> Dict[str, Any]:
         deadline = time.time() + self._args.generation_timeout_seconds

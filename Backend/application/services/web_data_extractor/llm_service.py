@@ -25,6 +25,8 @@ class WebDataExtractorLLMService:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
         return await self._port.extrair_dados_produto_com_llm(
@@ -33,6 +35,8 @@ class WebDataExtractorLLMService:
             campos_desejados=campos_desejados,
             produto_nome_base=produto_nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
 
     async def extract_relevant_data_from_url(

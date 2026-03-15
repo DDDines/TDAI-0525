@@ -19,6 +19,8 @@ from Backend.infrastructure.repositories.product_repository import ProductReposi
 from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 from Backend.routers.admin_analytics import router as admin_analytics_router
+from Backend.routers.credentials import router as credentials_router
+from Backend.routers.dashboard import router as dashboard_router
 from Backend.routers.fornecedores import router as fornecedores_router
 from Backend.routers.generation import router as generation_router
 from Backend.routers.historico import router as historico_router
@@ -78,6 +80,7 @@ class MainBootstrapRuntime:
             if settings.AUTO_CREATE_TABLES:
                 self._ensure_tables()
             self._ensure_legacy_user_profile_columns(session=session)
+            self._ensure_runtime_compatibility_objects(session=session)
             user_repo = UserRepository(session)
             product_type_repo = ProductTypeRepository(session)
             fornecedor_repo = FornecedorRepository(session)
@@ -138,6 +141,37 @@ class MainBootstrapRuntime:
             session.rollback()
             logger.warning(
                 "Nao foi possivel garantir colunas de perfil de usuario automaticamente: %s",
+                exc,
+            )
+
+    @staticmethod
+    def _ensure_runtime_compatibility_objects(*, session: Session) -> None:
+        """Create lightweight compatibility objects and columns for local databases."""
+        try:
+            inspector = inspect(engine)
+            table_names = set(inspector.get_table_names())
+
+            if "external_credential_configs" not in table_names:
+                models.ExternalCredentialConfig.__table__.create(bind=engine, checkfirst=True)
+                logger.info("Tabela external_credential_configs criada automaticamente.")
+
+            if "attribute_templates" in table_names:
+                attribute_columns = {
+                    column["name"] for column in inspector.get_columns("attribute_templates")
+                }
+                if "collect_in_ai" not in attribute_columns:
+                    session.execute(
+                        text(
+                            "ALTER TABLE attribute_templates "
+                            "ADD COLUMN collect_in_ai BOOLEAN NOT NULL DEFAULT TRUE"
+                        )
+                    )
+                    session.commit()
+                    logger.info("Coluna collect_in_ai adicionada em attribute_templates.")
+        except Exception as exc:
+            session.rollback()
+            logger.warning(
+                "Nao foi possivel garantir compatibilidade de objetos runtime automaticamente: %s",
                 exc,
             )
 
@@ -346,6 +380,8 @@ class _EndpointHandlers:
         return {'status': 'ok'}
 app.include_router(auth_router_direct, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao e Usuarios'])
 app.include_router(social_auth_router, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao Social'])
+app.include_router(dashboard_router, prefix=settings.API_V1_STR, tags=['Dashboard'])
+app.include_router(credentials_router, prefix=settings.API_V1_STR, tags=['Credenciais Externas'])
 app.include_router(produtos_router, prefix=settings.API_V1_STR, tags=['Produtos'])
 app.include_router(fornecedores_router, prefix=settings.API_V1_STR, tags=['Fornecedores'])
 app.include_router(generation_router, prefix=settings.API_V1_STR, tags=['Geracao de Conteudo IA'])

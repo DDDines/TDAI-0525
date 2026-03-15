@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 import re
 
+from Backend.application.services.web_enrichment_relevance_service import (
+    WebEnrichmentRelevanceService,
+)
+
 
 class WebEnrichmentPayloadService:
     """Constroi payload visivel de enriquecimento mantendo regras de qualidade."""
@@ -74,14 +78,283 @@ class WebEnrichmentPayloadService:
         r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
         re.IGNORECASE,
     )
+    _PROMOTIONAL_TEXT_PATTERN = re.compile(
+        r"\b(?:garanta|aproveite|compre|compra\s+online|clique\s+aqui|criptografia|"
+        r"seguran[cç]a|tranquilidade|satisfa[cç][aã]o|politica\s+de\s+(?:troca|devolu[cç][aã]o)|"
+        r"devolu[cç][aã]o|whatsapp|telefone|atendimento|parcelamento|sem\s+juros)\b",
+        re.IGNORECASE,
+    )
+    _SELLER_BRAND_PATTERN = re.compile(
+        r"\b(?:loja|com[eé]rcio|auto\s*pe[cç]as|atendimento|oficial|mercado|shop|store)\b",
+        re.IGNORECASE,
+    )
+    _SELLER_BRAND_SUBSTRINGS = (
+        "mercad",
+        "pecas",
+        "peças",
+        "autop",
+        "autopec",
+        "roche",
+    )
 
-    def __init__(self, *, normalization_service: Any) -> None:
+    _GENERIC_REFERENCE_TOKENS = {
+        "tool",
+        "tools",
+        "toolkit",
+        "kit",
+        "kits",
+        "set",
+        "jogo",
+        "jogos",
+        "combo",
+        "pack",
+        "item",
+        "itens",
+        "produto",
+        "produtos",
+        "acessorio",
+        "acessorios",
+        "linha",
+        "parts",
+        "part",
+        "geral",
+        "gerais",
+        "modelo",
+    }
+    _AUTOMOTIVE_MISMATCH_HINTS = (
+        "estribo",
+        "strada",
+        "cabine",
+        "dupla",
+        "simples",
+        "veiculo",
+        "veiculos",
+        "dianteiro",
+        "traseiro",
+        "lateral",
+        "automotivo",
+        "automotiva",
+        "carro",
+        "caminhao",
+        "ford",
+        "fiat",
+        "iveco",
+        "mercedes",
+        "scania",
+        "volks",
+        "volvo",
+        "pickup",
+    )
+
+    def __init__(
+        self,
+        *,
+        normalization_service: Any,
+        relevance_service: Any | None = None,
+    ) -> None:
         """Initialize injected dependencies and runtime configuration for Web Enrichment Payload Service."""
         self._normalization = normalization_service
+        self._relevance = relevance_service or WebEnrichmentRelevanceService()
 
     def _contains_part_hint(self, text_folded: str) -> bool:
         """Execute contains part hint as part of this module workflow."""
         return any(hint in text_folded for hint in self._PART_NAME_HINTS)
+
+    def _candidate_tokens(self, value: Any) -> List[str]:
+        """Normalize free text into compact validation tokens."""
+        folded = self._normalization.fold_text(value)
+        if not folded:
+            return []
+        return [token for token in folded.split() if len(token) >= 3]
+
+    def _strong_seed_tokens(self, db_produto_obj: Any) -> List[str]:
+        """Keep only the product-name tokens that truly anchor the seed identity."""
+        nome_base = self._normalization.as_text(
+            getattr(db_produto_obj, "nome_base", None),
+            max_len=255,
+        )
+        marca = self._normalization.as_text(
+            getattr(db_produto_obj, "marca", None),
+            max_len=120,
+        )
+        brand_tokens = set(self._candidate_tokens(marca))
+        strong_tokens: List[str] = []
+        for token in self._candidate_tokens(nome_base):
+            if token in brand_tokens:
+                continue
+            if token in self._GENERIC_REFERENCE_TOKENS:
+                continue
+            strong_tokens.append(token)
+        return list(dict.fromkeys(strong_tokens))
+
+    def _brand_tokens(self, db_produto_obj: Any) -> List[str]:
+        """Extract brand tokens used to validate generic product seeds."""
+        return list(
+            dict.fromkeys(
+                self._candidate_tokens(
+                    self._normalization.as_text(
+                        getattr(db_produto_obj, "marca", None),
+                        max_len=120,
+                    )
+                )
+            )
+        )
+
+    def _candidate_brand_text(self, value: Any) -> str:
+        """Normalize candidate brand names for strict mismatch checks."""
+        return self._normalization.fold_text(
+            self._normalization.as_text(value, max_len=120)
+        )
+
+    @staticmethod
+    def _count_hint_hits(text_folded: str, hints: Tuple[str, ...]) -> int:
+        """Count how many distinct domain hints appear in the candidate text."""
+        if not text_folded:
+            return 0
+        return sum(1 for hint in hints if hint in text_folded)
+
+    def _build_payload_validation_text(
+        self,
+        *,
+        nome_web: Optional[str],
+        descricao_web: Optional[str],
+        marca_web: Optional[str],
+        sku_web: Optional[str],
+        codigo_original_web: Optional[str],
+        material_web: Optional[str],
+        aplicacao_web: Optional[str],
+        specs: Any,
+    ) -> str:
+        """Compose only the promotable payload fragments used to validate relevance."""
+        parts: List[str] = [
+            str(nome_web or ""),
+            str(descricao_web or ""),
+            str(marca_web or ""),
+            str(sku_web or ""),
+            str(codigo_original_web or ""),
+            str(material_web or ""),
+            str(aplicacao_web or ""),
+        ]
+        if isinstance(specs, dict):
+            for key, value in list(specs.items())[:12]:
+                parts.append(f"{key}: {value}")
+        return " ".join(part for part in parts if str(part or "").strip())
+
+    def _validate_payload_relevance(
+        self,
+        *,
+        db_produto_obj: Any,
+        nome_web: Optional[str],
+        descricao_web: Optional[str],
+        marca_web: Optional[str],
+        sku_web: Optional[str],
+        codigo_original_web: Optional[str],
+        material_web: Optional[str],
+        aplicacao_web: Optional[str],
+        specs: Any,
+    ) -> Tuple[bool, List[str]]:
+        """Reject web payloads that clearly do not match the original product seed."""
+        candidate_text = self._build_payload_validation_text(
+            nome_web=nome_web,
+            descricao_web=descricao_web,
+            marca_web=marca_web,
+            sku_web=sku_web,
+            codigo_original_web=codigo_original_web,
+            material_web=material_web,
+            aplicacao_web=aplicacao_web,
+            specs=specs,
+        )
+        if not candidate_text.strip():
+            return True, []
+
+        candidate_tokens = set(self._candidate_tokens(candidate_text))
+        candidate_brand = self._candidate_brand_text(marca_web)
+        candidate_folded = self._normalization.fold_text(candidate_text)
+        candidate_compact = re.sub(r"[^A-Z0-9]", "", candidate_text.upper())
+
+        seed_name_text = self._normalization.as_text(
+            getattr(db_produto_obj, "nome_base", None),
+            max_len=255,
+        )
+        seed_brand_tokens = self._brand_tokens(db_produto_obj)
+        seed_brand_text = self._candidate_brand_text(
+            getattr(db_produto_obj, "marca", None)
+        )
+        strong_seed_tokens = self._strong_seed_tokens(db_produto_obj)
+
+        dados_brutos_web = getattr(db_produto_obj, "dados_brutos_web", None)
+        seed_codes: List[Any] = [
+            getattr(db_produto_obj, "sku", None),
+            getattr(db_produto_obj, "ean", None),
+            getattr(db_produto_obj, "nome_base", None),
+        ]
+        if isinstance(dados_brutos_web, dict):
+            seed_codes.extend(
+                [
+                    dados_brutos_web.get("codigo_original"),
+                    dados_brutos_web.get("sku_original"),
+                ]
+            )
+        ref_code_tokens = self._relevance.extract_code_tokens(seed_codes)
+        code_hit = any(
+            re.sub(r"[^A-Z0-9]", "", token) in candidate_compact for token in ref_code_tokens
+        )
+        brand_hit = bool(
+            seed_brand_text
+            and (
+                candidate_brand == seed_brand_text
+                or any(token in candidate_tokens for token in seed_brand_tokens)
+            )
+        )
+        strong_overlap = len([token for token in strong_seed_tokens if token in candidate_tokens])
+
+        automotive_hits = self._count_hint_hits(
+            candidate_folded,
+            self._AUTOMOTIVE_MISMATCH_HINTS,
+        )
+        seed_folded = self._normalization.fold_text(
+            self._normalization.as_text(getattr(db_produto_obj, "nome_base", None), max_len=255)
+        )
+        seed_automotive = self._count_hint_hits(
+            seed_folded,
+            self._AUTOMOTIVE_MISMATCH_HINTS,
+        ) >= 2
+
+        if not seed_name_text and not strong_seed_tokens and not ref_code_tokens:
+            return True, []
+
+        rejection_reasons: List[str] = []
+        if (
+            seed_name_text
+            and seed_brand_text
+            and candidate_brand
+            and candidate_brand != seed_brand_text
+            and not code_hit
+        ):
+            rejection_reasons.append("marca divergente da referencia do produto")
+
+        if (
+            seed_name_text
+            and not strong_seed_tokens
+            and seed_brand_tokens
+            and not brand_hit
+            and not code_hit
+            and not candidate_brand
+            and automotive_hits >= 3
+        ):
+            rejection_reasons.append("conteudo sem a marca de referencia do produto")
+
+        if strong_seed_tokens:
+            required_overlap = 1 if len(strong_seed_tokens) == 1 else 2
+            if strong_overlap < required_overlap and not brand_hit and not code_hit:
+                rejection_reasons.append(
+                    "conteudo sem correspondencia suficiente com o nome base"
+                )
+
+        if automotive_hits >= 3 and not seed_automotive and not brand_hit and not code_hit:
+            rejection_reasons.append("conteudo indica outra categoria/produto")
+
+        return len(rejection_reasons) == 0, rejection_reasons
 
     def _looks_like_company_timeline_claim(self, value: Any) -> bool:
         """Detect unsupported company-history snippets for product descriptions."""
@@ -112,6 +385,78 @@ class WebEnrichmentPayloadService:
         if filtered_parts:
             return self._normalization.as_text(" ".join(filtered_parts), max_len=max_len)
         return text
+
+    def _looks_like_promotional_or_store_text(self, value: Any) -> bool:
+        """Detect marketplace/promotional text that should not survive as product identity."""
+        text = self._normalization.as_text(value, max_len=2500)
+        if not text:
+            return False
+        folded = self._normalization.fold_text(text)
+        if not folded:
+            return False
+        if self._PROMOTIONAL_TEXT_PATTERN.search(text):
+            return True
+        if self._SELLER_BRAND_PATTERN.search(text):
+            return True
+        if len(folded.split()) <= 6 and any(marker in folded for marker in self._SELLER_BRAND_SUBSTRINGS):
+            return True
+        return False
+
+    def _select_visible_description(self, dados_extraidos_agregados: Dict[str, Any]) -> str:
+        """Prefer concise grounded descriptions over heuristic SEO dumps for visible product fields."""
+        descricao_curta = self._normalization.as_text(
+            dados_extraidos_agregados.get("descricao_curta"),
+            max_len=1000,
+        )
+        descricao_detalhada = self._normalization.as_text(
+            dados_extraidos_agregados.get("descricao_detalhada_seo"),
+            max_len=10000,
+        )
+        texto_relevante = self._normalization.as_text(
+            dados_extraidos_agregados.get("texto_relevante_coletado"),
+            max_len=10000,
+        )
+
+        if descricao_detalhada:
+            lowered = self._normalization.fold_text(descricao_detalhada)
+            if (
+                dados_extraidos_agregados.get("fonte_principal_fornecedor")
+                and (
+                    "url da fonte" in lowered
+                    or "controle sua privacidade" in lowered
+                    or "destaques:" in lowered
+                    or "especificacoes:" in lowered
+                )
+            ):
+                descricao_detalhada = ""
+
+        return self._normalization.first_non_empty(
+            [
+                descricao_curta,
+                descricao_detalhada,
+                texto_relevante,
+            ]
+        )
+
+    def _looks_like_structured_dump(self, value: Any) -> bool:
+        """Detect label-heavy raw dumps that should not be surfaced verbatim to users."""
+        text = self._normalization.as_text(value, max_len=4000)
+        if not text:
+            return False
+        lowered = self._normalization.fold_text(text)
+        if (
+            "url da fonte" in lowered
+            or "controle sua privacidade" in lowered
+            or "esse site utiliza cookies" in lowered
+            or "destaques:" in lowered
+            or "especificacoes:" in lowered
+        ):
+            return True
+        label_hits = re.findall(
+            r"\b(?:codigo|referencia|aplicacao|material|conteudo|caminho do catalogo|url da fonte)\s*[:\-]",
+            lowered,
+        )
+        return len(label_hits) >= 3
 
     def _looks_like_application_only(self, value: Any) -> bool:
         """Execute looks like application only as part of this module workflow."""
@@ -145,6 +490,8 @@ class WebEnrichmentPayloadService:
                 return True
             if self._looks_like_application_only(text):
                 return True
+            if self._looks_like_promotional_or_store_text(text):
+                return True
             return False
 
         if field_name == "descricao_original":
@@ -154,12 +501,18 @@ class WebEnrichmentPayloadService:
                 return True
             if "anotac" in folded or "observac" in folded:
                 return True
+            if self._looks_like_structured_dump(text):
+                return True
+            if self._looks_like_promotional_or_store_text(text):
+                return True
             return False
 
         if field_name == "marca":
             if len(folded) < 3:
                 return True
             if folded in {"sm", "s m", "sem marca", "generico"}:
+                return True
+            if self._looks_like_promotional_or_store_text(text):
                 return True
             return False
 
@@ -180,6 +533,12 @@ class WebEnrichmentPayloadService:
         if ("descr" in attr_norm or attr_norm == "titulo") and len(folded) < 12:
             return True
         if "descr" in attr_norm and self._looks_like_application_only(text):
+            return True
+        if ("descr" in attr_norm or "desc" in attr_norm) and self._looks_like_structured_dump(text):
+            return True
+        if ("descr" in attr_norm or "desc" in attr_norm or "titulo" in attr_norm or "marca" in attr_norm) and self._looks_like_promotional_or_store_text(text):
+            return True
+        if ("titulo" in attr_norm or "marca" in attr_norm) and any(marker in folded for marker in self._SELLER_BRAND_SUBSTRINGS):
             return True
         if ("id" == attr_norm or "codigo" in attr_norm) and self._normalization.is_suspicious_code(text):
             return True
@@ -305,11 +664,7 @@ class WebEnrichmentPayloadService:
             max_len=255,
         )
         descricao_web = self._normalization.as_text(
-            self._normalization.first_non_empty([
-                dados_extraidos_agregados.get("descricao_detalhada_seo"),
-                dados_extraidos_agregados.get("descricao_curta"),
-                dados_extraidos_agregados.get("texto_relevante_coletado"),
-            ]),
+            self._select_visible_description(dados_extraidos_agregados),
             max_len=10000,
         )
         descricao_web = self._sanitize_description_text(descricao_web, max_len=10000)
@@ -358,6 +713,29 @@ class WebEnrichmentPayloadService:
             dados_extraidos_agregados.get("aplicacao"),
             max_len=400,
         )
+        specs = dados_extraidos_agregados.get("especificacoes_tecnicas_dict")
+
+        payload_relevante, payload_rejection_reasons = self._validate_payload_relevance(
+            db_produto_obj=db_produto_obj,
+            nome_web=nome_web,
+            descricao_web=descricao_web,
+            marca_web=marca_web,
+            sku_web=sku_web,
+            codigo_original_web=codigo_original_web,
+            material_web=material_web,
+            aplicacao_web=aplicacao_web,
+            specs=specs,
+        )
+        dados_extraidos_agregados["validacao_relevancia_payload"] = {
+            "aprovado": payload_relevante,
+            "motivos": payload_rejection_reasons,
+        }
+        if not payload_relevante:
+            ignored_notes.append(
+                "validacao_relevancia="
+                + "; ".join(payload_rejection_reasons)
+            )
+            return update_fields, notes, ignored_notes
 
         self._apply_if_empty_or_weak(
             field_name="nome_chat_api",
@@ -468,7 +846,6 @@ class WebEnrichmentPayloadService:
             if target:
                 dynamic_filled.append(target)
 
-        specs = dados_extraidos_agregados.get("especificacoes_tecnicas_dict")
         if isinstance(specs, dict):
             for key, value in specs.items():
                 if self._normalization.is_empty(key):

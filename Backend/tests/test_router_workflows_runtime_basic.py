@@ -98,27 +98,46 @@ class _TopLevelFunctionSurface:
     
         class FakeRepository:
             """Represent fake repository and centralize responsibilities for this module."""
-            def get_registros_historico(self, *, user_id, skip, limit):
+            def get_registros_historico(self, *, user_id, skip, limit, entidade=None, acao=None):
                 """Return registros historico for this workflow."""
-                called.append(("items", user_id, skip, limit))
+                called.append(("items", user_id, skip, limit, entidade, acao))
                 return []
     
-            def count_registros_historico(self, *, user_id):
+            def count_registros_historico(self, *, user_id, entidade=None, acao=None):
                 """Count registros historico for this workflow."""
-                called.append(("count", user_id))
+                called.append(("count", user_id, entidade, acao))
                 return 25
 
         request_service = HistoricoRequestService(session="db")
         request_service._historico_repo = FakeRepository()
         current_user = SimpleNamespace(id=77, is_superuser=False)
     
-        page = request_service.list_historico(current_user=current_user, skip=10, limit=10)
+        page = request_service.list_historico(
+            current_user=current_user,
+            skip=10,
+            limit=10,
+            entidade="produto",
+            acao="CRIACAO",
+        )
     
         assert page.total_items == 25
         assert page.page == 2
         assert page.limit == 10
-        assert called[0] == ("items", 77, 10, 10)
-        assert called[1] == ("count", 77)
+        assert called[0][0:5] == ("items", 77, 10, 10, "produto")
+        assert str(called[0][5].value) == "CRIACAO"
+        assert called[1][0:3] == ("count", 77, "produto")
+        assert str(called[1][3].value) == "CRIACAO"
+
+        with pytest.raises(HTTPException) as exc_info:
+            request_service.list_historico(
+                current_user=current_user,
+                skip=0,
+                limit=10,
+                entidade=None,
+                acao="INVALIDA",
+            )
+
+        assert exc_info.value.status_code == 422
 
     def test_historico_workflow_get_tipos_acao_delega_runtime():
         """Run test historico workflow get tipos acao delega runtime in this workflow."""

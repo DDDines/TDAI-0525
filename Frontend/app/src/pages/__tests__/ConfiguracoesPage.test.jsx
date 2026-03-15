@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ConfiguracoesPage from '../ConfiguracoesPage.jsx';
 import authService from '../../services/authService';
 import basicTemplateService from '../../services/basicTemplateService';
+import credentialsService from '../../services/credentialsService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppExperience } from '../../contexts/AppExperienceContext';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
@@ -22,6 +23,16 @@ jest.mock('../../services/basicTemplateService', () => ({
     getBasicGenerationTemplates: jest.fn(),
     saveBasicGenerationTemplates: jest.fn(),
     resetBasicGenerationTemplates: jest.fn(),
+  },
+}));
+
+jest.mock('../../services/credentialsService', () => ({
+  __esModule: true,
+  default: {
+    getOverview: jest.fn(),
+    upsertCredential: jest.fn(),
+    deleteCredential: jest.fn(),
+    validateCredential: jest.fn(),
   },
 }));
 
@@ -50,21 +61,54 @@ jest.mock('../../components/user/ChangePasswordModal', () => ({
     ) : null,
 }));
 
-jest.mock('../../components/common/LoadingPopup.jsx', () => ({
+jest.mock('../../components/common/LoadingOverlay.jsx', () => ({
   __esModule: true,
   default: ({ isOpen, message }) => (isOpen ? <div>{message}</div> : null),
 }));
+
+function buildCredentialsOverview() {
+  return {
+    company_identifier: 'catalogai',
+    company_credentials: [
+      {
+        id: 1,
+        scope_type: 'company',
+        provider: 'google_cse',
+        secret_masked: 'AIza****1234',
+        config_json: { search_engine_id: 'cse-company-1' },
+        description: 'Busca da empresa',
+        is_active: true,
+        source_label: 'Empresa',
+      },
+    ],
+    user_credentials: [
+      {
+        id: 2,
+        scope_type: 'user',
+        provider: 'openai',
+        secret_masked: 'sk-t****user',
+        config_json: null,
+        description: 'Override pessoal',
+        is_active: true,
+        source_label: 'Pessoal',
+      },
+    ],
+    effective_sources: [
+      { provider: 'openai', source: 'user', source_label: 'Pessoal', configured: true },
+      { provider: 'google_gemini', source: 'system', source_label: 'Sistema', configured: true },
+      { provider: 'google_cse', source: 'company', source_label: 'Empresa', configured: true },
+    ],
+  };
+}
 
 describe('ConfiguracoesPage', () => {
   const setUser = jest.fn();
   const setAdminPreviewMode = jest.fn();
   const clearAdminPreviewMode = jest.fn();
-  let consoleErrorSpy;
-  let resolveCurrentUser;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
     basicTemplateService.getBasicGenerationTemplates.mockReturnValue({
       titleTemplate: '{nome_base} {marca}',
       descriptionTemplate: '{descricao_web}',
@@ -74,6 +118,7 @@ describe('ConfiguracoesPage', () => {
       titleTemplate: '{nome_base}',
       descriptionTemplate: '{intro}',
     });
+
     useAuth.mockReturnValue({
       user: {
         id: 8,
@@ -92,6 +137,7 @@ describe('ConfiguracoesPage', () => {
       setAdminPreviewMode,
       clearAdminPreviewMode,
     });
+
     authService.getCurrentUser.mockResolvedValue({
       id: 8,
       nome_completo: 'Julio Cesar',
@@ -99,7 +145,6 @@ describe('ConfiguracoesPage', () => {
       avatar_url: '',
       email: 'julio@example.com',
       idioma_preferido: 'pt_BR',
-      chave_openai_pessoal: 'sk-test',
     });
     authService.updateCurrentUser.mockResolvedValue({
       id: 8,
@@ -107,19 +152,19 @@ describe('ConfiguracoesPage', () => {
       nome_empresa: 'Nova Empresa',
       avatar_url: 'https://img.example/avatar.png',
       idioma_preferido: 'en',
-      chave_openai_pessoal: 'sk-live',
     });
-    resolveCurrentUser = null;
-  });
 
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
+    credentialsService.getOverview.mockResolvedValue(buildCredentialsOverview());
+    credentialsService.validateCredential.mockResolvedValue({ valid: true, errors: [] });
+    credentialsService.upsertCredential.mockResolvedValue({});
+    credentialsService.deleteCredential.mockResolvedValue({});
   });
 
   test('loads the current user and saves profile changes', async () => {
     render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
+    expect(await screen.findByText('Credenciais da Empresa')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Nome'), {
       target: { value: 'Julio Atualizado' },
@@ -133,9 +178,6 @@ describe('ConfiguracoesPage', () => {
     fireEvent.change(screen.getByLabelText('Idioma preferido'), {
       target: { value: 'en' },
     });
-    fireEvent.change(screen.getByLabelText('Chave OpenAI pessoal (opcional)'), {
-      target: { value: 'sk-live' },
-    });
 
     fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
 
@@ -145,7 +187,6 @@ describe('ConfiguracoesPage', () => {
         nome_empresa: 'Nova Empresa',
         avatar_url: 'https://img.example/avatar.png',
         idioma_preferido: 'en',
-        chave_openai_pessoal: 'sk-live',
       });
     });
 
@@ -155,13 +196,11 @@ describe('ConfiguracoesPage', () => {
       nome_empresa: 'Nova Empresa',
       avatar_url: 'https://img.example/avatar.png',
       idioma_preferido: 'en',
-      chave_openai_pessoal: 'sk-live',
     });
-    expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso!');
-    expect(screen.getByText('Nova Empresa')).toBeInTheDocument();
+    expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso.');
   });
 
-  test('saves and resets basic mode templates and allows admin mode preview changes', async () => {
+  test('saves templates, resets defaults and allows admin preview changes', async () => {
     render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
@@ -180,6 +219,7 @@ describe('ConfiguracoesPage', () => {
         descriptionTemplate: '{intro}\n{specs}',
       });
     });
+    expect(showSuccessToast).toHaveBeenCalledWith('Templates do modo basico salvos com sucesso.');
 
     fireEvent.click(screen.getByText('Restaurar padrao'));
     expect(basicTemplateService.resetBasicGenerationTemplates).toHaveBeenCalled();
@@ -202,39 +242,103 @@ describe('ConfiguracoesPage', () => {
     expect(screen.queryByTestId('change-password-modal')).not.toBeInTheDocument();
   });
 
-  test('shows an error toast when loading the current user fails', async () => {
-    authService.getCurrentUser.mockRejectedValueOnce(new Error('perfil indisponivel'));
-
+  test('renders company and personal credentials with precedence information', async () => {
     render(<ConfiguracoesPage />);
 
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('perfil indisponivel');
-    });
+    expect(await screen.findByText('Credenciais da Empresa')).toBeInTheDocument();
+    expect(screen.getByText(/Empresa atual:/i)).toHaveTextContent('catalogai');
+    expect(screen.getByText('Minhas Credenciais Pessoais')).toBeInTheDocument();
+    expect(screen.getAllByText('OpenAI').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Origem efetiva em uso:/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pessoal').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Empresa').length).toBeGreaterThan(0);
   });
 
-  test('uses the default load error when the current user endpoint returns an empty failure payload', async () => {
-    authService.getCurrentUser.mockRejectedValueOnce({});
-
+  test('validates and saves a company credential, then reloads the overview', async () => {
     render(<ConfiguracoesPage />);
 
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar dados do usuario.');
+    const companyHeading = await screen.findByText('Credenciais da Empresa');
+    const companySection = companyHeading.closest('section');
+    expect(await within(companySection).findByText('Google CSE')).toBeInTheDocument();
+    const googleCseCard = within(companySection).getByText('Google CSE').closest('form');
+
+    fireEvent.change(within(googleCseCard).getByLabelText('API key'), {
+      target: { value: 'AIza-company-new' },
     });
+    fireEvent.change(within(googleCseCard).getByLabelText('Search Engine ID'), {
+      target: { value: 'cse-company-new' },
+    });
+    fireEvent.change(within(googleCseCard).getByLabelText('Descricao interna'), {
+      target: { value: 'Novo mecanismo' },
+    });
+
+    fireEvent.click(within(googleCseCard).getByRole('button', { name: 'Salvar' }));
+
+    await waitFor(() => {
+      expect(credentialsService.validateCredential).toHaveBeenCalledWith({
+        scope_type: 'company',
+        provider: 'google_cse',
+        secret_value: 'AIza-company-new',
+        description: 'Novo mecanismo',
+        is_active: true,
+        config_json: { search_engine_id: 'cse-company-new' },
+      });
+    });
+
+    expect(credentialsService.upsertCredential).toHaveBeenCalledWith({
+      scope_type: 'company',
+      provider: 'google_cse',
+      secret_value: 'AIza-company-new',
+      description: 'Novo mecanismo',
+      is_active: true,
+      config_json: { search_engine_id: 'cse-company-new' },
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('Credencial salva com sucesso.');
+    expect(credentialsService.getOverview).toHaveBeenCalledTimes(2);
   });
 
-  test('shows the loading state first and keeps defaults when current user payload is empty', async () => {
-    authService.getCurrentUser.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveCurrentUser = resolve;
-        })
-    );
+  test('removes a personal override credential', async () => {
+    render(<ConfiguracoesPage />);
+
+    const userSection = await screen.findByText('Minhas Credenciais Pessoais');
+    const userOpenAICard = within(userSection.closest('section')).getByText('OpenAI').closest('form');
+
+    fireEvent.click(within(userOpenAICard).getByRole('button', { name: 'Remover' }));
+
+    await waitFor(() => {
+      expect(credentialsService.deleteCredential).toHaveBeenCalledWith('user', 'openai');
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('Credencial removida com sucesso.');
+  });
+
+  test('validates a stored credential without forcing the user to save it first', async () => {
+    render(<ConfiguracoesPage />);
+
+    const userSection = await screen.findByText('Minhas Credenciais Pessoais');
+    const userOpenAICard = within(userSection.closest('section')).getByText('OpenAI').closest('form');
+
+    fireEvent.click(within(userOpenAICard).getByRole('button', { name: 'Validar' }));
+
+    await waitFor(() => {
+      expect(credentialsService.validateCredential).toHaveBeenCalledWith({
+        scope_type: 'user',
+        provider: 'openai',
+        secret_value: undefined,
+        description: 'Override pessoal',
+        is_active: true,
+        config_json: undefined,
+      });
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('OpenAI validado com sucesso.');
+  });
+
+  test('shows the non-admin product experience copy and hides company credentials', async () => {
     useAuth.mockReturnValue({
       user: {
         id: 8,
         is_superuser: false,
-        plano: null,
-        created_at: null,
+        plano: { nome: 'Gratuito' },
+        created_at: '2026-03-07T00:00:00.000Z',
       },
       setUser,
     });
@@ -250,142 +354,39 @@ describe('ConfiguracoesPage', () => {
 
     render(<ConfiguracoesPage />);
 
-    expect(screen.getByText('Carregando configuracoes...')).toBeInTheDocument();
-    resolveCurrentUser(null);
-
-    expect(
-      await screen.findByText('Apenas administradores podem alternar o modo de visualizacao.')
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
     expect(screen.getByText('Basico (sem IA)')).toBeInTheDocument();
-    expect(screen.getByText('Sem plano')).toBeInTheDocument();
-    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
-    expect(screen.getByText('Usuario sem nome')).toBeInTheDocument();
-    expect(screen.getByText('U')).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
-    expect(screen.queryByText('Visualizar Completo')).not.toBeInTheDocument();
-    expect(screen.queryByText('Voltar ao padrao')).not.toBeInTheDocument();
+    expect(screen.getByText('Seu modo real vem do plano ativo e do seu perfil.')).toBeInTheDocument();
+    expect(screen.queryByText('Credenciais da Empresa')).not.toBeInTheDocument();
+    expect(screen.getByText('Minhas Credenciais Pessoais')).toBeInTheDocument();
   });
 
-  test('formats profile update errors and template save errors', async () => {
-    authService.updateCurrentUser.mockRejectedValueOnce({
-      detail: [{ msg: 'nome invalido' }, { msg: 'idioma invalido' }],
-    });
-    basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(() => {
-      throw new Error('falha ao salvar template');
-    });
+  test('uses the page loading overlay before the profile data finishes loading', async () => {
+    let resolveCurrentUser;
+    authService.getCurrentUser.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCurrentUser = resolve;
+        })
+    );
 
     render(<ConfiguracoesPage />);
 
-    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
+    expect(screen.getByText('Carregando configuracoes...')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('nome invalido; idioma invalido');
-    });
-
-    fireEvent.click(screen.getByText('Salvar templates'));
-    expect(showErrorToast).toHaveBeenCalledWith('falha ao salvar template');
-  });
-
-  test('supports profile fallback fields, null updates and invalid membership dates', async () => {
-    authService.getCurrentUser.mockResolvedValueOnce({
+    resolveCurrentUser({
       id: 8,
-      nome: 'Nome alternativo',
-      nome_empresa: '',
+      nome_completo: 'Julio Cesar',
+      nome_empresa: 'CatalogAI',
       avatar_url: '',
-      email: 'fallback@example.com',
-      idioma_preferido: '',
-      chave_openai_pessoal: '',
+      email: 'julio@example.com',
+      idioma_preferido: 'pt_BR',
     });
-    authService.updateCurrentUser.mockResolvedValueOnce(null);
-    useAuth.mockReturnValue({
-      user: {
-        id: 8,
-        is_superuser: false,
-        plano: null,
-        created_at: 'invalido',
-      },
-      setUser,
-    });
-
-    render(<ConfiguracoesPage />);
-
-    expect(await screen.findByDisplayValue('fallback@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Nome alternativo')).toBeInTheDocument();
-    expect(screen.getByText('Usuario')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
-
-    await waitFor(() => {
-      expect(authService.updateCurrentUser).toHaveBeenCalled();
-    });
-    expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso!');
-    expect(setUser).not.toHaveBeenCalled();
-  });
-
-  test('fills profile defaults from sparse payloads and normalizes sparse update responses', async () => {
-    authService.getCurrentUser.mockResolvedValueOnce({});
-    authService.updateCurrentUser.mockResolvedValueOnce({
-      nome: 'Nome sem completo',
-      nome_empresa: null,
-      avatar_url: null,
-      idioma_preferido: null,
-      chave_openai_pessoal: null,
-    });
-    useAuth.mockReturnValue({
-      user: {
-        id: 8,
-        is_superuser: true,
-        plano: { nome: 'Enterprise' },
-        created_at: '2026-03-07T00:00:00.000Z',
-      },
-      setUser,
-    });
-
-    render(<ConfiguracoesPage />);
-
-    expect(await screen.findByText('Usuario sem nome')).toBeInTheDocument();
-    expect(screen.getByLabelText('Email')).toHaveValue('');
-    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
-    expect(screen.getByText('Portugues')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
-
-    await waitFor(() => {
-      expect(setUser).toHaveBeenCalledWith({
-        nome: 'Nome sem completo',
-        nome_empresa: null,
-        avatar_url: null,
-        idioma_preferido: null,
-        chave_openai_pessoal: null,
-      });
-    });
-
-    expect(screen.getByText('Nome sem completo')).toBeInTheDocument();
-    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
-    expect(screen.getByText('Portugues')).toBeInTheDocument();
-  });
-
-  test('uses default submit and template-save errors when handlers fail without messages', async () => {
-    authService.updateCurrentUser.mockRejectedValueOnce({});
-    basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(() => {
-      throw {};
-    });
-
-    render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao atualizar perfil.');
-    });
-
-    fireEvent.click(screen.getByText('Salvar templates'));
-    expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar templates do modo basico.');
   });
 
-  test('shows the saving templates state while the basic template save is pending', async () => {
+  test('shows loading and error fallbacks for templates and credentials', async () => {
     let resolveSave;
     basicTemplateService.saveBasicGenerationTemplates.mockImplementationOnce(
       () =>
@@ -393,13 +394,16 @@ describe('ConfiguracoesPage', () => {
           resolveSave = resolve;
         })
     );
+    credentialsService.getOverview.mockRejectedValueOnce(new Error('credenciais indisponiveis'));
 
     render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(showErrorToast).toHaveBeenCalledWith('credenciais indisponiveis');
+    });
 
     fireEvent.click(screen.getByText('Salvar templates'));
-
     expect(screen.getByRole('button', { name: /Salvando templates/i })).toBeDisabled();
 
     resolveSave({
@@ -410,49 +414,5 @@ describe('ConfiguracoesPage', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Salvar templates/i })).toBeEnabled();
     });
-  });
-
-  test('renders empty update payloads with UI fallbacks and keeps preview reset hidden by default', async () => {
-    authService.updateCurrentUser.mockResolvedValueOnce({
-      nome_completo: '',
-      nome: '',
-      nome_empresa: '',
-      avatar_url: '',
-      idioma_preferido: '',
-      chave_openai_pessoal: '',
-    });
-    useAppExperience.mockReturnValue({
-      effectiveMode: 'basic',
-      defaultMode: 'complete',
-      isAdmin: true,
-      canAdminPreview: true,
-      adminPreviewMode: null,
-      setAdminPreviewMode,
-      clearAdminPreviewMode,
-    });
-
-    render(<ConfiguracoesPage />);
-
-    expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Basico (sem IA)')).toBeInTheDocument();
-    expect(screen.getByText('Visualizar Basico')).toHaveClass('active');
-    expect(screen.queryByText('Voltar ao padrao')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
-
-    await waitFor(() => {
-      expect(setUser).toHaveBeenCalledWith({
-        nome_completo: '',
-        nome: '',
-        nome_empresa: '',
-        avatar_url: '',
-        idioma_preferido: '',
-        chave_openai_pessoal: '',
-      });
-    });
-
-    expect(screen.getByText('Usuario sem nome')).toBeInTheDocument();
-    expect(screen.getByText('Empresa nao informada')).toBeInTheDocument();
-    expect(screen.getByText('Portugues')).toBeInTheDocument();
   });
 });

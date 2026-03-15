@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from Backend import schemas
 from Backend.models import CatalogImportFile, Fornecedor
+from Backend.infrastructure.repositories.runtime_compatibility_repository import (
+    ensure_fornecedores_logo_url,
+)
 
 
 class FornecedorRepository:
@@ -18,12 +21,15 @@ class FornecedorRepository:
     def __init__(self, db: Session) -> None:
         """Initialize injected dependencies and runtime configuration for Fornecedor Repository."""
         self._db = db
+        ensure_fornecedores_logo_url(session=self._db)
 
     @staticmethod
     def _normalize_supplier_url_fields(data: dict) -> None:
         """Normalize supplier url fields to keep behavior consistent across callers."""
         if data.get("site_url") is not None:
             data["site_url"] = str(data["site_url"])
+        if data.get("logo_url") is not None:
+            data["logo_url"] = str(data["logo_url"])
         if data.get("link_busca_padrao") is not None:
             data["link_busca_padrao"] = str(data["link_busca_padrao"])
 
@@ -103,6 +109,20 @@ class FornecedorRepository:
             query = query.filter(Fornecedor.user_id == user_id)
         query = self._apply_fornecedor_search_filter(query, search)
         return query.scalar() or 0
+
+    def list_fornecedor_ids_by_user(
+        self,
+        *,
+        user_id: Optional[int] = None,
+        is_admin: bool = False,
+        search: Optional[str] = None,
+    ) -> List[int]:
+        """Return all supplier IDs for the current filtered result set."""
+        query = self._db.query(Fornecedor.id)
+        if not is_admin and user_id:
+            query = query.filter(Fornecedor.user_id == user_id)
+        query = self._apply_fornecedor_search_filter(query, search)
+        return [fornecedor_id for (fornecedor_id,) in query.order_by(Fornecedor.nome.asc()).all()]
 
     def search_fornecedores_for_index(
         self,

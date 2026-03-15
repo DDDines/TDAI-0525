@@ -4,10 +4,12 @@
  * Defines responsibilities and integration points for pages.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import ProductContentWorkspace from '../components/produtos/ProductContentWorkspace.jsx';
+import { useAppExperience } from '../contexts/AppExperienceContext.jsx';
 import productService from '../services/productService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import { queryKeys } from '../lib/queryKeys.js';
@@ -37,13 +39,31 @@ function hasCompanyTimelineClaim(text) {
 }
 
 function sanitizeCompanyTimelineText(text) {
-  const normalized = normalizeText(text);
-  const chunks = normalized.split(/(?<=[.!?])\s+|\n+/);
-  const filtered = chunks
-    .map((chunk) => normalizeText(chunk))
-    .filter((chunk) => chunk && !hasCompanyTimelineClaim(chunk));
-  if (filtered.length > 0) {
-    return filtered.join(' ');
+  const normalized = normalizeText(text).replace(/\r\n?/g, '\n');
+  const filteredLines = normalized.split('\n').reduce((accumulator, rawLine) => {
+    const trimmedLine = rawLine.trim();
+    if (!trimmedLine) {
+      if (accumulator.length > 0 && accumulator[accumulator.length - 1] !== '') {
+        accumulator.push('');
+      }
+      return accumulator;
+    }
+
+    const filteredLine = trimmedLine
+      .split(/(?<=[.!?])\s+/)
+      .map((chunk) => normalizeText(chunk))
+      .filter((chunk) => chunk && !hasCompanyTimelineClaim(chunk))
+      .join(' ');
+
+    if (filteredLine) {
+      accumulator.push(filteredLine);
+    }
+    return accumulator;
+  }, []);
+
+  const sanitized = filteredLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (sanitized) {
+    return sanitized;
   }
   return normalized;
 }
@@ -53,7 +73,10 @@ function extractGeneratedTitles(produto) {
   const rawTitles = Array.isArray(produto?.dados_brutos_web?.titulos_sugeridos_gerados)
     ? produto.dados_brutos_web.titulos_sugeridos_gerados
     : [];
-  const merged = [...directTitles, ...rawTitles]
+  const primarySource = directTitles.filter((item) => normalizeText(item)).length > 0
+    ? directTitles
+    : rawTitles;
+  const merged = primarySource
     .map((item) => normalizeText(item))
     .filter(Boolean);
   const seen = new Set();
@@ -124,6 +147,27 @@ function extractListQueryFromState(stateValue) {
   return sanitized;
 }
 
+function buildReturnTarget(locationState) {
+  const rawValue = typeof locationState?.returnTo === 'string' ? locationState.returnTo.trim() : '';
+  return rawValue.startsWith('/produtos') ? rawValue : '/produtos';
+}
+
+function hasExplicitReturnTarget(locationState) {
+  const rawValue = typeof locationState?.returnTo === 'string' ? locationState.returnTo.trim() : '';
+  return rawValue.startsWith('/produtos');
+}
+
+function buildEditTarget(returnTo, productId) {
+  if (!productId) {
+    return returnTo || '/produtos';
+  }
+  const [pathname, search = ''] = String(returnTo || '/produtos').split('?');
+  const params = new URLSearchParams(search);
+  params.set('id', String(productId));
+  const nextSearch = params.toString();
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname;
+}
+
 async function fetchOrderedProductIds(queryParams) {
   const allIds = [];
   const pageLimit = 200;
@@ -165,12 +209,19 @@ function ProdutoConteudoPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { effectiveMode } = useAppExperience();
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
+  const [usarIA, setUsarIA] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const refreshTimeoutRef = useRef(null);
+  const showAiFeatures = effectiveMode === 'complete';
 
   const idsFromState = useMemo(() => extractOrderedProductIdsFromState(location.state), [location.state]);
   const listQueryFromState = useMemo(() => extractListQueryFromState(location.state), [location.state]);
+  const returnTo = useMemo(() => buildReturnTarget(location.state), [location.state]);
+  const hasExplicitReturnTo = useMemo(() => hasExplicitReturnTarget(location.state), [location.state]);
 
   const produtoQuery = useQuery({
     queryKey: queryKeys.produto(produtoId),
@@ -188,6 +239,16 @@ function ProdutoConteudoPage() {
       showErrorToast(produtoQuery.error?.message || 'Falha ao carregar conteudo do produto.');
     }
   }, [produtoQuery.error]);
+
+  useEffect(
+    () => () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    },
+    []
+  );
 
   const produto = produtoQuery.data;
   const titles = useMemo(() => extractGeneratedTitles(produto), [produto]);
@@ -236,6 +297,71 @@ function ProdutoConteudoPage() {
     }
   };
 
+  const refreshProduto = useCallback(async () => {
+    if (!produto?.id) {
+      return null;
+    }
+    const updated = await productService.getProdutoById(produto.id);
+    queryClient.setQueryData(queryKeys.produto(produto.id), updated);
+    return updated;
+  }, [produto?.id, queryClient]);
+
+  const scheduleProdutoRefresh = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    refreshTimeoutRef.current = setTimeout(() => {
+      void (async () => {
+        try {
+          const refreshed = await refreshProduto();
+          void refreshed;
+        } catch (error) {
+          showErrorToast(error?.message || 'Nao foi possivel atualizar o conteudo gerado.');
+        } finally {
+          refreshTimeoutRef.current = null;
+        }
+      })();
+    }, 7000);
+  }, [refreshProduto]);
+
+  const handleGenerateTitles = useCallback(async () => {
+    if (!produto?.id) {
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      if (showAiFeatures && usarIA) {
+        await productService.gerarTitulosProduto(produto.id);
+      } else {
+        await productService.gerarTitulosProdutoModoBasico(produto.id);
+      }
+      scheduleProdutoRefresh();
+    } catch (error) {
+      showErrorToast(error?.message || 'Erro ao gerar titulos.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [produto?.id, scheduleProdutoRefresh, showAiFeatures, usarIA]);
+
+  const handleGenerateDescription = useCallback(async () => {
+    if (!produto?.id) {
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      if (showAiFeatures && usarIA) {
+        await productService.gerarDescricaoProduto(produto.id);
+      } else {
+        await productService.gerarDescricaoProdutoModoBasico(produto.id);
+      }
+      scheduleProdutoRefresh();
+    } catch (error) {
+      showErrorToast(error?.message || 'Erro ao gerar descricao.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [produto?.id, scheduleProdutoRefresh, showAiFeatures, usarIA]);
+
   const hasMainContent = titles.length > 0 || Boolean(description);
   const currentProductId = Number(produto?.id ?? produtoId ?? 0);
   const currentProductIndex = orderedProductIds.findIndex((id) => id === currentProductId);
@@ -246,11 +372,15 @@ function ProdutoConteudoPage() {
       : null;
 
   const navigateToProduct = (targetProductId) => {
+    const nextState = {
+      productIds: orderedProductIds,
+      productQuery: listQueryFromState,
+    };
+    if (hasExplicitReturnTo) {
+      nextState.returnTo = returnTo;
+    }
     navigate(`/produtos/${targetProductId}/conteudo`, {
-      state: {
-        productIds: orderedProductIds,
-        productQuery: listQueryFromState,
-      },
+      state: nextState,
     });
   };
 
@@ -264,14 +394,14 @@ function ProdutoConteudoPage() {
           </p>
         </div>
         <div className="produto-conteudo-header-actions">
-          <button type="button" className="btn-secondary" onClick={() => navigate('/produtos')}>
+          <button type="button" className="btn-secondary" onClick={() => navigate(returnTo)}>
             Voltar para Produtos
           </button>
           {produto?.id ? (
             <button
               type="button"
               className="btn-primary"
-              onClick={() => navigate(`/produtos?id=${produto.id}`)}
+              onClick={() => navigate(buildEditTarget(returnTo, produto.id))}
             >
               Abrir Edicao
             </button>
@@ -298,64 +428,54 @@ function ProdutoConteudoPage() {
         </button>
       </div>
 
-      <div className="app-toolbar-card produto-conteudo-grid">
-        <div className="produto-conteudo-left-column">
-          <section className="produto-conteudo-block produto-conteudo-titles-block">
-            <h3>5 Titulos Sugeridos</h3>
-            <div className="produto-conteudo-title-list">
-              {Array.from({ length: 5 }).map((_, index) => {
-                const title = titles[index] || '';
-                return (
-                  <article key={`title-${index}`} className="produto-conteudo-title-card">
-                    <span className="produto-conteudo-title-index">{index + 1}</span>
-                    <p>{title || 'Titulo ainda nao gerado para esta posicao.'}</p>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
+      <div className="app-toolbar-card produto-conteudo-main-card">
+        <ProductContentWorkspace
+          titles={titles}
+          description={description}
+          onGenerateTitles={handleGenerateTitles}
+          onGenerateDescription={handleGenerateDescription}
+          isGenerating={isGenerating}
+          disableActions={!produto?.id}
+          showUseAiToggle={showAiFeatures}
+          useAi={usarIA}
+          onUseAiChange={setUsarIA}
+          titleButtonLabel={showAiFeatures && usarIA ? 'Gerar títulos com IA' : 'Gerar títulos no básico'}
+          descriptionButtonLabel={showAiFeatures && usarIA ? 'Gerar descrição com IA' : 'Gerar descrição no básico'}
+        />
 
-          <section className="produto-conteudo-block produto-conteudo-feedback-card">
-            <h3>Feedback Rapido</h3>
-            <p className="app-muted-note">
-              Marque se o resultado esta bom. Isso fica salvo para analise de qualidade.
-            </p>
-            <div className="produto-conteudo-feedback-actions">
-              <button
-                type="button"
-                className={`btn-secondary ${feedback === 'gostei' ? 'is-selected' : ''}`}
-                disabled={savingFeedback || !hasMainContent}
-                onClick={() => handleFeedback('gostei')}
-              >
-                Gostei
-              </button>
-              <button
-                type="button"
-                className={`btn-danger ${feedback === 'nao_gostei' ? 'is-selected' : ''}`}
-                disabled={savingFeedback || !hasMainContent}
-                onClick={() => handleFeedback('nao_gostei')}
-              >
-                Nao Gostei
-              </button>
-            </div>
-            <label className="produto-conteudo-feedback-comment">
-              Comentario (opcional):
-              <textarea
-                value={feedbackComment}
-                onChange={(event) => setFeedbackComment(event.target.value)}
-                placeholder="Ex: titulos bons, mas descricao muito curta."
-                rows={3}
-                disabled={savingFeedback}
-              />
-            </label>
-          </section>
-        </div>
-
-        <section className="produto-conteudo-block produto-conteudo-description-block">
-          <h3>Descricao Completa</h3>
-          <div className="produto-conteudo-description">
-            {description || 'Descricao ainda nao gerada.'}
+        <section className="produto-conteudo-block produto-conteudo-feedback-card">
+          <h3>Feedback Rapido</h3>
+          <p className="app-muted-note">
+            Marque se o resultado esta bom. Isso fica salvo para analise de qualidade.
+          </p>
+          <div className="produto-conteudo-feedback-actions">
+            <button
+              type="button"
+              className={`btn-secondary ${feedback === 'gostei' ? 'is-selected' : ''}`}
+              disabled={savingFeedback || !hasMainContent}
+              onClick={() => handleFeedback('gostei')}
+            >
+              Gostei
+            </button>
+            <button
+              type="button"
+              className={`btn-danger ${feedback === 'nao_gostei' ? 'is-selected' : ''}`}
+              disabled={savingFeedback || !hasMainContent}
+              onClick={() => handleFeedback('nao_gostei')}
+            >
+              Nao Gostei
+            </button>
           </div>
+          <label className="produto-conteudo-feedback-comment">
+            Comentario (opcional):
+            <textarea
+              value={feedbackComment}
+              onChange={(event) => setFeedbackComment(event.target.value)}
+              placeholder="Ex: titulos bons, mas descricao muito curta."
+              rows={3}
+              disabled={savingFeedback}
+            />
+          </label>
         </section>
       </div>
 

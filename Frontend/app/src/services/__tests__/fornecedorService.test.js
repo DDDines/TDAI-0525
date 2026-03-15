@@ -85,6 +85,28 @@ describe('fornecedorService', () => {
     expect(apiClient.delete).toHaveBeenCalledWith('/fornecedores/2');
   });
 
+  test('resolveFornecedorLogo uses the dedicated endpoint and returns the payload', async () => {
+    apiClient.post.mockResolvedValueOnce({
+      data: {
+        logo_url: 'https://cdn.example.com/logo.png',
+        resolved_site_url: 'https://empresa.example',
+        source: 'img-logo',
+      },
+    });
+
+    await expect(
+      fornecedorService.resolveFornecedorLogo('empresa.example')
+    ).resolves.toEqual({
+      logo_url: 'https://cdn.example.com/logo.png',
+      resolved_site_url: 'https://empresa.example',
+      source: 'img-logo',
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith('/fornecedores/resolve-logo', {
+      site_url: 'empresa.example',
+    });
+  });
+
   test('core fornecedor endpoints surface request and generic failures', async () => {
     apiClient.get
       .mockRejectedValueOnce({ request: {} })

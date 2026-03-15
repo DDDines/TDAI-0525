@@ -9,8 +9,8 @@ from Backend.testing.runtime_apis import web_extractor as web_module
 
 
 class _UrlOpenResponse:
-    def __init__(self, body: str, content_type: str = "text/html"):
-        self._body = body.encode("utf-8")
+    def __init__(self, body: str | bytes, content_type: str = "text/html"):
+        self._body = body if isinstance(body, bytes) else body.encode("utf-8")
         self.headers = {"Content-Type": content_type}
 
     def read(self):
@@ -52,6 +52,7 @@ async def test_search_runtime_covers_cache_eviction_helper_branches_and_google_c
     assert runtime.url_deve_ser_ignorada_antes_da_coleta(
         "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fp"
     ) is True
+    assert runtime.url_deve_ser_ignorada_antes_da_coleta("https://example.com/catalogo/manual.pdf") is False
 
     assert runtime.normalizar_url_busca("", "https://base") is None
     assert runtime.normalizar_url_busca("   ", "https://base") is None
@@ -173,7 +174,13 @@ def test_public_search_and_metadata_branches_cover_proxy_and_non_product_cases(m
             "opengraph": [],
         },
     )
-    assert metadata_runtime.extrair_metadados_estruturados("<html></html>", "https://example.com") == {}
+    fallback_metadata = metadata_runtime.extrair_metadados_estruturados(
+        "<html></html>",
+        "https://example.com",
+    )
+    assert fallback_metadata["dom_product_candidate"]["texto_estruturado_produto"].startswith(
+        "URL da fonte: https://example.com"
+    )
 
     normalized = metadata_runtime.normalizar_dados_de_metadados(
         {
@@ -276,6 +283,9 @@ async def test_llm_runtime_covers_non_dict_payload_and_selector_timeout_fallback
     class _WorkflowStub:
         async def call_openai_api(self, **kwargs):
             return '["payload-nao-dict"]'
+
+        def get_openai_provider_name(self):
+            return "openai"
 
     runtime = web_module.WebLLMExtractionEngineRuntime(
         ai_provider_workflow_factory=lambda: _WorkflowStub()

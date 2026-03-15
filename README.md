@@ -2,30 +2,37 @@
 
 Plataforma para importar catalogos, enriquecer dados de produtos via web e gerar conteudo com IA para e-commerce.
 
-## Estado Atual (2026-03-08)
-- Backend e frontend estao fechados com cobertura literal `100%`.
-- Backend em arquitetura OOP-only (`APP_MODE=oop`).
-- API publica versionada em `/api/v1`.
+## Estado Atual (2026-03-11)
+- Produto full-stack funcional para importar catalogos, enriquecer dados web e gerar conteudo com IA.
+- Backend em arquitetura OOP-only (`APP_MODE=oop`) com API versionada em `/api/v1`.
 - Frontend React + Vite em `Frontend/app`.
-- LM Studio local suportado lado a lado com OpenAI/Gemini.
+- LM Studio local suportado para geracao e para extracao multimodal de PDF.
+- OpenAI, Gemini e Google CSE seguem opcionais por configuracao; sem chaves, o sistema usa os caminhos locais/fallback disponiveis.
 - Prompt templates versionados no banco.
 - Dispatch assincrono preparado com Celery + Redis.
 - CI/CD inclui gate de testes, migration safety e deploy blue-green para VPS Linux.
 
-Validacao executada em 2026-03-08:
-- `python -m pytest -q`: `1054 passed`
-- backend coverage: `100.00%`
-- `cd Frontend/app && npm run test:coverage`: `67 suites / 625 tests passed`
-- frontend coverage: `100%`
-- `cd Frontend/app && npm run lint`: `OK`
-- `cd Frontend/app && npm run build`: `OK`
-- `cd Frontend/app && npm run test:e2e`: `2 passed`
+Observacao importante:
+- Este repositorio esta em refinamento ativo. Nao trate numeros fixos de cobertura ou quantidade de testes neste README como fonte da verdade da branch atual.
+- Para validar o estado real do codigo, use os comandos da secao `Testes E Qualidade` e os scripts da secao `Validacao Local De IA Sem Custo Externo`.
+
+## Novidades Da Rodada
+- Conteudo gerado e edicao do produto agora compartilham o mesmo workspace visual para titulos e descricao.
+- A tela `Conteudo Gerado do Produto` permite gerar titulos e descricao diretamente, com checkbox `Usar IA` quando o usuario esta no modo completo.
+- A lista de produtos persiste pagina, busca, ordenacao e filtros na URL; ao voltar de conteudo/edicao, o contexto da lista e restaurado.
+- Usuarios nao-admin agora possuem dashboard operacional proprio via `GET /dashboard/me`.
+- O modo da experiencia do produto passa a ser derivado do plano e do perfil (`product_experience_mode`): `Pro/Enterprise/admin => complete`, `Gratuito => basic`.
+- A tela de enriquecimento abre por padrao em `Enriquecidos` e aceita os escopos `Todos`, `Pendentes` e `Falharam`.
+- Produtos e fornecedores agora suportam selecao em massa por `pagina atual` ou `todos os resultados filtrados`.
+- O sistema possui uma nova area de `Credenciais e Integracoes` em Configuracoes, com precedencia `Pessoal > Empresa > Sistema` para OpenAI, Google Gemini e Google CSE.
+- Tipos de produto podem marcar atributos com `collect_in_ai=true` para orientar coleta e sugestoes no modo IA.
+- A limpeza final de conteudo remove ruido como `%20`, entidades HTML, redirects e fragmentos de query antes de promover o texto para campos visiveis.
 
 ## Estrutura Do Projeto
 - `Backend/`: API FastAPI, aplicacao OOP, repositorios e runtime modules.
 - `Frontend/app/`: SPA React (Vite), paginas e componentes.
-- `docs/`: arquitetura, migracao OOP, execucao local e backlog.
-- `scripts/`: automacao para subir/parar ambiente local.
+- `docs/`: arquitetura, migracao OOP, execucao local, backlog e operacao.
+- `scripts/`: automacao de ambiente local, validacao, evals e operacao/deploy.
 - `Prototipos/`: artefatos historicos e PDFs de planejamento.
 
 ## Requisitos
@@ -73,12 +80,17 @@ Detalhes extras: `docs/EXECUCAO_LOCAL.md`.
 - Frontend (lint): `cd Frontend/app && npm run lint`
 - Frontend (build): `cd Frontend/app && npm run build`
 - End-to-end: `cd Frontend/app && npm run test:e2e`
+- Gate de qualidade de output local: `python scripts/validate_output_quality_suite.py`
 
 ## Validacao Local De IA Sem Custo Externo
+- Para LM Studio local, mantenha `AI_PROVIDER=lm_studio` e use `LM_STUDIO_MAX_CONCURRENCY=1` para evitar sobrecarga durante testes/smokes.
+- A ingestao de PDF em `extraction_mode=ia` agora envia texto da pagina e, quando disponivel, um pequeno contexto visual multimodal para o LM Studio; ajuste `PDF_LLM_IMAGE_DPI` se precisar equilibrar legibilidade e peso da requisicao.
+- Tanto na ingestao quanto no enrichment por PDF, o sistema prioriza as paginas com mais sinal de produto para o contexto visual; ajuste `PDF_LLM_PAGE_SCAN_LIMIT` se quiser ampliar ou reduzir a janela de paginas analisadas antes da selecao.
 - Sincronizar os prompts versionados no banco: `python scripts/sync_prompt_templates.py`
 - Rodar evals locais contra o LM Studio: `python scripts/run_evals.py --model google/gemma-3-12b`
 - Validar o fluxo real via API com produto descartavel: `python scripts/validate_local_llm_workflow.py --base-url http://127.0.0.1:8000`
 - Validar importacao + geracao com um catalogo publico real: `python scripts/validate_real_catalog_pipeline.py --base-url http://127.0.0.1:8000`
+- Validar um conjunto curado de saidas com score deterministico: `python scripts/validate_output_quality_suite.py`
 - O ultimo comando autentica no backend local, cria um produto temporario, dispara geracao de titulos e descricao no endpoint `openai`, valida a qualidade com regras deterministicas e apaga o produto ao final.
 
 ## Deploy E Operacao

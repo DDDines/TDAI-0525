@@ -38,6 +38,7 @@ jest.mock('../../../services/fornecedorService', () => ({
     getCatalogImportFiles: jest.fn(),
     deleteCatalogFile: jest.fn(),
     reprocessCatalogFile: jest.fn(),
+    resolveFornecedorLogo: jest.fn(),
   },
 }));
 
@@ -55,6 +56,11 @@ describe('EditFornecedorModal', () => {
     fornecedorService.getCatalogImportFiles.mockResolvedValue({ items: filesMock });
     fornecedorService.deleteCatalogFile.mockResolvedValue({});
     fornecedorService.reprocessCatalogFile.mockResolvedValue({});
+    fornecedorService.resolveFornecedorLogo.mockResolvedValue({
+      logo_url: 'https://cdn.example.com/logo.png',
+      resolved_site_url: 'https://fornecedor.test',
+      source: 'img-logo',
+    });
   });
 
   afterEach(() => {
@@ -102,6 +108,7 @@ describe('EditFornecedorModal', () => {
 
     expect(screen.getByLabelText('Nome*')).toHaveValue('Fornecedor X');
     expect(screen.getByLabelText('Site URL')).toHaveValue('https://fornecedor.test');
+    expect(screen.getByLabelText('Logo URL')).toHaveValue('');
 
     rerender(
       <EditFornecedorModal
@@ -120,11 +127,12 @@ describe('EditFornecedorModal', () => {
     await userEvent.type(screen.getByLabelText('Nome*'), '  Fornecedor Atualizado  ');
     await userEvent.type(screen.getByLabelText('Site URL'), 'meusite.com');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alteracoes' }));
 
     expect(onSave).toHaveBeenCalledWith(9, {
       nome: 'Fornecedor Atualizado',
       site_url: 'http://meusite.com',
+      logo_url: null,
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
@@ -154,10 +162,33 @@ describe('EditFornecedorModal', () => {
     expect(onSave).toHaveBeenCalledWith(5, {
       nome: 'Fornecedor Seguro',
       site_url: 'https://seguro.example',
+      logo_url: null,
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Arquivos' }));
     expect(await screen.findByTestId('catalog-file-names')).toHaveTextContent('file1.csv');
+  });
+
+  test('resolves and previews the supplier logo from the informed site', async () => {
+    render(
+      <EditFornecedorModal
+        isOpen={true}
+        fornecedorData={{ id: 5, nome: 'Fornecedor X', site_url: 'fornecedor.test' }}
+        onClose={() => {}}
+        onSave={() => {}}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Buscar do site/i }));
+
+    await waitFor(() => {
+      expect(fornecedorService.resolveFornecedorLogo).toHaveBeenCalledWith(
+        'http://fornecedor.test'
+      );
+    });
+    expect(screen.getByLabelText('Logo URL')).toHaveValue('https://cdn.example.com/logo.png');
+    expect(screen.getByAltText(/Logo de Fornecedor X/i)).toBeInTheDocument();
   });
 
   test('validates required name, minimum length and missing supplier id', async () => {
@@ -173,12 +204,12 @@ describe('EditFornecedorModal', () => {
     );
 
     await userEvent.clear(screen.getByLabelText('Nome*'));
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
-    expect(showWarningToast).toHaveBeenCalledWith('Nome é obrigatório.');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alteracoes' }));
+    expect(showWarningToast).toHaveBeenCalledWith('Nome e obrigatorio.');
     expect(onSave).not.toHaveBeenCalled();
 
     await userEvent.type(screen.getByLabelText('Nome*'), 'A');
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alteracoes' }));
     expect(showWarningToast).toHaveBeenCalledWith(
       'Nome deve ter pelo menos 2 caracteres.'
     );
@@ -193,8 +224,8 @@ describe('EditFornecedorModal', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
-    expect(showErrorToast).toHaveBeenCalledWith('Erro: ID do fornecedor não encontrado.');
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alteracoes' }));
+    expect(showErrorToast).toHaveBeenCalledWith('Erro: ID do fornecedor nao encontrado.');
     fireEvent.click(screen.getByRole('button', { name: 'Arquivos' }));
     expect(fornecedorService.getCatalogImportFiles).not.toHaveBeenCalled();
   });
@@ -227,8 +258,8 @@ describe('EditFornecedorModal', () => {
 
     expect(screen.getByTestId('wizard-state')).toHaveAttribute('data-open', 'false');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Importar Catálogo' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Importar Catálogo' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Importar Catalogo' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Importar Catalogo' })[1]);
     expect(screen.getByTestId('wizard-state')).toHaveAttribute('data-open', 'true');
 
     fireEvent.click(screen.getByText('close-wizard'));
@@ -274,7 +305,7 @@ describe('EditFornecedorModal', () => {
 
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Erro ao carregar arquivos de catálogo:',
+        'Erro ao carregar arquivos de catalogo:',
         expect.any(Error)
       );
     });

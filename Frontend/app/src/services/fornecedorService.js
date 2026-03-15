@@ -90,6 +90,23 @@ async function getFornecedores(params = {}) {
   }
 }
 
+async function getFornecedoresIds(params = {}) {
+  try {
+    const response = await apiClient.get('/fornecedores/ids', { params });
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao buscar IDs de fornecedores:',
+      serializeServiceError(error)
+    );
+    throwFornecedorServiceError(
+      error,
+      'Nenhuma resposta do servidor ao buscar IDs de fornecedores.',
+      'Erro ao configurar requisicao para buscar IDs de fornecedores.'
+    );
+  }
+}
+
 async function getFornecedorById(fornecedorId) {
   try {
     const response = await apiClient.get(`/fornecedores/${fornecedorId}`);
@@ -137,6 +154,25 @@ async function updateFornecedor(fornecedorId, fornecedorUpdateData) {
       error,
         `Nenhuma resposta do servidor ao tentar atualizar fornecedor ${fornecedorId}.`,
         `Erro ao configurar requisi\u00e7\u00e3o para atualizar fornecedor ${fornecedorId}.`
+    );
+  }
+}
+
+async function resolveFornecedorLogo(siteUrl) {
+  try {
+    const response = await apiClient.post('/fornecedores/resolve-logo', {
+      site_url: siteUrl,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      'Erro ao resolver logo do fornecedor:',
+      serializeServiceError(error)
+    );
+    throwFornecedorServiceError(
+      error,
+      'Nenhuma resposta do servidor ao tentar localizar o logo do fornecedor.',
+      'Erro ao configurar requisicao para localizar o logo do fornecedor.'
     );
   }
 }
@@ -491,6 +527,7 @@ export {
   getFornecedorById,
   createFornecedor,
   updateFornecedor,
+  resolveFornecedorLogo,
   setFornecedorMapping,
   deleteFornecedor,
   previewCatalogo,
@@ -515,9 +552,11 @@ export {
 
 export default {
   getFornecedores,
+  getFornecedoresIds,
   getFornecedorById,
   createFornecedor,
   updateFornecedor,
+  resolveFornecedorLogo,
   setFornecedorMapping,
   deleteFornecedor,
   previewCatalogo,

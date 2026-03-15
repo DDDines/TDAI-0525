@@ -186,6 +186,9 @@ async def test_web_llm_runtime_prioritizes_user_key_and_preserves_existing_metad
             calls.update(kwargs)
             return 'Resposta {"marca": null, "sku_original": "SKU-123"} fim'
 
+        def get_openai_provider_name(self):
+            return "openai"
+
     monkeypatch.setattr(web_module.settings, "OPENAI_API_KEY", system_key, raising=False)
 
     runtime = web_module.WebLLMExtractionEngineRuntime(

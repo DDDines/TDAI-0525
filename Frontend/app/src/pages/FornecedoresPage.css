@@ -1,37 +1,31 @@
-﻿/* Frontend/app/src/pages/FornecedoresPage.css */
-
 .fornecedores-page-shell {
   width: 100%;
+  padding-bottom: 1rem;
 }
 
-.fornecedores-stat-card {
-  min-height: 94px;
+.fornecedores-page-header {
+  margin-bottom: 0.2rem;
 }
 
-.fornecedores-search-row {
-  margin: 0;
+.fornecedores-search-field {
+  max-width: 56rem;
 }
 
-.fornecedores-search-row input {
-  max-width: 420px;
-}
-
-.catalog-files-section {
-  margin-top: 1em;
-}
-
-.catalog-files-add-btn {
-  margin-bottom: 0.5em;
+.fornecedores-danger-action {
+  min-height: 44px;
+  padding: 0.72rem 1rem;
+  border-radius: 14px;
+  border: none;
+  font-weight: 700;
 }
 
 @media (max-width: 768px) {
-  .fornecedores-search-row {
+  .fornecedores-page-header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .fornecedores-search-row input {
+  .fornecedores-danger-action {
     width: 100%;
-    max-width: none;
   }
 }

@@ -2,9 +2,12 @@
 """Document ia generation module module responsibilities and runtime integration points."""
 
 
+import asyncio
 import httpx # Para chamadas HTTP assÃ­ncronas
 import json
 import re
+import threading
+import time
 import unicodedata
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
@@ -20,6 +23,10 @@ from fastapi import HTTPException, status
 
 from Backend import models  # models completo para acesso a TipoAcaoEnum
 from Backend import schemas
+from Backend.application.services.basic_content_generation_service import BasicContentGenerationService
+from Backend.application.services.web_enrichment_normalization_service import (
+    WebEnrichmentNormalizationService,
+)
 from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
 from Backend.core.config import settings
 from Backend.infrastructure.repositories.product_repository import ProductRepository
@@ -27,6 +34,9 @@ from Backend.infrastructure.repositories.prompt_template_repository import (
     DEFAULT_PROMPT_TEMPLATES,
     PromptTemplateName,
     PromptTemplateRepository,
+)
+from Backend.infrastructure.repositories.external_credential_repository import (
+    ExternalCredentialRepository,
 )
 from Backend.infrastructure.repositories.registro_uso_ia_repository import (
     RegistroUsoIARepository,
@@ -65,7 +75,7 @@ COMPANY_ENTITY_HINT_PATTERN = re.compile(
     re.IGNORECASE,
 )
 TITLE_CONTACT_MARKER_PATTERN = re.compile(
-    r"\b(?:comercio|com[eÃ©]rcio|eletronico|eletr[oÃ´]nico|loja|empresa|atendimento|contato|telefone|fone|whatsapp|sac|site)\b",
+    r"\b(?:comercio|com[eÃ©]rcio|eletronico|eletr[oÃ´]nico|loja|empresa|atendimento|contato|telefone|whatsapp|sac|site|ligue|chame|fale)\b",
     re.IGNORECASE,
 )
 PHONE_OR_ID_BLOCK_PATTERN = re.compile(r"(?:\+?\d[\d\s()./-]{7,}\d)")
@@ -123,13 +133,129 @@ TITLE_IDENTITY_STOPWORDS = {
 }
 TITLE_PROMOTIONAL_TOKEN_PATTERN = re.compile(
     r"\b(?:exiba|exibir|descubra|transforme|aproveite|garanta|ideal|perfeito|perfeita|"
-    r"seu|sua|seus|suas|compre|leve|tenha|melhore|renove|encante|celebre)\b",
+    r"seu|sua|seus|suas|compre|tenha|melhore|renove|encante|celebre|leve\s+agora)\b",
     re.IGNORECASE,
 )
 TITLE_GENERIC_SUFFIX_PATTERN = re.compile(
-    r"\b(?:decor|decoracao|decorativo|decorativa|colecao|colecao|produto|item)\b",
+    r"\b(?:decor|decoracao|decorativo|decorativa|colecao|colecao|produto|item|original|display)\b",
     re.IGNORECASE,
 )
+LOW_VALUE_SUMMARY_PATTERN = re.compile(
+    r"(?:depende\s+do\s+contexto|elementos?\s+decorativos?\s+ou\s+funcionais|"
+    r"aplicacoes?\s+diversas|protecao\s+e\s+acabamento\s+visual|"
+    r"oferecer\s+suporte\s+e\s+revestimento)",
+    re.IGNORECASE,
+)
+GENERIC_MATERIAL_VARIANT_TOKENS = {
+    "aco",
+    "abs",
+    "aluminio",
+    "borracha",
+    "algodao",
+    "composto",
+    "eva",
+    "friccao",
+    "liga",
+    "metal",
+    "mesh",
+    "plastico",
+    "policarbonato",
+    "poliester",
+    "tactel",
+    "vidro",
+}
+GENERIC_OBJECT_TITLE_HINTS = {
+    "frame": "Moldura",
+    "displayer": "Expositor",
+    "display": "Expositor",
+    "basket": "Cesta",
+    "book": "Livro",
+}
+DESCRIPTION_SECTION_PATTERN = re.compile(
+    r"\s+(Resumo tecnico:|Aplicacao:|Referencia:|Material:|Conteudo da embalagem:|Especificacoes tecnicas:|Destaques tecnicos:)",
+    re.IGNORECASE,
+)
+DESCRIPTION_SECTION_TITLES = (
+    "Resumo tecnico:",
+    "Aplicacao:",
+    "Referencia:",
+    "Material:",
+    "Conteudo da embalagem:",
+    "Especificacoes tecnicas:",
+    "Destaques tecnicos:",
+)
+SELLER_BRAND_PATTERN = re.compile(
+    r"\b(?:loja|comercio|pecas?\s+para|auto\s*pecas|caminh(?:ao|oes)?|suporte|atendimento|oficial)\b",
+    re.IGNORECASE,
+)
+ENGLISH_GENERATED_MARKERS = {
+    "a",
+    "an",
+    "and",
+    "at",
+    "by",
+    "for",
+    "from",
+    "home",
+    "in",
+    "including",
+    "into",
+    "item",
+    "its",
+    "landscapes",
+    "nature",
+    "of",
+    "palette",
+    "playful",
+    "represents",
+    "scene",
+    "soft",
+    "sprinkled",
+    "the",
+    "this",
+    "with",
+    "winter",
+}
+PORTUGUESE_GENERATED_MARKERS = {
+    "acabamento",
+    "aplicacao",
+    "apresentacao",
+    "com",
+    "conteudo",
+    "decorativo",
+    "descricao",
+    "embalagem",
+    "especificacoes",
+    "item",
+    "linha",
+    "para",
+    "produto",
+    "resumo",
+    "tecnico",
+    "uso",
+}
+
+
+class _OpenAICompatibleConcurrencyRegistry:
+    """Keep shared concurrency gates stable across request-scoped runtimes."""
+
+    _lock = threading.Lock()
+    _lm_studio_semaphore: Optional[threading.BoundedSemaphore] = None
+    _lm_studio_limit: Optional[int] = None
+
+    @classmethod
+    def get_lm_studio_semaphore(
+        cls,
+        *,
+        limit: int,
+    ) -> threading.BoundedSemaphore:
+        """Return a shared LM Studio semaphore, rebuilding it when the limit changes."""
+        safe_limit = max(1, int(limit))
+        with cls._lock:
+            if cls._lm_studio_semaphore is None or cls._lm_studio_limit != safe_limit:
+                cls._lm_studio_semaphore = threading.BoundedSemaphore(safe_limit)
+                cls._lm_studio_limit = safe_limit
+            return cls._lm_studio_semaphore
 
 
 class AiProviderWorkflow:
@@ -149,7 +275,7 @@ class AiProviderWorkflow:
 
     async def call_openai_api(
         self,
-        prompt_messages: List[Dict[str, str]],
+        prompt_messages: List[Dict[str, Any]],
         api_key: str,
         model: str = OPENAI_DEFAULT_MODEL,
         temperature: float = 0.7,
@@ -163,6 +289,10 @@ class AiProviderWorkflow:
             temperature=temperature,
             max_tokens=max_tokens,
         )
+
+    def get_openai_provider_name(self) -> str:
+        """Expose the active OpenAI-compatible provider to higher-level workflows."""
+        return self._runtime.get_openai_provider_name()
 
     async def call_gemini_api_for_suggestions(
         self,
@@ -231,6 +361,75 @@ class AiProviderRuntime:
         """Build a provider-specific OpenAI-compatible endpoint URL."""
         normalized_path = path if path.startswith("/") else f"/{path}"
         return f"{self._get_openai_compatible_base_url()}{normalized_path}"
+
+    @staticmethod
+    def _normalize_positive_int(raw_value: Any, *, default: int) -> int:
+        """Normalize positive integer settings while tolerating malformed env values."""
+        try:
+            parsed_value = int(raw_value)
+        except (TypeError, ValueError):
+            parsed_value = default
+        return max(1, parsed_value)
+
+    def get_openai_compatible_max_concurrency(self) -> int:
+        """Return the max number of concurrent OpenAI-compatible requests allowed."""
+        if not self._is_lm_studio_enabled():
+            return 0
+        return self._normalize_positive_int(
+            getattr(settings, "LM_STUDIO_MAX_CONCURRENCY", 1),
+            default=1,
+        )
+
+    def get_openai_compatible_request_timeout_seconds(self) -> float:
+        """Return the outbound request timeout for the active OpenAI-compatible provider."""
+        if not self._is_lm_studio_enabled():
+            return 60.0
+        return float(
+            self._normalize_positive_int(
+                getattr(settings, "LM_STUDIO_REQUEST_TIMEOUT_SECONDS", 120),
+                default=120,
+            )
+        )
+
+    def get_lm_studio_description_word_target(self, requested_words: int) -> int:
+        """Clamp local description targets so the loaded LM Studio model stays responsive."""
+        normalized_requested = self._normalize_positive_int(requested_words, default=50)
+        configured_target = self._normalize_positive_int(
+            getattr(settings, "LM_STUDIO_DESCRIPTION_WORD_TARGET", 50),
+            default=50,
+        )
+        return min(normalized_requested, configured_target)
+
+    def get_lm_studio_description_max_tokens(self, requested_words: int) -> int:
+        """Limit LM Studio description token budgets to avoid long-running local generations."""
+        normalized_requested = self._normalize_positive_int(requested_words, default=50)
+        configured_cap = self._normalize_positive_int(
+            getattr(settings, "LM_STUDIO_DESCRIPTION_MAX_TOKENS", 150),
+            default=150,
+        )
+        requested_cap = max(80, normalized_requested + 100)
+        return min(configured_cap, requested_cap)
+
+    def _get_openai_compatible_semaphore(self) -> Optional[threading.BoundedSemaphore]:
+        """Return the shared semaphore used to protect the local LM Studio provider."""
+        if not self._is_lm_studio_enabled():
+            return None
+        return _OpenAICompatibleConcurrencyRegistry.get_lm_studio_semaphore(
+            limit=self.get_openai_compatible_max_concurrency(),
+        )
+
+    async def _acquire_openai_compatible_slot(
+        self,
+    ) -> tuple[Optional[threading.BoundedSemaphore], float]:
+        """Acquire a provider slot before performing a heavy local generation call."""
+        semaphore = self._get_openai_compatible_semaphore()
+        if semaphore is None:
+            return None, 0.0
+
+        wait_started_at = time.perf_counter()
+        await asyncio.to_thread(semaphore.acquire)
+        waited_seconds = time.perf_counter() - wait_started_at
+        return semaphore, waited_seconds
 
     @classmethod
     def _is_retryable_exception(cls, exc: Exception) -> bool:
@@ -330,23 +529,29 @@ class AiProviderRuntime:
             )
             return lm_studio_key
 
-        user_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
-        system_key = normalize_optional_secret(settings.OPENAI_API_KEY)
+        if not hasattr(db, "query"):
+            personal_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
+            if looks_like_openai_api_key(personal_key):
+                return personal_key
+            system_key = normalize_optional_secret(settings.OPENAI_API_KEY)
+            return system_key if looks_like_openai_api_key(system_key) else None
 
-        if looks_like_openai_api_key(user_key):
-            logger.info(f"Usando chave OpenAI pessoal para usuÃ¡rio ID: {user.id}")
-            return user_key
-        if user_key:
+        credential_repo = ExternalCredentialRepository(db)
+        resolved = credential_repo.resolve_effective_source(
+            provider=models.ExternalCredentialProviderEnum.OPENAI,
+            current_user=user,
+            settings=settings,
+        )
+        resolved_key = normalize_optional_secret(resolved.get("secret_value"))
+        if looks_like_openai_api_key(resolved_key):
+            logger.info("Usando chave OpenAI com origem efetiva: %s.", resolved.get("source"))
+            return resolved_key
+        if resolved_key:
             logger.warning(
-                "Chave OpenAI pessoal ignorada para usuÃ¡rio ID %s: formato invalido.",
+                "Chave OpenAI ignorada para usuario ID %s: formato invalido (origem: %s).",
                 user.id,
+                resolved.get("source"),
             )
-
-        if looks_like_openai_api_key(system_key):
-            logger.info("Usando chave OpenAI global do sistema.")
-            return system_key
-        if system_key:
-            logger.warning("Chave OpenAI global ignorada: formato invalido.")
 
         logger.warning("Nenhuma chave OpenAI encontrada (nem pessoal, nem global).")
         return None
@@ -355,20 +560,29 @@ class AiProviderRuntime:
         self, db: Session, user: models.User
     ) -> Optional[str]:
         """Retrieve gemini api key using the current service dependencies."""
-        if user.chave_google_gemini_pessoal:
-            logger.info(f"Usando chave Gemini pessoal para usuÃ¡rio ID: {user.id}")
-            return user.chave_google_gemini_pessoal
+        if not hasattr(db, "query"):
+            return (
+                normalize_optional_secret(getattr(user, "chave_google_gemini_pessoal", None))
+                or normalize_optional_secret(settings.GOOGLE_GEMINI_API_KEY)
+            )
 
-        if settings.GOOGLE_GEMINI_API_KEY:
-            logger.info("Usando chave Gemini global do sistema.")
-            return settings.GOOGLE_GEMINI_API_KEY
+        credential_repo = ExternalCredentialRepository(db)
+        resolved = credential_repo.resolve_effective_source(
+            provider=models.ExternalCredentialProviderEnum.GOOGLE_GEMINI,
+            current_user=user,
+            settings=settings,
+        )
+        resolved_key = normalize_optional_secret(resolved.get("secret_value"))
+        if resolved_key:
+            logger.info("Usando chave Gemini com origem efetiva: %s.", resolved.get("source"))
+            return resolved_key
 
         logger.warning("Nenhuma chave Gemini encontrada (nem pessoal, nem global).")
         return None
 
     async def call_openai_api(
         self,
-        prompt_messages: List[Dict[str, str]],
+        prompt_messages: List[Dict[str, Any]],
         api_key: str,
         model: str = OPENAI_DEFAULT_MODEL,
         temperature: float = 0.7,
@@ -381,22 +595,30 @@ class AiProviderRuntime:
                 detail="Chave da API OpenAI nÃ£o configurada.",
             )
 
-        resolved_model = await self.resolve_openai_model(
-            api_key=api_key,
-            requested_model=model,
-        )
         provider_name = self.get_openai_provider_name()
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": resolved_model,
-            "messages": prompt_messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
+        concurrency_semaphore: Optional[threading.BoundedSemaphore] = None
         try:
+            concurrency_semaphore, waited_seconds = await self._acquire_openai_compatible_slot()
+            if concurrency_semaphore is not None and waited_seconds >= 0.05:
+                logger.info(
+                    "LM Studio aguardou %.2fs por um slot livre de geracao (limite=%s).",
+                    waited_seconds,
+                    self.get_openai_compatible_max_concurrency(),
+                )
+            resolved_model = await self.resolve_openai_model(
+                api_key=api_key,
+                requested_model=model,
+            )
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": resolved_model,
+                "messages": prompt_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
             logger.info(
                 "Chamando provider OpenAI-compatible '%s'. Modelo: %s, Tokens Max: %s, Temp: %s",
                 provider_name,
@@ -409,7 +631,7 @@ class AiProviderRuntime:
                 url=self._build_openai_compatible_url("/chat/completions"),
                 json_payload=payload,
                 headers=headers,
-                timeout_seconds=60.0,
+                timeout_seconds=self.get_openai_compatible_request_timeout_seconds(),
             )
             api_response_data = response.json()
 
@@ -451,6 +673,9 @@ class AiProviderRuntime:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Erro inesperado ao comunicar com OpenAI-compatible.",
             )
+        finally:
+            if concurrency_semaphore is not None:
+                concurrency_semaphore.release()
 
     async def call_gemini_api_for_suggestions(
         self,
@@ -701,6 +926,20 @@ class IAGenerationWorkflow:
 class IAGenerationRuntime:
     """Runtime OO para operacoes de geracao de conteudo IA."""
 
+    _HUMAN_TEXT_NORMALIZER = WebEnrichmentNormalizationService()
+
+    @classmethod
+    def _normalize_multiline_human_text(cls, raw_text: Any) -> str:
+        """Decode human text while preserving meaningful line breaks used by structured descriptions."""
+        raw = str(raw_text or "").replace("\r\n", "\n").replace("\r", "\n")
+        normalized_lines: List[str] = []
+        for raw_line in raw.split("\n"):
+            normalized_line = cls._HUMAN_TEXT_NORMALIZER.normalize_human_text(raw_line)
+            normalized_lines.extend(
+                segment for segment in str(normalized_line or "").replace("\r", "\n").split("\n")
+            )
+        return "\n".join(normalized_lines).strip()
+
     async def gerar_titulos_com_openai(
         self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3
     ) -> List[str]:
@@ -798,6 +1037,306 @@ class IAGenerationRuntime:
             )
 
     @staticmethod
+    def _get_basic_content_service() -> BasicContentGenerationService:
+        """Build the structured local content helper used as prompt context and fallback."""
+        return BasicContentGenerationService(product_repository_factory=ProductRepository)
+
+    @staticmethod
+    def _normalize_prompt_line(value: Any) -> str:
+        """Normalize arbitrary prompt fragments into compact printable lines."""
+        return " ".join(str(value or "").strip().split())
+
+    @classmethod
+    def _looks_like_reference_code(cls, value: Any) -> bool:
+        """Detect compact technical codes that are useful as title reference variants."""
+        cleaned = cls._normalize_prompt_line(value)
+        if not cleaned:
+            return False
+
+        folded = cls._fold_identity_text(cleaned)
+        if len(cleaned) > 40 or len(cleaned.split()) > 3:
+            return False
+        if re.search(r"\b(?:llm|smoke|test|teste|demo|sample|tmp|temp)\b", folded):
+            return False
+        return bool(re.search(r"\d", cleaned) and re.fullmatch(r"[A-Za-z0-9./_-]{4,40}", cleaned))
+
+    @classmethod
+    def _resolve_title_reference_signal(
+        cls,
+        *,
+        referencia: Any = None,
+        modelo: Any = None,
+    ) -> str:
+        """Prefer extracted reference, but fall back to model codes when they look technical."""
+        explicit_reference = cls._normalize_prompt_line(referencia)
+        if explicit_reference:
+            return explicit_reference
+
+        normalized_model = cls._normalize_prompt_line(modelo)
+        if cls._looks_like_reference_code(normalized_model):
+            return normalized_model
+        return ""
+
+    @classmethod
+    def _looks_like_seller_brand(cls, value: Any) -> bool:
+        """Detect seller/store names that should not be surfaced as manufacturer brand."""
+        cleaned = cls._clean_single_title_candidate(value)
+        if not cleaned:
+            return False
+        return bool(SELLER_BRAND_PATTERN.search(cleaned))
+
+    @classmethod
+    def _detect_product_segment(
+        cls,
+        *,
+        db_produto: Any,
+        technical_facts: Dict[str, Any],
+        categoria: Any,
+    ) -> str:
+        """Classify whether the product context is automotive or generic."""
+        automotive_signal_tokens = (
+            "automot",
+            "veicul",
+            "montadora",
+            "caminhao",
+            "carro",
+            "moto",
+            "farol",
+            "paralama",
+            "embreagem",
+            "combust",
+            "freio",
+            "suspens",
+            "motor",
+            "radiador",
+            "scania",
+            "volvo",
+            "mercedes",
+            "iveco",
+            "ford cargo",
+            "volkswagen",
+            "toyota",
+            "chevrolet",
+            "fiat",
+            "renault",
+            "hyundai",
+            "nissan",
+            "linha pesada",
+            "linha leve",
+        )
+        raw_fragments = [
+            getattr(db_produto, "nome_base", ""),
+            getattr(db_produto, "nome_chat_api", ""),
+            getattr(db_produto, "descricao_original", ""),
+            getattr(db_produto, "categoria_original", ""),
+            getattr(db_produto, "categoria_mapeada", ""),
+            categoria,
+            technical_facts.get("application", ""),
+            technical_facts.get("vehicle_make", ""),
+            technical_facts.get("technical_summary", ""),
+        ]
+        folded_context = " ".join(
+            fragment
+            for fragment in (cls._fold_identity_text(item) for item in raw_fragments)
+            if fragment
+        )
+        if not folded_context:
+            return "geral"
+        if any(signal in folded_context for signal in automotive_signal_tokens):
+            return "automotivo"
+        return "geral"
+
+    @classmethod
+    def _build_domain_guardrail_text(
+        cls,
+        *,
+        prompt_context: Dict[str, Any],
+        target: str,
+    ) -> str:
+        """Inject domain guidance so non-automotive items are not forced into vehicle language."""
+        segmento = cls._fold_identity_text(prompt_context.get("segmento_produto"))
+        if segmento == "automotivo":
+            return ""
+        if target == "description":
+            return (
+                "Contexto de dominio obrigatorio: este item nao pertence ao segmento automotivo. "
+                "Nao trate o produto como peca veicular e nao mencione veiculo, montadora, painel, "
+                "linha leve, linha pesada, motor, freio ou compatibilidade automotiva sem confirmacao explicita.\n"
+            )
+        return (
+            "Contexto de dominio obrigatorio: este item nao pertence ao segmento automotivo. "
+            "Preserve o nome original do item e nao introduza montadora, veiculo, aplicacao automotiva "
+            "ou termos de peca veicular sem confirmacao explicita.\n"
+        )
+
+    @classmethod
+    def _build_generic_object_title_alias(
+        cls,
+        *,
+        source_title: Any,
+        segmento_produto: Any,
+    ) -> str:
+        """Add a neutral object-type hint for short generic catalog names when context is sparse."""
+        if cls._fold_identity_text(segmento_produto) == "automotivo":
+            return ""
+        clean_source = cls._clean_single_title_candidate(source_title)
+        if not clean_source:
+            return ""
+        tokens = [token for token in re.findall(r"[A-Za-z0-9]+", clean_source) if token]
+        if len(tokens) < 2 or len(tokens) > 4:
+            return ""
+        folded_source = cls._fold_identity_text(clean_source)
+        hint = GENERIC_OBJECT_TITLE_HINTS.get(cls._fold_identity_text(tokens[-1]))
+        if not hint or cls._fold_identity_text(hint) in folded_source:
+            return ""
+        return cls._normalize_prompt_line(f"{clean_source} {hint}")
+
+    @classmethod
+    def _build_generation_prompt_context(
+        cls,
+        *,
+        db_produto: Any,
+        tamanho_palavras: int = 150,
+        minimum_tamanho_palavras: int = 120,
+    ) -> Dict[str, Any]:
+        """Build a richer, structured prompt context from web data and local technical extraction."""
+        basic_service = cls._get_basic_content_service()
+        web_context = basic_service._extract_web_context(produto=db_produto)
+        technical_facts = basic_service._extract_technical_facts(
+            produto=db_produto,
+            web_context=web_context,
+        )
+        structured_titles = basic_service._build_title_candidates(
+            produto=db_produto,
+            web_context=web_context,
+        )
+        fallback_description_words = max(120, int(tamanho_palavras or 120))
+        structured_description = basic_service._build_basic_description(
+            produto=db_produto,
+            tamanho_palavras=fallback_description_words,
+            template_descricao=basic_service._DEFAULT_DESCRIPTION_TEMPLATE,
+        )
+        structured_description = cls._sanitize_generated_description(structured_description)
+        structured_preamble, structured_sections = cls._parse_description_sections(structured_description)
+        if structured_sections:
+            structured_description = cls._render_description_sections(
+                structured_preamble,
+                structured_sections,
+            )
+
+        nome_base = cls._normalize_prompt_line(
+            getattr(db_produto, "nome_base", None) or getattr(db_produto, "nome_chat_api", None)
+        ) or "Produto"
+        nome_secundario = cls._normalize_prompt_line(getattr(db_produto, "nome_chat_api", None))
+        marca = cls._normalize_prompt_line(
+            basic_service._resolve_generation_brand(produto=db_produto, web_context=web_context)
+        )
+        if cls._looks_like_seller_brand(marca):
+            marca = ""
+        modelo = cls._normalize_prompt_line(getattr(db_produto, "modelo", None))
+        referencia_extraida = cls._normalize_prompt_line(technical_facts.get("reference"))
+        referencia = cls._resolve_title_reference_signal(
+            referencia=referencia_extraida,
+            modelo=modelo,
+        )
+        aplicacao = cls._normalize_prompt_line(technical_facts.get("application"))
+        material = cls._normalize_prompt_line(technical_facts.get("material"))
+        conteudo = cls._normalize_prompt_line(technical_facts.get("content"))
+        categoria = basic_service._sanitize_title_fragment(
+            getattr(db_produto, "categoria_mapeada", "") or getattr(db_produto, "categoria_original", ""),
+            cut_on_contact_marker=True,
+            max_len=80,
+        )
+        segmento_produto = cls._detect_product_segment(
+            db_produto=db_produto,
+            technical_facts=technical_facts,
+            categoria=categoria,
+        )
+        stable_fallback_description = cls._finalize_structured_description(
+            structured_description,
+            product_name=nome_base,
+            fallback_text=structured_description,
+        )
+
+        specs = []
+        for line in stable_fallback_description.splitlines():
+            clean_line = cls._normalize_prompt_line(line)
+            if clean_line.startswith("- "):
+                specs.append(clean_line)
+        specs_text = "\n".join(specs[:6])
+
+        filtered_titles: List[str] = []
+        for title in structured_titles:
+            clean_title = cls._normalize_prompt_line(title)
+            folded_title = cls._fold_identity_text(clean_title)
+            if not clean_title:
+                continue
+            if re.search(r"\b(?:variante|opcao)\b", folded_title):
+                continue
+            if clean_title != nome_base and len(clean_title.split()) < 2 and not any(char.isdigit() for char in clean_title):
+                continue
+            filtered_titles.append(clean_title)
+        if not filtered_titles:
+            filtered_titles = [nome_base]
+
+        aliases = [alias for alias in filtered_titles[1:5] if cls._normalize_prompt_line(alias)]
+        if nome_secundario:
+            aliases.append(nome_secundario)
+        if referencia:
+            aliases.append(cls._normalize_prompt_line(f"{nome_base} Ref {referencia}"))
+        if aplicacao:
+            aliases.append(cls._normalize_prompt_line(f"{nome_base} {aplicacao}"))
+        if conteudo:
+            aliases.append(cls._normalize_prompt_line(f"{nome_base} {conteudo}"))
+        if categoria:
+            aliases.append(cls._normalize_prompt_line(f"{nome_base} {categoria}"))
+        generic_object_alias = cls._build_generic_object_title_alias(
+            source_title=nome_base,
+            segmento_produto=segmento_produto,
+        )
+        if generic_object_alias:
+            aliases.append(generic_object_alias)
+        aliases = cls._filter_prompt_source_aliases(
+            primary_source=nome_base,
+            aliases=aliases,
+        )
+
+        return {
+            "nome_base": nome_base,
+            "nome_secundario": nome_secundario,
+            "marca": marca,
+            "modelo": modelo,
+            "descricao": stable_fallback_description,
+            "referencia": referencia,
+            "referencia_extraida": referencia_extraida,
+            "aplicacao": aplicacao,
+            "material": material,
+            "conteudo": conteudo,
+            "categoria": categoria,
+            "segmento_produto": segmento_produto,
+            "contexto_tecnico": stable_fallback_description,
+            "specs": specs_text,
+            "source_title": nome_base,
+            "source_aliases": aliases,
+            "fallback_titles": cls._select_final_title_candidates(
+                prompt_context={
+                    "source_title": nome_base,
+                    "source_aliases": aliases,
+                    "fallback_titles": filtered_titles,
+                    "referencia": referencia,
+                    "marca": marca,
+                    "material": material,
+                    "aplicacao": aplicacao,
+                    "conteudo": conteudo,
+                    "categoria": categoria,
+                },
+                llm_titles=[],
+                desired_count=max(5, len(filtered_titles)),
+            ),
+            "fallback_description": stable_fallback_description,
+        }
+
+    @staticmethod
     def _looks_like_company_timeline_claim(text: str) -> bool:
         """Detect unsupported company timeline/history claims that tend to be hallucinated."""
         compact = " ".join(str(text or "").strip().split())
@@ -816,26 +1355,98 @@ class IAGenerationRuntime:
     @staticmethod
     def _sanitize_generated_description(raw_text: Any) -> str:
         """Remove unsupported company-history claims from generated descriptions."""
-        text = " ".join(str(raw_text or "").strip().split())
+        text = IAGenerationRuntime._normalize_multiline_human_text(raw_text)
         if not text:
             return ""
 
         text = DESCRIPTION_META_PREFIX_PATTERN.sub("", text)
-        text = re.sub(r"^\s*[-*•]+\s*", "", text).strip()
+        text = DESCRIPTION_SECTION_PATTERN.sub(r"\n\1", text)
+        text = re.sub(r"\s+-\s+", "\n- ", text)
 
-        chunks = re.split(r"(?<=[.!?])\s+|[\r\n]+", text)
-        filtered_chunks: List[str] = []
-        for chunk in chunks:
-            normalized_chunk = " ".join(str(chunk or "").strip().split())
-            if IAGenerationRuntime._looks_like_company_timeline_claim(normalized_chunk):
+        filtered_lines: List[str] = []
+        last_non_empty = ""
+        for raw_line in text.splitlines():
+            normalized_line = " ".join(str(raw_line or "").strip().split())
+            if not normalized_line:
+                if filtered_lines and filtered_lines[-1] != "":
+                    filtered_lines.append("")
                 continue
-            if DESCRIPTION_PROMOTIONAL_PATTERN.search(normalized_chunk):
+            if normalized_line in {"-", "*", "•"}:
                 continue
-            filtered_chunks.append(normalized_chunk)
+            bullet_prefix = ""
+            if normalized_line.startswith(("- ", "* ", "• ")):
+                bullet_prefix = "- "
+                normalized_line = normalized_line[2:].strip()
+            normalized_line = re.sub(r"\.{3,}", ".", normalized_line)
+            normalized_line = " ".join(normalized_line.split())
+            normalized_line = re.sub(r"\s+([,.;:!?])", r"\1", normalized_line)
+            if not normalized_line:
+                continue
+            if normalized_line.endswith(":"):
+                if normalized_line == last_non_empty:
+                    continue
+                filtered_lines.append(normalized_line)
+                last_non_empty = normalized_line
+                continue
 
-        if filtered_chunks:
-            return " ".join(filtered_chunks).strip()
-        return text
+            candidate_chunks = (
+                [normalized_line]
+                if bullet_prefix
+                else [chunk for chunk in re.split(r"(?<=[.!?])\s+", normalized_line) if chunk]
+            )
+            for chunk in candidate_chunks:
+                candidate = " ".join(chunk.strip().split())
+                if not candidate:
+                    continue
+                if IAGenerationRuntime._looks_like_company_timeline_claim(candidate):
+                    continue
+                if DESCRIPTION_PROMOTIONAL_PATTERN.search(candidate):
+                    continue
+                if IAGenerationRuntime._looks_like_english_generated_fragment(candidate):
+                    continue
+                if re.search(r"\burl da fonte\b", candidate, re.IGNORECASE):
+                    continue
+                if bullet_prefix:
+                    candidate = f"{bullet_prefix}{candidate}"
+                if candidate == last_non_empty:
+                    continue
+                filtered_lines.append(candidate)
+                last_non_empty = candidate
+
+        while filtered_lines and filtered_lines[-1] == "":
+            filtered_lines.pop()
+
+        if not filtered_lines:
+            return ""
+        return "\n".join(filtered_lines).strip()
+
+    @staticmethod
+    def _looks_like_english_generated_fragment(text: Any) -> bool:
+        """Reject long raw English scrape fragments before final visible output."""
+        raw_text = str(text or "")
+        compact = " ".join(str(raw_text or "").strip().split())
+        if not compact:
+            return False
+        if re.search(r"%[0-9A-Fa-f]{2}", raw_text):
+            return True
+        folded = IAGenerationRuntime._fold_identity_text(compact)
+        if any(
+            phrase in folded
+            for phrase in (
+                "this collection",
+                "including the",
+                "represents winter",
+                "soft palette",
+                "playful details of nature",
+            )
+        ):
+            return True
+        tokens = re.findall(r"[a-z]+", folded)
+        if len(tokens) < 6:
+            return False
+        english_hits = sum(token in ENGLISH_GENERATED_MARKERS for token in tokens)
+        portuguese_hits = sum(token in PORTUGUESE_GENERATED_MARKERS for token in tokens)
+        return english_hits >= 3 and english_hits > max(1, portuguese_hits * 2)
 
     @staticmethod
     def _clean_single_title_candidate(raw_line: Any) -> str:
@@ -860,7 +1471,7 @@ class IAGenerationRuntime:
         )[0]
         cleaned = URL_PATTERN.sub(" ", cleaned)
         cleaned = EMAIL_PATTERN.sub(" ", cleaned)
-        cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)
+        cleaned = IAGenerationRuntime._strip_suspicious_contact_fragments_from_title(cleaned)
         marker_match = TITLE_CONTACT_MARKER_PATTERN.search(cleaned)
         if marker_match:
             cleaned = cleaned[: marker_match.start()]
@@ -870,9 +1481,67 @@ class IAGenerationRuntime:
             return ""
         if IAGenerationRuntime._looks_like_company_timeline_claim(cleaned):
             return ""
-        if URL_PATTERN.search(cleaned) or EMAIL_PATTERN.search(cleaned) or PHONE_OR_ID_BLOCK_PATTERN.search(cleaned):
+        if (
+            URL_PATTERN.search(cleaned)
+            or EMAIL_PATTERN.search(cleaned)
+            or IAGenerationRuntime._title_contains_suspicious_contact_number(cleaned)
+        ):
             return ""
         return cleaned
+
+    @classmethod
+    def _numeric_fragment_looks_like_contact(
+        cls,
+        *,
+        full_text: str,
+        match: re.Match[str],
+    ) -> bool:
+        """Distinguish real contact numbers from technical product codes inside titles."""
+        candidate = match.group(0)
+        digits_only = re.sub(r"\D", "", candidate)
+        if not digits_only:
+            return False
+
+        has_separator = bool(re.search(r"[\s()./-]", candidate))
+        prefix_window = cls._fold_identity_text(full_text[max(0, match.start() - 24):match.start()])
+        if any(keyword in prefix_window for keyword in ("modelo", "referencia", "ref", "codigo", "sku")):
+            return False
+        if not has_separator and len(digits_only) <= 12:
+            return False
+        if "+" in candidate:
+            return True
+        if len(digits_only) >= 10 and has_separator:
+            return True
+        return any(keyword in prefix_window for keyword in ("telefone", "celular", "whatsapp", "ligue", "fone", "contato"))
+
+    @classmethod
+    def _strip_suspicious_contact_fragments_from_title(cls, text: Any) -> str:
+        """Remove contact-like numeric fragments while preserving technical references."""
+        raw_text = str(text or "")
+        result: List[str] = []
+        last_index = 0
+        finditer = getattr(PHONE_OR_ID_BLOCK_PATTERN, "finditer", None)
+        matches = list(finditer(raw_text)) if callable(finditer) else []
+        for match in matches:
+            if not cls._numeric_fragment_looks_like_contact(full_text=raw_text, match=match):
+                continue
+            result.append(raw_text[last_index:match.start()])
+            result.append(" ")
+            last_index = match.end()
+        result.append(raw_text[last_index:])
+        return "".join(result)
+
+    @classmethod
+    def _title_contains_suspicious_contact_number(cls, text: Any) -> bool:
+        """Return True when a title still contains a contact-like phone number fragment."""
+        raw_text = str(text or "")
+        finditer = getattr(PHONE_OR_ID_BLOCK_PATTERN, "finditer", None)
+        if not callable(finditer):
+            return False
+        return any(
+            cls._numeric_fragment_looks_like_contact(full_text=raw_text, match=match)
+            for match in finditer(raw_text)
+        )
 
     @staticmethod
     def _fold_identity_text(value: Any) -> str:
@@ -912,6 +1581,38 @@ class IAGenerationRuntime:
         return variants
 
     @classmethod
+    def _filter_prompt_source_aliases(
+        cls,
+        *,
+        primary_source: Any,
+        aliases: Optional[List[Any]] = None,
+    ) -> List[str]:
+        """Keep only aliases that still clearly preserve the primary source identity."""
+        primary_clean = cls._clean_single_title_candidate(primary_source)
+        if not primary_clean:
+            return []
+
+        selected: List[str] = []
+        seen: set[str] = set()
+        for alias in aliases or []:
+            cleaned_alias = cls._clean_single_title_candidate(alias)
+            if not cleaned_alias:
+                continue
+            normalized_alias = cls._fold_identity_text(cleaned_alias)
+            if normalized_alias == cls._fold_identity_text(primary_clean):
+                continue
+            if normalized_alias in seen:
+                continue
+            if not cls._candidate_preserves_source_identity(
+                cleaned_alias,
+                source_variants=[primary_clean],
+            ):
+                continue
+            seen.add(normalized_alias)
+            selected.append(cleaned_alias)
+        return selected
+
+    @classmethod
     def _candidate_preserves_source_identity(cls, candidate: str, *, source_variants: List[str]) -> bool:
         """Reject candidates that drift too far from the original product name identity."""
         if not source_variants:
@@ -944,12 +1645,15 @@ class IAGenerationRuntime:
         source_text = " ".join(source_variants)
         folded_source = cls._fold_identity_text(source_text)
         folded_candidate = cls._fold_identity_text(cleaned_candidate)
+        source_signal_tokens = set(re.findall(r"[a-z0-9]+", folded_source))
 
         if TITLE_PROMOTIONAL_TOKEN_PATTERN.search(folded_candidate):
             return True
 
         generic_match = TITLE_GENERIC_SUFFIX_PATTERN.search(folded_candidate)
-        if generic_match and generic_match.group(0).strip() not in folded_source:
+        if generic_match and generic_match.group(0).strip() not in source_signal_tokens:
+            return True
+        if re.search(r"\b(?:g/r|serie\s+\d|ate\s+\d{4}|até\s+\d{4})\b", folded_candidate):
             return True
         return False
 
@@ -973,7 +1677,7 @@ class IAGenerationRuntime:
         fallbacks: List[str] = [clean_primary]
 
         rotations: List[List[str]] = []
-        if len(words) >= 3:
+        if len(words) >= 2:
             rotations.append(words[-1:] + words[:-1])
         if len(words) >= 4:
             rotations.append(words[-2:] + words[:-2])
@@ -998,6 +1702,751 @@ class IAGenerationRuntime:
             if len(unique) >= desired_count:
                 break
         return unique
+
+    @classmethod
+    def _score_title_candidate(
+        cls,
+        candidate: str,
+        *,
+        primary_source: str,
+        prompt_context: Dict[str, Any],
+    ) -> tuple[int, int, int]:
+        """Score titles so the final list prefers identity-preserving technical variants."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        cleaned_source = cls._clean_single_title_candidate(primary_source)
+        if not cleaned_candidate or not cleaned_source:
+            return (-1000, 0, 0)
+
+        folded_candidate = cls._fold_identity_text(cleaned_candidate)
+        folded_source = cls._fold_identity_text(cleaned_source)
+        candidate_tokens = set(cls._tokenize_title_identity(cleaned_candidate))
+        source_tokens = set(cls._tokenize_title_identity(cleaned_source))
+        overlap = len(candidate_tokens & source_tokens)
+
+        score = 0
+        if folded_candidate == folded_source:
+            score += 100
+        if folded_candidate.startswith(folded_source):
+            score += 40
+        score += overlap * 18
+
+        reference = cls._fold_identity_text(prompt_context.get("referencia"))
+        if reference:
+            reference_in_primary = reference in folded_source
+            if reference_in_primary:
+                if reference in folded_candidate and re.search(r"\bref(?:erencia)?\b", folded_candidate):
+                    score += 18
+            elif reference in folded_candidate:
+                score += 18
+
+        brand = cls._fold_identity_text(prompt_context.get("marca"))
+        if brand and brand in folded_candidate:
+            score += 14
+
+        material = cls._fold_identity_text(prompt_context.get("material"))
+        if material and material in folded_candidate:
+            score += 8
+
+        application_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("aplicacao")))
+            if len(token) >= 4
+        ][:3]
+        if application_tokens and any(token in folded_candidate for token in application_tokens):
+            score += 10
+
+        category_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("categoria")))
+            if len(token) >= 4
+        ][:3]
+        if category_tokens and any(token in folded_candidate for token in category_tokens):
+            score += 8
+
+        if re.search(r"\b(?:1\s*peca|1\s*peça|unitario|unitária)\b", folded_candidate):
+            score -= 20
+        if re.search(r"\b(?:frontal|grade\s+superior|superior)\b", folded_candidate) and overlap < max(2, len(source_tokens)):
+            score -= 8
+        if re.search(r"\b(?:g/r|serie\s+\d|ate\s+\d{4}|até\s+\d{4})\b", folded_candidate):
+            score -= 14
+        if "/" in cleaned_candidate and "ref" not in folded_candidate:
+            score -= 10
+
+        return (score, -len(cleaned_candidate), -len(candidate_tokens))
+
+    @classmethod
+    def _title_has_incomplete_reference_token(cls, candidate: Any, *, reference: Any = None) -> bool:
+        """Reject titles that mention a bare reference marker without the actual code/value."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        if not cleaned_candidate:
+            return True
+
+        folded_candidate = cls._fold_identity_text(cleaned_candidate)
+        reference_text = cls._fold_identity_text(reference)
+        if not re.search(r"\bref(?:erencia)?\b", folded_candidate):
+            return False
+        if reference_text and reference_text in folded_candidate:
+            return False
+
+        if re.search(r"\bref(?:erencia)?\b\s*$", folded_candidate):
+            return True
+
+        trailing_fragment = re.split(r"\bref(?:erencia)?\b", folded_candidate, maxsplit=1)[1].strip()
+        if not trailing_fragment:
+            return True
+        if len(re.findall(r"[a-z0-9]+", trailing_fragment)) <= 1 and len(trailing_fragment) <= 4:
+            return True
+        return False
+
+    @classmethod
+    def _select_final_title_candidates(
+        cls,
+        *,
+        prompt_context: Dict[str, Any],
+        llm_titles: Optional[List[str]] = None,
+        desired_count: int,
+    ) -> List[str]:
+        """Merge LLM output with deterministic fallbacks and keep only strong final variants."""
+        primary_source = cls._clean_single_title_candidate(prompt_context.get("source_title")) or "Produto"
+        source_aliases = cls._filter_prompt_source_aliases(
+            primary_source=primary_source,
+            aliases=prompt_context.get("source_aliases") or [],
+        )
+
+        pool: List[str] = []
+        reference = prompt_context.get("referencia")
+        for candidate in [
+            *(llm_titles or []),
+            *(prompt_context.get("fallback_titles") or []),
+            *(prompt_context.get("source_aliases") or []),
+        ]:
+            cleaned = cls._clean_single_title_candidate(candidate)
+            if (
+                cleaned
+                and not cls._title_has_incomplete_reference_token(cleaned, reference=reference)
+                and not cls._candidate_has_no_semantic_gain(
+                    cleaned,
+                    primary_source=primary_source,
+                    reference=reference,
+                )
+                and not cls._candidate_is_low_value_material_variant(
+                    cleaned,
+                    prompt_context=prompt_context,
+                    primary_source=primary_source,
+                )
+            ):
+                pool.append(cleaned)
+
+        reconciled = cls._reconcile_title_candidates_with_source(
+            pool,
+            source_title=primary_source,
+            source_aliases=source_aliases,
+            desired_count=max(1, int(desired_count or 1)),
+        )
+
+        unique_candidates: List[str] = []
+        seen: set[str] = set()
+        for candidate in reconciled:
+            normalized = cls._fold_identity_text(candidate)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_candidates.append(candidate)
+
+        ranked = sorted(
+            unique_candidates,
+            key=lambda item: cls._score_title_candidate(
+                item,
+                primary_source=primary_source,
+                prompt_context=prompt_context,
+            ),
+            reverse=True,
+        )
+
+        if primary_source:
+            ranked = [primary_source, *[item for item in ranked if cls._fold_identity_text(item) != cls._fold_identity_text(primary_source)]]
+
+        ranked = cls._promote_diverse_title_variants(
+            ranked,
+            prompt_context=prompt_context,
+            desired_count=max(1, int(desired_count or 1)),
+        )
+
+        return ranked[: max(1, int(desired_count or 1))]
+
+    @classmethod
+    def _candidate_has_no_semantic_gain(
+        cls,
+        candidate: Any,
+        *,
+        primary_source: str,
+        reference: Any,
+    ) -> bool:
+        """Reject variants that add no new technical signal beyond the base title."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        cleaned_source = cls._clean_single_title_candidate(primary_source)
+        if not cleaned_candidate or not cleaned_source:
+            return False
+        if cls._fold_identity_text(cleaned_candidate) == cls._fold_identity_text(cleaned_source):
+            return False
+
+        if reference:
+            folded_reference = cls._fold_identity_text(reference)
+            if folded_reference and folded_reference in cls._fold_identity_text(cleaned_candidate):
+                return False
+
+        candidate_tokens = set(cls._tokenize_title_identity(cleaned_candidate))
+        source_tokens = set(cls._tokenize_title_identity(cleaned_source))
+        if not candidate_tokens or not source_tokens:
+            return False
+        return not (candidate_tokens - source_tokens)
+
+    @classmethod
+    def _candidate_is_low_value_material_variant(
+        cls,
+        candidate: Any,
+        *,
+        prompt_context: Dict[str, Any],
+        primary_source: str,
+    ) -> bool:
+        """Reject variants that only append generic raw material tokens to the base title."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        if not cleaned_candidate:
+            return False
+
+        material_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("material")))
+            if len(token) >= 3
+        ]
+        if not material_tokens or any(token not in GENERIC_MATERIAL_VARIANT_TOKENS for token in material_tokens):
+            return False
+
+        candidate_tokens = set(cls._tokenize_title_identity(cleaned_candidate))
+        source_tokens = set(cls._tokenize_title_identity(primary_source))
+        extra_tokens = candidate_tokens - source_tokens
+        if not extra_tokens:
+            return False
+        return extra_tokens <= set(material_tokens)
+
+    @classmethod
+    def _title_variant_categories(cls, candidate: Any, *, prompt_context: Dict[str, Any]) -> set[str]:
+        """Classify title candidates by the extra technical signal they add beyond the base identity."""
+        cleaned_candidate = cls._clean_single_title_candidate(candidate)
+        if not cleaned_candidate:
+            return set()
+
+        folded_candidate = cls._fold_identity_text(cleaned_candidate)
+        categories: set[str] = set()
+        primary_source = cls._fold_identity_text(prompt_context.get("source_title"))
+
+        reference = cls._fold_identity_text(prompt_context.get("referencia"))
+        if reference:
+            reference_in_primary = reference in primary_source
+            if reference_in_primary:
+                if reference in folded_candidate and re.search(r"\bref(?:erencia)?\b", folded_candidate):
+                    categories.add("reference")
+            elif reference in folded_candidate:
+                categories.add("reference")
+
+        brand = cls._fold_identity_text(prompt_context.get("marca"))
+        if brand and brand in folded_candidate and brand not in primary_source:
+            categories.add("brand")
+
+        material = cls._fold_identity_text(prompt_context.get("material"))
+        if (
+            material
+            and material in folded_candidate
+            and material not in primary_source
+            and not cls._candidate_is_low_value_material_variant(
+                cleaned_candidate,
+                prompt_context=prompt_context,
+                primary_source=prompt_context.get("source_title") or "",
+            )
+        ):
+            categories.add("material")
+
+        application_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("aplicacao")))
+            if len(token) >= 4
+        ][:3]
+        if application_tokens and any(token in folded_candidate for token in application_tokens):
+            categories.add("application")
+
+        content_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("conteudo")))
+            if len(token) >= 4
+        ][:4]
+        if content_tokens and any(token in folded_candidate for token in content_tokens):
+            categories.add("content")
+
+        category_tokens = [
+            token
+            for token in re.findall(r"[a-z0-9]+", cls._fold_identity_text(prompt_context.get("categoria")))
+            if len(token) >= 4
+        ][:3]
+        if category_tokens and any(token in folded_candidate for token in category_tokens):
+            categories.add("category")
+
+        return categories
+
+    @classmethod
+    def _promote_diverse_title_variants(
+        cls,
+        ranked_candidates: List[str],
+        *,
+        prompt_context: Dict[str, Any],
+        desired_count: int,
+    ) -> List[str]:
+        """Prefer a compact set of title variants that adds useful technical diversity."""
+        if not ranked_candidates or desired_count <= 1:
+            return ranked_candidates
+
+        selected: List[str] = []
+        seen: set[str] = set()
+
+        primary = ranked_candidates[0]
+        primary_folded = cls._fold_identity_text(primary)
+        selected.append(primary)
+        seen.add(primary_folded)
+
+        remaining = [candidate for candidate in ranked_candidates[1:] if cls._fold_identity_text(candidate) not in seen]
+        for category in ("reference", "application", "content", "category", "material", "brand"):
+            if len(selected) >= desired_count:
+                break
+            for candidate in remaining:
+                if category in cls._title_variant_categories(candidate, prompt_context=prompt_context):
+                    folded_candidate = cls._fold_identity_text(candidate)
+                    if folded_candidate in seen:
+                        continue
+                    selected.append(candidate)
+                    seen.add(folded_candidate)
+                    break
+
+        for candidate in ranked_candidates:
+            folded_candidate = cls._fold_identity_text(candidate)
+            if folded_candidate in seen:
+                continue
+            selected.append(candidate)
+            seen.add(folded_candidate)
+            if len(selected) >= desired_count:
+                break
+
+        return selected
+
+    @classmethod
+    def _finalize_structured_description(
+        cls,
+        raw_text: Any,
+        *,
+        product_name: Any,
+        fallback_text: Any = "",
+    ) -> str:
+        """Return a structured description with a stable heading and required sections."""
+        primary_name = cls._normalize_prompt_line(product_name) or "Produto"
+        description = cls._sanitize_generated_description(raw_text)
+        fallback_description = cls._sanitize_generated_description(fallback_text)
+        if not description or description.count("\n") < 3:
+            description = fallback_description
+
+        if not description:
+            return primary_name
+
+        folded_name = cls._fold_identity_text(primary_name)
+        description_lines = [line.rstrip() for line in description.splitlines()]
+        first_non_empty = next((line.strip() for line in description_lines if line.strip()), "")
+        first_non_empty_folded = cls._fold_identity_text(first_non_empty)
+        if first_non_empty_folded != folded_name:
+            description = f"{primary_name}\n\n{description}"
+
+        description = cls._replace_invalid_summary_section(
+            description,
+            product_name=primary_name,
+            fallback_text=fallback_description,
+        )
+        preamble, sections = cls._parse_description_sections(description)
+        preamble = cls._stabilize_description_preamble(
+            preamble,
+            product_name=primary_name,
+            has_sections=bool(sections),
+        )
+        normalized_sections: List[tuple[str, List[str]]] = []
+        for heading, lines in sections:
+            if heading == "Resumo tecnico:":
+                lines = cls._strip_redundant_product_name_from_summary_lines(
+                    list(lines),
+                    product_name=primary_name,
+                )
+            normalized_sections.append((heading, lines))
+        description = cls._render_description_sections(preamble, normalized_sections)
+        description = re.sub(r"\n{3,}", "\n\n", description).strip()
+        return description
+
+    @classmethod
+    def _stabilize_description_preamble(
+        cls,
+        preamble: List[str],
+        *,
+        product_name: str,
+        has_sections: bool,
+    ) -> List[str]:
+        """Collapse repeated fragmented preambles into a single stable product heading."""
+        normalized_product_name = cls._normalize_prompt_line(product_name)
+        if not normalized_product_name:
+            return preamble
+
+        product_tokens = set(re.findall(r"[a-z0-9]+", cls._fold_identity_text(normalized_product_name)))
+        cleaned_lines: List[str] = []
+        saw_fragmented_identity = False
+        seen: set[str] = set()
+
+        for raw_line in preamble:
+            clean_line = cls._normalize_prompt_line(raw_line)
+            if not clean_line:
+                continue
+            folded_line = cls._fold_identity_text(clean_line)
+            if folded_line in seen:
+                saw_fragmented_identity = True
+                continue
+            seen.add(folded_line)
+            if folded_line == cls._fold_identity_text(normalized_product_name):
+                saw_fragmented_identity = True
+                continue
+            line_tokens = set(re.findall(r"[a-z0-9]+", folded_line))
+            if has_sections and (
+                clean_line.startswith("- ")
+                or (
+                    line_tokens
+                    and product_tokens
+                    and line_tokens.issubset(product_tokens)
+                    and len(line_tokens) <= max(4, len(product_tokens))
+                )
+            ):
+                saw_fragmented_identity = True
+                continue
+            cleaned_lines.append(clean_line)
+
+        if has_sections and saw_fragmented_identity:
+            return [normalized_product_name]
+        if not cleaned_lines:
+            return [normalized_product_name]
+        if cls._fold_identity_text(cleaned_lines[0]) != cls._fold_identity_text(normalized_product_name):
+            cleaned_lines.insert(0, normalized_product_name)
+        return cleaned_lines
+
+    @classmethod
+    def _parse_description_sections(cls, text: Any) -> tuple[List[str], List[tuple[str, List[str]]]]:
+        """Parse a structured description into preamble lines plus ordered titled sections."""
+        preamble: List[str] = []
+        sections: List[tuple[str, List[str]]] = []
+        current_heading: Optional[str] = None
+
+        for raw_line in str(text or "").splitlines():
+            line = raw_line.rstrip()
+            stripped = line.strip()
+            matched_heading = next(
+                (
+                    heading
+                    for heading in DESCRIPTION_SECTION_TITLES
+                    if stripped.lower() == heading.lower() or stripped.lower().startswith(heading.lower())
+                ),
+                None,
+            )
+            if matched_heading is not None:
+                current_heading = matched_heading
+                sections.append((matched_heading, []))
+                inline_content = stripped[len(matched_heading) :].strip()
+                if inline_content:
+                    sections[-1][1].append(inline_content)
+                continue
+            if current_heading and sections:
+                sections[-1][1].append(line)
+            else:
+                preamble.append(line)
+        return preamble, sections
+
+    @classmethod
+    def _render_description_sections(
+        cls,
+        preamble: List[str],
+        sections: List[tuple[str, List[str]]],
+    ) -> str:
+        """Rebuild a structured description after section rewrites."""
+        rendered: List[str] = [line for line in preamble]
+        for heading, lines in sections:
+            if rendered and rendered[-1].strip():
+                rendered.append("")
+            rendered.append(heading)
+            rendered.extend(lines)
+        return "\n".join(rendered).strip()
+
+    @classmethod
+    def _strip_redundant_product_name_from_summary_lines(
+        cls,
+        lines: List[str],
+        *,
+        product_name: str,
+    ) -> List[str]:
+        """Avoid repeating the full product name at the start of the summary body."""
+        if not lines:
+            return lines
+
+        first_line = cls._normalize_prompt_line(lines[0])
+        normalized_product_name = cls._normalize_prompt_line(product_name)
+        if not first_line or not normalized_product_name:
+            return lines
+
+        folded_first_line = cls._fold_identity_text(first_line)
+        folded_product_name = cls._fold_identity_text(normalized_product_name)
+        if not re.match(
+            rf"^{re.escape(folded_product_name)}(?:[\s\-:,.]+)",
+            folded_first_line,
+        ):
+            return lines
+
+        trimmed_line = first_line[len(normalized_product_name):].lstrip(" -:,.")
+        if not trimmed_line or len(trimmed_line.split()) < 3:
+            return lines
+        if cls._fold_identity_text(trimmed_line) == folded_product_name:
+            return lines
+        if trimmed_line[:1].islower():
+            return lines
+        return [trimmed_line, *lines[1:]]
+
+    @classmethod
+    def _description_tail_looks_truncated(cls, description: str) -> bool:
+        """Detect descriptions that were cut mid-section by a local max-token limit."""
+        non_empty_lines = [line.strip() for line in str(description or "").splitlines() if line.strip()]
+        if not non_empty_lines:
+            return False
+
+        last_line = non_empty_lines[-1]
+        if last_line in DESCRIPTION_SECTION_TITLES or last_line.endswith(":"):
+            return True
+
+        if re.search(r"\b(?:resumo|aplicacao|referencia|material|conteudo|especificacoes|destaques)\b$", last_line, re.IGNORECASE):
+            return True
+
+        if last_line.startswith("- "):
+            bullet_tokens = re.findall(r"[A-Za-z0-9À-ÿ]+", last_line)
+            if len(bullet_tokens) < 3:
+                return True
+            if len(bullet_tokens) <= 8 and not re.search(r"[.!?)]$", last_line):
+                return True
+        return False
+
+    @classmethod
+    def _compose_summary_first_description(
+        cls,
+        description: str,
+        *,
+        product_name: str,
+        fallback_text: str,
+    ) -> str:
+        """Use LLM output only for the summary section and keep the remaining sections deterministic."""
+        description = cls._sanitize_generated_description(description)
+        fallback_text = cls._sanitize_generated_description(fallback_text)
+        generated_preamble, generated_sections = cls._parse_description_sections(description)
+        fallback_preamble, fallback_sections = cls._parse_description_sections(fallback_text)
+        fallback_map = {heading: list(lines) for heading, lines in fallback_sections}
+
+        generated_summary = next(
+            (
+                [line for line in lines if line.strip()]
+                for heading, lines in generated_sections
+                if heading == "Resumo tecnico:" and any(line.strip() for line in lines)
+            ),
+            None,
+        )
+        if generated_summary is None:
+            generated_summary = [
+                line for line in generated_preamble
+                if line.strip() and cls._fold_identity_text(line.strip()) != cls._fold_identity_text(product_name)
+            ]
+
+        if not generated_summary:
+            return cls._finalize_structured_description(
+                fallback_text,
+                product_name=product_name,
+                fallback_text=fallback_text,
+            )
+
+        summary_lines = [line.rstrip() for line in generated_summary if line.strip()]
+        highlight_lines = cls._build_highlight_lines_from_summary(
+            summary_lines,
+            fallback_lines=fallback_map.get("Destaques tecnicos:", []),
+        )
+        repaired_sections: List[tuple[str, List[str]]] = []
+        for heading in DESCRIPTION_SECTION_TITLES:
+            if heading == "Resumo tecnico:":
+                repaired_sections.append((heading, summary_lines))
+                continue
+            if heading == "Destaques tecnicos:" and highlight_lines:
+                repaired_sections.append((heading, highlight_lines))
+                continue
+            if heading in fallback_map:
+                repaired_sections.append((heading, fallback_map[heading]))
+
+        repaired = cls._render_description_sections(
+            fallback_preamble,
+            repaired_sections,
+        )
+        return cls._finalize_structured_description(
+            repaired,
+            product_name=product_name,
+            fallback_text=fallback_text,
+        )
+
+    @classmethod
+    def _repair_truncated_description_with_fallback(
+        cls,
+        description: str,
+        *,
+        product_name: str,
+        fallback_text: str,
+    ) -> str:
+        """Keep the generated summary when possible and restore missing structured sections from fallback."""
+        description = cls._sanitize_generated_description(description)
+        fallback_text = cls._sanitize_generated_description(fallback_text)
+        if not cls._description_tail_looks_truncated(description):
+            return description
+
+        generated_preamble, generated_sections = cls._parse_description_sections(description)
+        fallback_preamble, fallback_sections = cls._parse_description_sections(fallback_text)
+        fallback_map = {heading: list(lines) for heading, lines in fallback_sections}
+        generated_summary = next(
+            (
+                [line for line in lines if line.strip()]
+                for heading, lines in generated_sections
+                if heading == "Resumo tecnico:" and any(line.strip() for line in lines)
+            ),
+            None,
+        )
+        highlight_lines = cls._build_highlight_lines_from_summary(
+            generated_summary or [],
+            fallback_lines=fallback_map.get("Destaques tecnicos:", []),
+        )
+
+        repaired_sections: List[tuple[str, List[str]]] = []
+        for heading in DESCRIPTION_SECTION_TITLES:
+            if heading == "Resumo tecnico:" and generated_summary:
+                repaired_sections.append((heading, generated_summary))
+                continue
+            if heading == "Destaques tecnicos:" and highlight_lines:
+                repaired_sections.append((heading, highlight_lines))
+                continue
+            if heading in fallback_map:
+                repaired_sections.append((heading, fallback_map[heading]))
+
+        repaired = cls._render_description_sections(
+            generated_preamble or fallback_preamble,
+            repaired_sections,
+        )
+        return cls._finalize_structured_description(
+            repaired,
+            product_name=product_name,
+            fallback_text=fallback_text,
+        )
+
+    @classmethod
+    def _replace_invalid_summary_section(
+        cls,
+        description: str,
+        *,
+        product_name: str,
+        fallback_text: str,
+    ) -> str:
+        """Replace the generated summary section when it drifts away from the product identity."""
+        fallback_preamble, fallback_sections = cls._parse_description_sections(fallback_text)
+        fallback_summary = next((lines for heading, lines in fallback_sections if heading == "Resumo tecnico:"), None)
+        if not fallback_summary:
+            return description
+
+        preamble, sections = cls._parse_description_sections(description)
+        basic_service = cls._get_basic_content_service()
+
+        replaced = False
+        for index, (heading, lines) in enumerate(sections):
+            if heading != "Resumo tecnico:":
+                continue
+            summary_text = "\n".join(line.strip() for line in lines if line.strip())
+            generated_summary_is_weak = cls._summary_text_is_low_value(summary_text, product_name=product_name)
+            generated_summary_is_foreign = cls._looks_like_english_generated_fragment(summary_text)
+            fallback_summary_text = "\n".join(line.strip() for line in fallback_summary if line.strip())
+            fallback_summary_is_weak = cls._summary_text_is_low_value(
+                fallback_summary_text,
+                product_name=product_name,
+            )
+            if (
+                basic_service._summary_preserves_primary_identity(summary_text, primary_title=product_name)
+                and not generated_summary_is_weak
+                and not generated_summary_is_foreign
+            ):
+                return description
+            if (generated_summary_is_weak or generated_summary_is_foreign) and fallback_summary_is_weak:
+                return description
+            sections[index] = (heading, list(fallback_summary))
+            replaced = True
+            break
+
+        if not replaced:
+            if fallback_preamble and not preamble:
+                preamble = list(fallback_preamble)
+            sections.insert(0, ("Resumo tecnico:", list(fallback_summary)))
+
+        return cls._render_description_sections(preamble, sections)
+
+    @classmethod
+    def _summary_text_is_low_value(
+        cls,
+        summary_text: Any,
+        *,
+        product_name: Any,
+    ) -> bool:
+        """Detect placeholder-like summaries that preserve identity but add little factual value."""
+        normalized_summary = cls._normalize_prompt_line(summary_text)
+        normalized_product_name = cls._normalize_prompt_line(product_name)
+        if not normalized_summary:
+            return True
+
+        folded_summary = cls._fold_identity_text(normalized_summary)
+        folded_product_name = cls._fold_identity_text(normalized_product_name)
+        if folded_product_name and folded_summary == folded_product_name:
+            return True
+        return bool(LOW_VALUE_SUMMARY_PATTERN.search(folded_summary))
+
+    @classmethod
+    def _build_highlight_lines_from_summary(
+        cls,
+        summary_lines: List[str],
+        *,
+        fallback_lines: Optional[List[str]] = None,
+    ) -> List[str]:
+        """Derive concise technical highlight bullets from the generated summary when possible."""
+        highlights: List[str] = []
+        seen: set[str] = set()
+        for raw_line in summary_lines:
+            normalized_line = cls._normalize_prompt_line(raw_line)
+            if not normalized_line:
+                continue
+            fragments = re.split(r"(?<=[.!?])\s+", normalized_line)
+            for fragment in fragments:
+                clean_fragment = cls._normalize_prompt_line(fragment).rstrip(".")
+                if not clean_fragment or clean_fragment.endswith(":"):
+                    continue
+                bullet = f"- {clean_fragment}."
+                folded_bullet = cls._fold_identity_text(bullet)
+                if folded_bullet in seen:
+                    continue
+                seen.add(folded_bullet)
+                highlights.append(bullet)
+                if len(highlights) >= 2:
+                    return highlights
+        if highlights:
+            return highlights
+        return [line for line in (fallback_lines or []) if cls._normalize_prompt_line(line)]
 
     @classmethod
     def _reconcile_title_candidates_with_source(
@@ -1086,84 +2535,33 @@ class IAGenerationRuntime:
     @staticmethod
     def _build_local_title_candidates(db_produto: Any, *, num_titulos: int) -> List[str]:
         """Build deterministic fallback titles when no IA key is configured."""
-        base_name = (
-            (getattr(db_produto, "nome_base", None) or getattr(db_produto, "nome_chat_api", None) or "Produto")
-            .strip()
+        prompt_context = IAGenerationRuntime._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=120,
         )
-        marca = str(getattr(db_produto, "marca", "") or "").strip()
-        modelo = str(getattr(db_produto, "modelo", "") or "").strip()
-        sku = str(getattr(db_produto, "sku", "") or "").strip()
-        categoria = str(getattr(db_produto, "categoria_original", "") or "").strip()
-
-        def _clean_title_part(value: str) -> str:
-            """Strip contact/institutional artifacts from local fallback title fragments."""
-            cleaned = URL_PATTERN.sub(" ", value)
-            cleaned = EMAIL_PATTERN.sub(" ", cleaned)
-            cleaned = PHONE_OR_ID_BLOCK_PATTERN.sub(" ", cleaned)
-            marker_match = TITLE_CONTACT_MARKER_PATTERN.search(cleaned)
-            if marker_match:
-                cleaned = cleaned[: marker_match.start()]
-            cleaned = TITLE_CONTACT_MARKER_PATTERN.sub(" ", cleaned)
-            return re.sub(r"\s+", " ", cleaned).strip(" -|,;:/")
-
-        base_name = _clean_title_part(base_name) or "Produto"
-        marca = _clean_title_part(marca)
-        modelo = _clean_title_part(modelo)
-        categoria = _clean_title_part(categoria)
-
-        seeds = [
-            base_name,
-            f"{base_name} {marca}".strip(),
-            f"{base_name} {modelo}".strip(),
-            f"{base_name} {categoria}".strip(),
-            f"{base_name} {sku}".strip(),
-            f"{base_name} Alta Durabilidade".strip(),
-        ]
-        unique: List[str] = []
-        for seed in seeds:
-            cleaned = re.sub(r"\s+", " ", seed).strip(" -")
-            if len(cleaned) < 4:
-                continue
-            if cleaned not in unique:
-                unique.append(cleaned)
-            if len(unique) >= max(1, num_titulos):
-                break
-        return unique[: max(1, num_titulos)]
+        desired_count = max(1, int(num_titulos or 1))
+        titles = IAGenerationRuntime._select_final_title_candidates(
+            prompt_context=prompt_context,
+            llm_titles=[],
+            desired_count=desired_count,
+        )
+        if titles:
+            return titles
+        source_title = IAGenerationRuntime._normalize_prompt_line(prompt_context.get("source_title"))
+        return [source_title or "Produto"]
 
     @staticmethod
     def _build_local_description(db_produto: Any, *, tamanho_palavras: int) -> str:
         """Build deterministic fallback description when no IA key is configured."""
-        nome = str(getattr(db_produto, "nome_base", "") or "").strip() or "Produto automotivo"
-        marca = str(getattr(db_produto, "marca", "") or "").strip()
-        modelo = str(getattr(db_produto, "modelo", "") or "").strip()
-        sku = str(getattr(db_produto, "sku", "") or "").strip()
-        ean = str(getattr(db_produto, "ean", "") or "").strip()
-        categoria = str(getattr(db_produto, "categoria_original", "") or "").strip()
-        descricao_origem = str(
-            getattr(db_produto, "descricao_original", "") or getattr(db_produto, "descricao_chat_api", "") or ""
-        ).strip()
-
-        parts: List[str] = [f"{nome} e uma peca voltada para aplicacao automotiva com foco em reposicao confiavel."]
-        if marca:
-            parts.append(f"Fabricado por {marca}, mantendo padrao de compatibilidade para uso profissional.")
-        if modelo:
-            parts.append(f"Compativel com aplicacoes relacionadas ao modelo {modelo}.")
-        if categoria:
-            parts.append(f"Categoria de referencia: {categoria}.")
-        if sku:
-            parts.append(f"Codigo de identificacao (SKU): {sku}.")
-        if ean:
-            parts.append(f"Codigo EAN: {ean}.")
-        if descricao_origem:
-            parts.append(f"Informacoes adicionais do catalogo: {descricao_origem}.")
-        parts.append("Antes da venda, confirme medidas, posicao de montagem e compatibilidade com o veiculo de destino.")
-
-        text = " ".join(parts).strip()
-        target_words = max(40, int(tamanho_palavras))
-        words = [token for token in text.split() if token]
-        if len(words) >= target_words:
-            return " ".join(words[:target_words])
-        return text
+        prompt_context = IAGenerationRuntime._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=max(120, int(tamanho_palavras or 120)),
+        )
+        return IAGenerationRuntime._finalize_structured_description(
+            prompt_context.get("fallback_description", ""),
+            product_name=prompt_context.get("source_title"),
+            fallback_text=prompt_context.get("fallback_description", ""),
+        )
 
     @staticmethod
     def _registrar_uso_fallback(
@@ -1201,6 +2599,10 @@ class IAGenerationRuntime:
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
+        prompt_context = self._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=120,
+        )
 
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
@@ -1222,7 +2624,11 @@ class IAGenerationRuntime:
         prompt_messages = [
             {
                 "role": "system",
-                "content": self._render_prompt(
+                "content": self._build_domain_guardrail_text(
+                    prompt_context=prompt_context,
+                    target="title",
+                )
+                + self._render_prompt(
                     db=db,
                     nome=PromptTemplateName.IA_OPENAI_TITLE_SYSTEM,
                     context={"num_titulos": num_titulos},
@@ -1233,11 +2639,7 @@ class IAGenerationRuntime:
                 "content": self._render_prompt(
                     db=db,
                     nome=PromptTemplateName.IA_OPENAI_TITLE_USER,
-                    context={
-                        "nome_base": db_produto.nome_base,
-                        "descricao": db_produto.descricao_original or db_produto.descricao_chat_api or "",
-                        "marca": db_produto.marca or "",
-                    },
+                    context=prompt_context,
                 ),
             },
         ]
@@ -1249,15 +2651,15 @@ class IAGenerationRuntime:
         )
         titulos_list = self._sanitize_title_candidates(
             titulos_str,
-            source_title=db_produto.nome_base or db_produto.nome_chat_api or "",
-            source_aliases=[db_produto.nome_chat_api or ""],
+            source_title=prompt_context.get("source_title"),
+            source_aliases=prompt_context.get("source_aliases"),
             desired_count=max(1, int(num_titulos or 1)),
         )
-        if not titulos_list:
-            titulos_list = self._build_local_title_candidates(
-                db_produto,
-                num_titulos=max(1, int(num_titulos or 1)),
-            )
+        titulos_list = self._select_final_title_candidates(
+            prompt_context=prompt_context,
+            llm_titles=titulos_list,
+            desired_count=max(1, int(num_titulos or 1)),
+        )
 
         provider_runtime = getattr(ai_provider_workflow, "_runtime", None)
         if provider_runtime is not None:
@@ -1291,8 +2693,35 @@ class IAGenerationRuntime:
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
-
         ai_provider_workflow = self._get_ai_provider_workflow()
+        provider_runtime = getattr(ai_provider_workflow, "_runtime", None)
+        provider_name = (
+            provider_runtime.get_openai_provider_name()
+            if provider_runtime is not None
+            else "openai"
+        )
+        requested_word_target = max(40, int(tamanho_palavras or 40))
+        effective_word_target = requested_word_target
+        minimum_prompt_words = 120
+        max_tokens = max(60, requested_word_target) + 100
+        if provider_name == "lm_studio" and provider_runtime is not None:
+            effective_word_target = provider_runtime.get_lm_studio_description_word_target(
+                requested_word_target
+            )
+            minimum_prompt_words = 40
+            max_tokens = provider_runtime.get_lm_studio_description_max_tokens(
+                effective_word_target
+            )
+            logger.info(
+                "Aplicando perfil compacto de descricao para LM Studio: palavras=%s, max_tokens=%s.",
+                effective_word_target,
+                max_tokens,
+            )
+        prompt_context = self._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=effective_word_target,
+            minimum_tamanho_palavras=minimum_prompt_words,
+        )
         api_key = await ai_provider_workflow.get_openai_api_key(db=db, user=user)
         if not api_key:
             logger.warning("OpenAI indisponivel para produto %s; aplicando fallback local.", produto_id)
@@ -1312,10 +2741,14 @@ class IAGenerationRuntime:
         prompt_messages = [
             {
                 "role": "system",
-                "content": self._render_prompt(
+                "content": self._build_domain_guardrail_text(
+                    prompt_context=prompt_context,
+                    target="description",
+                )
+                + self._render_prompt(
                     db=db,
                     nome=PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM,
-                    context={"tamanho_palavras": tamanho_palavras},
+                    context={"tamanho_palavras": effective_word_target},
                 ),
             },
             {
@@ -1323,35 +2756,70 @@ class IAGenerationRuntime:
                 "content": self._render_prompt(
                     db=db,
                     nome=PromptTemplateName.IA_OPENAI_DESCRIPTION_USER,
-                    context={
-                        "nome_base": db_produto.nome_base,
-                        "descricao": db_produto.descricao_original or "",
-                        "marca": db_produto.marca or "",
-                        "modelo": db_produto.modelo or "",
-                    },
+                    context=prompt_context,
                 ),
             },
         ]
 
-        descricao = await ai_provider_workflow.call_openai_api(
-            prompt_messages=prompt_messages,
-            api_key=api_key,
-            max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
+        try:
+            descricao = await ai_provider_workflow.call_openai_api(
+                prompt_messages=prompt_messages,
+                api_key=api_key,
+                max_tokens=max_tokens,
+            )
+        except HTTPException as exc:
+            if provider_name == "lm_studio" and exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+                logger.warning(
+                    "LM Studio excedeu o tempo limite para descricao do produto %s; aplicando fallback local.",
+                    produto_id,
+                )
+                self._registrar_uso_fallback(
+                    db=db,
+                    user_id=user.id,
+                    produto_id=produto_id,
+                    tipo_acao=models.TipoAcaoEnum.CRIACAO_DESCRICAO_PRODUTO,
+                    provider_name="lm_studio",
+                    details="Timeout/rede do LM Studio; fallback local aplicado para descricao.",
+                )
+                return self._build_local_description(
+                    db_produto,
+                    tamanho_palavras=effective_word_target,
+                )
+            raise
+        descricao = self._finalize_structured_description(
+            descricao,
+            product_name=prompt_context.get("source_title"),
+            fallback_text=prompt_context.get("fallback_description", ""),
         )
-        descricao = self._sanitize_generated_description(descricao)
-        if not isinstance(descricao, str) or not descricao.strip():
-            descricao = self._build_local_description(
-                db_produto,
-                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+        if provider_name == "lm_studio":
+            descricao = self._compose_summary_first_description(
+                descricao,
+                product_name=prompt_context.get("source_title"),
+                fallback_text=prompt_context.get("fallback_description", ""),
+            )
+        descricao = self._repair_truncated_description_with_fallback(
+            descricao,
+            product_name=prompt_context.get("source_title"),
+            fallback_text=prompt_context.get("fallback_description", ""),
+        )
+        if (
+            not isinstance(descricao, str)
+            or not descricao.strip()
+            or descricao.count("\n") < 5
+            or "..." in descricao
+            or len(descricao.split()) < 35
+        ):
+            descricao = self._finalize_structured_description(
+                prompt_context.get("fallback_description", ""),
+                product_name=prompt_context.get("source_title"),
+                fallback_text=prompt_context.get("fallback_description", ""),
             )
 
-        provider_runtime = getattr(ai_provider_workflow, "_runtime", None)
         if provider_runtime is not None:
             modelo_utilizado = await provider_runtime.resolve_openai_model(
                 api_key=api_key,
                 requested_model=OPENAI_DEFAULT_MODEL,
             )
-            provider_name = provider_runtime.get_openai_provider_name()
         else:
             modelo_utilizado = OPENAI_DEFAULT_MODEL
             provider_name = "openai"
@@ -1377,6 +2845,10 @@ class IAGenerationRuntime:
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
+        prompt_context = self._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=120,
+        )
 
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
@@ -1395,14 +2867,15 @@ class IAGenerationRuntime:
                 num_titulos=max(1, int(num_titulos or 1)),
             )
 
-        prompt_text = self._render_prompt(
+        prompt_text = self._build_domain_guardrail_text(
+            prompt_context=prompt_context,
+            target="title",
+        ) + self._render_prompt(
             db=db,
             nome=PromptTemplateName.IA_GEMINI_TITLE_USER,
             context={
+                **prompt_context,
                 "num_titulos": num_titulos,
-                "nome_base": db_produto.nome_base,
-                "descricao": db_produto.descricao_original or db_produto.descricao_chat_api or "",
-                "marca": db_produto.marca or "",
             },
         )
         resultado = await ai_provider_workflow.call_gemini_api(
@@ -1412,15 +2885,15 @@ class IAGenerationRuntime:
         )
         titulos_list = self._sanitize_title_candidates(
             resultado,
-            source_title=db_produto.nome_base or db_produto.nome_chat_api or "",
-            source_aliases=[db_produto.nome_chat_api or ""],
+            source_title=prompt_context.get("source_title"),
+            source_aliases=prompt_context.get("source_aliases"),
             desired_count=max(1, int(num_titulos or 1)),
         )
-        if not titulos_list:
-            titulos_list = self._build_local_title_candidates(
-                db_produto,
-                num_titulos=max(1, int(num_titulos or 1)),
-            )
+        titulos_list = self._select_final_title_candidates(
+            prompt_context=prompt_context,
+            llm_titles=titulos_list,
+            desired_count=max(1, int(num_titulos or 1)),
+        )
 
         RegistroUsoIARepository(db).create_registro_uso_ia(
             registro_uso=schemas.RegistroUsoIACreate(
@@ -1444,6 +2917,10 @@ class IAGenerationRuntime:
         db_produto = ProductRepository(db).get_produto(produto_id=produto_id)
         if not db_produto:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
+        prompt_context = self._build_generation_prompt_context(
+            db_produto=db_produto,
+            tamanho_palavras=max(120, int(tamanho_palavras or 120)),
+        )
 
         ai_provider_workflow = self._get_ai_provider_workflow()
         api_key = await ai_provider_workflow.get_gemini_api_key(db=db, user=user)
@@ -1462,15 +2939,15 @@ class IAGenerationRuntime:
                 tamanho_palavras=max(40, int(tamanho_palavras or 40)),
             )
 
-        prompt_text = self._render_prompt(
+        prompt_text = self._build_domain_guardrail_text(
+            prompt_context=prompt_context,
+            target="description",
+        ) + self._render_prompt(
             db=db,
             nome=PromptTemplateName.IA_GEMINI_DESCRIPTION_USER,
             context={
+                **prompt_context,
                 "tamanho_palavras": tamanho_palavras,
-                "nome_base": db_produto.nome_base,
-                "descricao": db_produto.descricao_original or "",
-                "marca": db_produto.marca or "",
-                "modelo": db_produto.modelo or "",
             },
         )
         descricao = await ai_provider_workflow.call_gemini_api(
@@ -1478,11 +2955,22 @@ class IAGenerationRuntime:
             api_key=api_key,
             max_tokens=max(60, int(tamanho_palavras or 60)) + 100,
         )
-        descricao = self._sanitize_generated_description(descricao)
-        if not isinstance(descricao, str) or not descricao.strip():
-            descricao = self._build_local_description(
-                db_produto,
-                tamanho_palavras=max(40, int(tamanho_palavras or 40)),
+        descricao = self._finalize_structured_description(
+            descricao,
+            product_name=prompt_context.get("source_title"),
+            fallback_text=prompt_context.get("fallback_description", ""),
+        )
+        if (
+            not isinstance(descricao, str)
+            or not descricao.strip()
+            or descricao.count("\n") < 5
+            or "..." in descricao
+            or len(descricao.split()) < 35
+        ):
+            descricao = self._finalize_structured_description(
+                prompt_context.get("fallback_description", ""),
+                product_name=prompt_context.get("source_title"),
+                fallback_text=prompt_context.get("fallback_description", ""),
             )
 
         RegistroUsoIARepository(db).create_registro_uso_ia(
@@ -1526,8 +3014,14 @@ class IAGenerationRuntime:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="NÃ£o autorizado a acessar este produto")
     
         chaves_para_sugerir = []
+        atributos_relevantes: list[Any] = []
         if db_produto.product_type and db_produto.product_type.attribute_templates:
-            chaves_para_sugerir = [attr.attribute_key for attr in db_produto.product_type.attribute_templates if attr.attribute_key]
+            atributos_relevantes = [
+                attr
+                for attr in db_produto.product_type.attribute_templates
+                if getattr(attr, "attribute_key", None) and getattr(attr, "collect_in_ai", True) is not False
+            ]
+            chaves_para_sugerir = [attr.attribute_key for attr in atributos_relevantes]
         
         if not chaves_para_sugerir:
             logger.info(f"Nenhum atributo definido no Tipo de Produto para produto ID {produto_id}. Retornando sugestÃµes vazias.")
@@ -1559,11 +3053,18 @@ class IAGenerationRuntime:
     
         # 4. Construir Prompt para Gemini
         lista_chaves_str = "\n".join([f"- '{chave}'" for chave in chaves_para_sugerir])
+        contexto_atributos = "\n".join(
+            [
+                f"- {attr.attribute_key}: {getattr(attr, 'description', None) or getattr(attr, 'label', None) or attr.attribute_key}"
+                for attr in atributos_relevantes
+            ]
+        )
         prompt_final = self._render_prompt(
             db=db,
             nome=PromptTemplateName.IA_GEMINI_ATTRIBUTE_SUGGESTION_USER,
             context={
                 "contexto": contexto,
+                "contexto_atributos": contexto_atributos,
                 "lista_chaves_str": lista_chaves_str,
                 "lista_chaves_inline": lista_chaves_str,
             },

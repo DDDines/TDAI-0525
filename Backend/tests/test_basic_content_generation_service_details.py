@@ -52,6 +52,13 @@ def test_sanitize_title_fragment_handles_empty_cut_marker_and_numeric_noise():
     cls = BasicContentGenerationService
     assert cls._sanitize_title_fragment("") == ""
     assert cls._sanitize_title_fragment("Filtro de Ar") == "Filtro de Ar"
+    assert (
+        cls._sanitize_title_fragment(
+            "Fone Bluetooth JBL Tune 510BT Preto",
+            cut_on_contact_marker=True,
+        )
+        == "Fone Bluetooth JBL Tune 510BT Preto"
+    )
     assert cls._sanitize_title_fragment("AB1234CD5678EF") == ""
     assert (
         cls._sanitize_title_fragment(
@@ -179,7 +186,13 @@ def test_sanitize_spec_pair_and_redundant_keyword_rules():
     """Cover blocked spec keys and redundant keyword decisions."""
     cls = BasicContentGenerationService
     assert cls._sanitize_spec_pair("titulo_auto", "Valor") is None
+    assert cls._sanitize_spec_pair("Descricao", "This collection includes assorted ornaments.") is None
+    assert cls._sanitize_spec_pair("Nome", "Lit Snowman Scene Glass Ornaments - 2 Assorted URL da fonte") is None
     assert cls._sanitize_spec_pair("Aplicacao", "seguranca") is None
+    assert cls._sanitize_spec_pair("temperatura_cor", "6500K") == (
+        "Temperatura Cor",
+        "6500K",
+    )
     assert cls._sanitize_spec_pair("Aplicacao", "Mercedes Benz") == (
         "Aplicacao",
         "Mercedes Benz",
@@ -191,6 +204,113 @@ def test_sanitize_spec_pair_and_redundant_keyword_rules():
     assert cls._is_redundant_keyword("ab.", identity_parts=identity) is True
     assert cls._is_redundant_keyword("reservatorio litros", identity_parts=identity) is True
     assert cls._is_redundant_keyword("mercedes benz", identity_parts=identity) is False
+
+
+def test_primary_title_identity_filter_rejects_drifted_variants():
+    cls = BasicContentGenerationService
+    assert (
+        cls._preserves_primary_title_identity(
+            "Tela Central do Painel Superior Scania",
+            primary_title="Tela Central do Painel Superior",
+        )
+        is True
+    )
+    assert (
+        cls._preserves_primary_title_identity(
+            "Vidro Porta 111 Scania",
+            primary_title="Tela Central do Painel Superior",
+        )
+        is False
+    )
+
+
+def test_extract_technical_facts_prefers_direct_reference_value_over_label_text():
+    service = _service()
+    produto = _produto(
+        nome_base="Reservatório de Ar 20 Litros",
+        nome_chat_api="Reservatório de Ar 20 Litros - ROCHEPECAS",
+        sku="987 308 430 7005",
+        dados_brutos_web={
+            "codigo_original": "308 430 70 05 (MERCEDES BENZ)",
+            "especificacoes_tecnicas_dict": {
+                "Referencia original/similar": "308 430 70 05 (MERCEDES BENZ)",
+                "Aplicacao": "MERCEDES BENZ LN 608/708",
+            },
+        },
+    )
+
+    facts = service._extract_technical_facts(produto=produto, web_context={})
+
+    assert facts["reference"] == "308 430 70 05 (MERCEDES BENZ)"
+    assert facts["application"] == "MERCEDES BENZ LN 608/708"
+    assert service._build_reference_title_fragment(facts["reference"]) == "Ref 3084307005"
+
+
+def test_extract_technical_facts_prefers_model_code_over_internal_test_sku():
+    service = _service()
+    produto = _produto(
+        nome_base="Bomba de combustivel Bosch 12V flex",
+        modelo="0580454094",
+        sku="LLM-SMOKE-PUMP-1773230084",
+        descricao_original="Bomba de combustivel eletrica 12V com aplicacao em motores flex.",
+        dynamic_attributes={"aplicacao": "motores flex"},
+    )
+
+    facts = service._extract_technical_facts(produto=produto, web_context={})
+
+    assert facts["reference"] == "0580454094"
+    assert service._build_reference_title_fragment(facts["reference"]) == "Ref 0580454094"
+
+
+def test_extract_technical_facts_prefers_richer_direct_material_and_content_values():
+    service = _service()
+    produto = _produto(
+        nome_base="Kit de Embreagem Luk",
+        descricao_original="Kit de embreagem para linha leve com encaixe preciso.",
+        dynamic_attributes={
+            "material": "aco temperado",
+            "conteudo da embalagem": "disco, plato e rolamento",
+        },
+        dados_brutos_web={
+            "especificacoes_tecnicas_dict": {
+                "Material": "Aco",
+                "Conteudo": "disco",
+            }
+        },
+    )
+
+    facts = service._extract_technical_facts(produto=produto, web_context={})
+
+    assert facts["material"] == "aco temperado"
+    assert facts["content"] == "disco, plato e rolamento"
+
+
+def test_detect_vehicle_make_uses_token_boundaries_and_prefers_specific_match():
+    cls = BasicContentGenerationService
+
+    assert cls._detect_vehicle_make("Kit cambio manual com acionamento leve") == ""
+    assert cls._detect_vehicle_make("Filtro de ar Mann para linha leve") == ""
+    assert cls._detect_vehicle_make("Reservatorio Mercedes-Benz Actros") == "Mercedes-Benz"
+    assert cls._detect_vehicle_make("Aplicacao VW Constellation 24.250") == "VW"
+
+
+def test_extract_technical_facts_does_not_infer_man_from_manual_or_mann():
+    service = _service()
+    produto = _produto(
+        nome_base="Kit de Embreagem Luk cambio manual",
+        descricao_original="Kit completo para cambio manual com disco, plato e rolamento.",
+        modelo="620308400",
+        dynamic_attributes={"conteudo": "kit com 3 pecas"},
+        dados_brutos_web={
+            "descricao_curta": "Aplicacao em cambio manual de linha leve com sistema Luk.",
+            "especificacoes_tecnicas_dict": {"Material": "aco", "Marca complementar": "Mann"},
+        },
+    )
+
+    facts = service._extract_technical_facts(produto=produto, web_context={})
+
+    assert facts["vehicle_make"] == ""
+    assert facts["material"] == "Aco"
 
 
 def test_render_template_normalizes_none_dict_list_and_strips_blank_lines():
@@ -205,7 +325,7 @@ def test_render_template_normalizes_none_dict_list_and_strips_blank_lines():
             "text": "  valor final  ",
         },
     )
-    assert rendered == "A: B:Material: Aco\nC:um, dois\nD:valor final"
+    assert rendered == "A:\nB:Material: Aco\nC:um, dois\nD:valor final"
 
 
 def test_coerce_list_and_dict_cover_scalar_and_blank_entries():
@@ -370,7 +490,7 @@ def test_ensure_minimum_title_candidates_adds_option_fallbacks():
         web_context={"nome": "", "keywords": []},
     )
     assert len(candidates) == 3
-    assert candidates[-1].endswith("opcao 3")
+    assert candidates[-1].endswith("variante 3")
 
 
 def test_load_produto_raises_404_when_repository_returns_none():
@@ -528,8 +648,31 @@ def test_build_titles_with_template_skips_noisy_render_and_build_description_fal
         tamanho_palavras=10,
         template_descricao=service._DEFAULT_DESCRIPTION_TEMPLATE,
     )
-    assert truncated.endswith("...")
-    assert len(truncated.split()) == 40
+    assert not truncated.endswith("...")
+    assert len(truncated.split()) == 60
+
+
+def test_build_basic_description_uses_generic_object_summary_hints_for_retail_object_names():
+    service = _service()
+    produto = _produto(
+        nome_base="Tier Displayer",
+        marca="",
+        modelo="",
+        sku="",
+        ean="",
+        categoria_original="",
+        dynamic_attributes={},
+        dados_brutos_web={},
+    )
+
+    descricao = service._build_basic_description(
+        produto=produto,
+        tamanho_palavras=120,
+        template_descricao=service._DEFAULT_DESCRIPTION_TEMPLATE,
+    )
+
+    assert "Resumo tecnico:\nExpositor em camadas para organizacao e apresentacao visual de itens." in descricao
+    assert "Resumo tecnico:\nTier Displayer." not in descricao
 
 
 def test_build_basic_description_limits_dynamic_specs_and_skips_invalid_web_specs():

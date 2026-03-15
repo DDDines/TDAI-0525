@@ -1,0 +1,172 @@
+.fornecedor-logo-panel {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+  padding: 1.1rem;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.fornecedor-logo-preview-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.fornecedor-logo-preview {
+  width: 132px;
+  height: 132px;
+  border-radius: 28px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.95)),
+    linear-gradient(180deg, #f8fafc, #eef2ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 1.8rem;
+  font-weight: 800;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
+}
+
+.fornecedor-logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+  padding: 0.85rem;
+}
+
+.fornecedor-logo-preview-caption {
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #475569;
+  max-width: 132px;
+}
+
+.fornecedor-logo-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.fornecedor-logo-meta-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.fornecedor-logo-meta-head h4 {
+  margin: 0 0 0.25rem;
+  font-size: 1.02rem;
+  color: #0f172a;
+}
+
+.fornecedor-logo-meta-head p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.fornecedor-logo-source {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fornecedor-logo-source--css-logo,
+.fornecedor-logo-source--inline-logo,
+.fornecedor-logo-source--img-logo {
+  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(236, 253, 245, 0.95);
+  color: #047857;
+}
+
+.fornecedor-logo-source--meta-image {
+  border-color: rgba(59, 130, 246, 0.22);
+  background: rgba(239, 246, 255, 0.96);
+  color: #1d4ed8;
+}
+
+.fornecedor-logo-source--link-icon,
+.fornecedor-logo-source--favicon-default {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(255, 251, 235, 0.96);
+  color: #b45309;
+}
+
+.fornecedor-logo-source--manual {
+  border-color: rgba(107, 114, 128, 0.28);
+  background: rgba(248, 250, 252, 0.98);
+  color: #334155;
+}
+
+.fornecedor-logo-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: end;
+}
+
+.fornecedor-logo-url-group {
+  min-width: 0;
+}
+
+.fornecedor-logo-url-group label {
+  margin-bottom: 0.55rem;
+}
+
+.fornecedor-logo-helper {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.fornecedor-logo-action {
+  align-self: flex-end;
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .fornecedor-logo-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .fornecedor-logo-preview {
+    width: 112px;
+    height: 112px;
+  }
+
+  .fornecedor-logo-meta-head,
+  .fornecedor-logo-field-row {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .fornecedor-logo-source,
+  .fornecedor-logo-action {
+    justify-self: flex-start;
+  }
+}

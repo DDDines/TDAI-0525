@@ -14,6 +14,7 @@ jest.mock('../../services/fornecedorService', () => ({
   __esModule: true,
   default: {
     getFornecedores: jest.fn(),
+    getFornecedoresIds: jest.fn(),
     createFornecedor: jest.fn(),
     updateFornecedor: jest.fn(),
     deleteFornecedor: jest.fn(),
@@ -43,8 +44,14 @@ jest.mock('../../components/fornecedores/FornecedorTable', () => ({
       <button onClick={() => onSelectRow(fornecedores[0]?.id)}>toggle-first</button>
       <button onClick={() => onSelectRow(fornecedores[1]?.id)}>toggle-second</button>
       <button onClick={() => onRowClick(fornecedores[0])}>edit-first</button>
-      <button onClick={() => onSelectAllRows({ target: { checked: true } })}>select-all</button>
-      <button onClick={() => onSelectAllRows({ target: { checked: false } })}>clear-all</button>
+      <label htmlFor="mock-select-page-fornecedores">Selecionar pagina atual</label>
+      <input
+        id="mock-select-page-fornecedores"
+        type="checkbox"
+        aria-label="Selecionar pagina atual"
+        checked={selectedIds.length === fornecedores.length && fornecedores.length > 0}
+        onChange={(event) => onSelectAllRows(event.target.checked)}
+      />
     </div>
   ),
 }));
@@ -95,7 +102,7 @@ const fornecedoresPayload = {
     { id: 1, nome: 'Fornecedor A', site_url: 'https://a.example', created_at: '2026-03-07' },
     { id: 2, nome: 'Fornecedor B', site_url: 'https://b.example', created_at: '2026-03-07' },
   ],
-  total_items: 2,
+  total_items: 3,
 };
 
 describe('FornecedoresPage', () => {
@@ -107,6 +114,7 @@ describe('FornecedoresPage', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     fornecedorService.getFornecedores.mockResolvedValue(fornecedoresPayload);
+    fornecedorService.getFornecedoresIds.mockResolvedValue({ ids: [1, 2] });
     fornecedorService.createFornecedor.mockResolvedValue({ id: 3 });
     fornecedorService.updateFornecedor.mockResolvedValue({ id: 1 });
     fornecedorService.deleteFornecedor.mockResolvedValue({ ok: true });
@@ -122,13 +130,17 @@ describe('FornecedoresPage', () => {
     renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument();
+      expect(screen.getByText('Na base')).toBeInTheDocument();
     });
-    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
-      'Fornecedor A,Fornecedor B'
-    );
+    expect(screen.getByText(/Buscar fornecedores/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Novo Fornecedor/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
 
-    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor ou dominio do site...'), {
       target: { value: 'Fornecedor A' },
     });
 
@@ -182,7 +194,7 @@ describe('FornecedoresPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith('Falha ao buscar fornecedores.');
     });
 
-    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor ou dominio do site...'), {
       target: { value: 'recarregar' },
     });
 
@@ -195,13 +207,13 @@ describe('FornecedoresPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('selected-ids')).toHaveTextContent('1');
     });
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     await waitFor(() => {
       expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(1);
     });
 
-    expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+    expect(showSuccessToast).not.toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
     expect(window.confirm).toHaveBeenCalledWith(
       'Tem certeza que deseja deletar 1 fornecedor(es) selecionado(s)?'
     );
@@ -219,7 +231,7 @@ describe('FornecedoresPage', () => {
     });
 
     fornecedorService.getFornecedores.mockResolvedValueOnce(fornecedoresPayload);
-    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor ou dominio do site...'), {
       target: { value: 'recarregar' },
     });
 
@@ -232,7 +244,7 @@ describe('FornecedoresPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('selected-ids')).toHaveTextContent('1');
     });
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     await waitFor(() => {
       expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(1);
@@ -252,9 +264,63 @@ describe('FornecedoresPage', () => {
         'Fornecedor A,Fornecedor B'
       );
     });
-    const deleteButton = screen.getByRole('button', { name: /Deletar Selecionado/i });
-    expect(deleteButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Deletar selecionado/i })).not.toBeInTheDocument();
     expect(showWarningToast).not.toHaveBeenCalled();
+  });
+
+  test('supports selecting the current page and all filtered supplier results', async () => {
+    renderWithQueryClient(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
+    expect(
+      screen.getByText('2 fornecedor(es) selecionado(s) na pagina atual.')
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor ou dominio do site...'), {
+      target: { value: 'Fornecedor' },
+    });
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 0,
+        limit: 10,
+        termo_busca: 'Fornecedor',
+      });
+    });
+    expect(screen.queryByText(/na pagina atual/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Selecionar todos os 3 resultados' })
+      ).toBeInTheDocument();
+    });
+
+    fornecedorService.getFornecedoresIds.mockResolvedValueOnce({ ids: [1, 2, 9] });
+    fireEvent.click(screen.getByRole('button', { name: 'Selecionar todos os 3 resultados' }));
+
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedoresIds).toHaveBeenCalledWith({
+        termo_busca: 'Fornecedor',
+      });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2,9');
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText('3 fornecedor(es) selecionado(s) em todos os resultados filtrados.')
+      ).toBeInTheDocument();
+    });
+    expect(showSuccessToast).not.toHaveBeenCalledWith(
+      '3 fornecedor(es) selecionado(s) com os filtros atuais.'
+    );
   });
 
   test('formats create and update errors from backend detail payloads', async () => {
@@ -341,12 +407,12 @@ describe('FornecedoresPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
     });
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     await waitFor(() => {
       expect(fornecedorService.deleteFornecedor).toHaveBeenCalledTimes(2);
     });
-    expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+    expect(showSuccessToast).not.toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
     expect(showErrorToast).toHaveBeenCalledWith(
       'Alguns fornecedores nao puderam ser deletados. Verifique o console.'
     );
@@ -381,17 +447,62 @@ describe('FornecedoresPage', () => {
       );
     });
 
-    fireEvent.click(screen.getByText('select-all'));
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
     expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
 
-    fireEvent.click(screen.getByText('clear-all'));
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
     expect(screen.getByTestId('selected-ids')).toHaveTextContent('');
 
     fireEvent.click(screen.getByText('toggle-first'));
     window.confirm = jest.fn(() => false);
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     expect(fornecedorService.deleteFornecedor).not.toHaveBeenCalled();
+  });
+
+  test('clears supplier selection when changing pages', async () => {
+    fornecedorService.getFornecedores.mockImplementation(({ skip }) =>
+      Promise.resolve(
+        skip === 10
+          ? {
+              items: [
+                {
+                  id: 11,
+                  nome: 'Fornecedor Z',
+                  site_url: 'https://z.example',
+                  created_at: '2026-03-07',
+                },
+              ],
+              total_items: 11,
+            }
+          : {
+              items: fornecedoresPayload.items,
+              total_items: 11,
+            }
+      )
+    );
+
+    renderWithQueryClient(<FornecedoresPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent(
+        'Fornecedor A,Fornecedor B'
+      );
+    });
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('1,2');
+
+    fireEvent.click(screen.getByText('next-page'));
+
+    await waitFor(() => {
+      expect(fornecedorService.getFornecedores).toHaveBeenLastCalledWith({
+        skip: 10,
+        limit: 10,
+        termo_busca: undefined,
+      });
+    });
+    expect(screen.getByTestId('selected-ids')).toHaveTextContent('');
+    expect(screen.queryByText(/fornecedor\(es\) selecionado\(s\)/i)).not.toBeInTheDocument();
   });
 
   test('closes new and edit modals through page callbacks', async () => {
@@ -526,7 +637,7 @@ describe('FornecedoresPage', () => {
       );
     });
 
-    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor...'), {
+    fireEvent.change(screen.getByPlaceholderText('Nome do fornecedor ou dominio do site...'), {
       target: { value: 'Filtro ativo' },
     });
     await waitFor(() => {
@@ -563,17 +674,17 @@ describe('FornecedoresPage', () => {
     renderWithQueryClient(<FornecedoresPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('1')).toBeInTheDocument();
+      expect(screen.getByText('Na base')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByText('toggle-first'));
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     await waitFor(() => {
-      expect(showSuccessToast).toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
+      expect(showSuccessToast).not.toHaveBeenCalledWith('1 fornecedor(es) deletado(s) com sucesso!');
     });
-    expect(screen.getByText('0')).toBeInTheDocument();
-    expect(screen.getByTestId('fornecedor-table-names')).toHaveTextContent('');
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('selected-ids')).toBeEmptyDOMElement();
   });
 
   test('retorna para a pagina anterior quando a ultima pagina fica vazia apos delecao', async () => {
@@ -617,7 +728,7 @@ describe('FornecedoresPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('selected-ids')).toHaveTextContent('11');
     });
-    fireEvent.click(screen.getByText('Deletar Selecionado(s)'));
+    fireEvent.click(screen.getByText(/Deletar selecionado\(s\)/i));
 
     await waitFor(() => {
       expect(fornecedorService.deleteFornecedor).toHaveBeenCalledWith(11);

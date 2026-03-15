@@ -21,6 +21,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default="http://127.0.0.1:8017", help="Backend base URL without /api/v1.")
     parser.add_argument("--lm-model", default="google/gemma-3-12b", help="LM Studio model identifier.")
     parser.add_argument(
+        "--eval-max-cases",
+        type=int,
+        default=0,
+        help="Optional limit passed to run_evals.py for faster local smoke runs.",
+    )
+    parser.add_argument(
+        "--workflow-max-cases",
+        type=int,
+        default=0,
+        help="Optional limit passed to validate_local_llm_workflow.py for faster local smoke runs.",
+    )
+    parser.add_argument(
         "--report-path",
         default=str(RUNTIME_DIR / "output-quality-suite-report.json"),
         help="Path to write the aggregate JSON report.",
@@ -30,28 +42,36 @@ def parse_args() -> argparse.Namespace:
 
 def _case_command(args: argparse.Namespace) -> List[Dict[str, Any]]:
     """Return the built-in suite cases."""
+    eval_command = [
+        sys.executable,
+        str(PROJECT_ROOT / "scripts" / "run_evals.py"),
+        "--base-url",
+        "http://127.0.0.1:1234/v1",
+        "--model",
+        args.lm_model,
+    ]
+    if args.eval_max_cases and args.eval_max_cases > 0:
+        eval_command.extend(["--max-cases", str(args.eval_max_cases)])
+
+    workflow_command = [
+        sys.executable,
+        str(PROJECT_ROOT / "scripts" / "validate_local_llm_workflow.py"),
+        "--base-url",
+        args.base_url,
+        "--lm-model",
+        args.lm_model,
+    ]
+    if args.workflow_max_cases and args.workflow_max_cases > 0:
+        workflow_command.extend(["--max-cases", str(args.workflow_max_cases)])
+
     return [
         {
             "name": "evals_local_lm",
-            "command": [
-                sys.executable,
-                str(PROJECT_ROOT / "scripts" / "run_evals.py"),
-                "--base-url",
-                "http://127.0.0.1:1234/v1",
-                "--model",
-                args.lm_model,
-            ],
+            "command": eval_command,
         },
         {
             "name": "workflow_local_lm",
-            "command": [
-                sys.executable,
-                str(PROJECT_ROOT / "scripts" / "validate_local_llm_workflow.py"),
-                "--base-url",
-                args.base_url,
-                "--lm-model",
-                args.lm_model,
-            ],
+            "command": workflow_command,
         },
         {
             "name": "catalog_demdaco_product",

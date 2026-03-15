@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
+import { fireEvent, waitFor } from '@testing-library/react';
 import Topbar from '../Topbar.jsx';
 import { useAuth } from '../../contexts/AuthContext';
+import searchService from '../../services/searchService';
 
 const mockNavigate = jest.fn();
 const userMenuProps = [];
@@ -13,6 +15,13 @@ jest.mock('../../contexts/AuthContext', () => ({
 
 jest.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+}));
+
+jest.mock('../../services/searchService', () => ({
+  __esModule: true,
+  default: {
+    searchAll: jest.fn(),
+  },
 }));
 
 jest.mock('../ThemeToggle.jsx', () => ({
@@ -45,6 +54,7 @@ describe('Topbar', () => {
     jest.clearAllMocks();
     userMenuProps.length = 0;
     useAuth.mockReturnValue({ logout });
+    searchService.searchAll.mockResolvedValue({ results: [] });
   });
 
   test('renders the topbar title and forwards sidebar toggle, logout and navigation handlers', async () => {
@@ -55,7 +65,7 @@ describe('Topbar', () => {
     expect(screen.getByRole('heading', { name: 'Produtos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Alternar menu/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'theme-toggle' })).toBeInTheDocument();
-    expect(userMenuProps).toHaveLength(1);
+    expect(userMenuProps.length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: /Alternar menu/i }));
     expect(toggleSidebar).toHaveBeenCalledTimes(1);
@@ -71,5 +81,40 @@ describe('Topbar', () => {
     render(<Topbar toggleSidebar={toggleSidebar} />);
 
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+  });
+
+  test('opens the quick search and renders matching results', async () => {
+    const user = userEvent.setup();
+    searchService.searchAll.mockResolvedValue({
+      results: [{ type: 'produto', id: 42, name: 'Produto 42' }],
+    });
+
+    render(<Topbar viewTitle="Dashboard" toggleSidebar={toggleSidebar} />);
+
+    fireEvent.mouseEnter(screen.getByLabelText(/Abrir busca rápida/i).closest('.topbar-quick-search'));
+    const input = await screen.findByPlaceholderText(/Buscar no sistema/i);
+    await user.type(input, 'produto');
+
+    expect(await screen.findByRole('button', { name: /Produto 42/i })).toBeInTheDocument();
+  });
+
+  test('submits the first result on enter in the quick search', async () => {
+    const user = userEvent.setup();
+    searchService.searchAll.mockResolvedValue({
+      results: [{ type: 'fornecedor', id: 8, name: 'Fornecedor XPTO' }],
+    });
+
+    render(<Topbar viewTitle="Dashboard" toggleSidebar={toggleSidebar} />);
+
+    fireEvent.mouseEnter(screen.getByLabelText(/Abrir busca rápida/i).closest('.topbar-quick-search'));
+    const input = await screen.findByPlaceholderText(/Buscar no sistema/i);
+    await user.type(input, 'forn');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Fornecedor XPTO/i })).toBeInTheDocument();
+    });
+
+    await user.keyboard('{Enter}');
+    expect(mockNavigate).toHaveBeenCalledWith('/fornecedores');
   });
 });

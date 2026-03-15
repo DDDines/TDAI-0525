@@ -87,11 +87,11 @@ class _FileProcessingImplementation:
 
     @staticmethod
     def _resolve_max_upload_bytes() -> int:
-        """Resolve the strict upload byte cap from settings with a safe fallback."""
+        """Resolve the upload byte cap from settings; zero means unlimited."""
         try:
-            return max(0, int(getattr(settings, "MAX_UPLOAD_BYTES", 25 * 1024 * 1024) or 0))
+            return max(0, int(getattr(settings, "MAX_UPLOAD_BYTES", 0) or 0))
         except Exception:
-            return 25 * 1024 * 1024
+            return 0
 
     @staticmethod
     def _resolve_file_parse_timeout_seconds() -> int:
@@ -1212,6 +1212,213 @@ class PdfIngestionRuntime:
         return rows
 
     @staticmethod
+    def _render_pdf_page_image_data_url(page: Any) -> Optional[str]:
+        """Render one PDF page/crop to a compact PNG data URL for multimodal local extraction."""
+        if page is None or not hasattr(page, "to_image"):
+            return None
+        try:
+            dpi = max(96, min(int(os.getenv("PDF_LLM_IMAGE_DPI", "144")), 200))
+        except (TypeError, ValueError):
+            dpi = 144
+        try:
+            page_image = page.to_image(resolution=dpi)
+            source_image = getattr(page_image, "original", page_image)
+            buffer = io.BytesIO()
+            source_image.save(buffer, format="PNG")
+            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+            if not encoded:
+                return None
+            return f"data:image/png;base64,{encoded}"
+        except Exception:
+            logger.debug("Nao foi possivel renderizar a pagina do PDF para contexto multimodal.", exc_info=True)
+            return None
+
+    @staticmethod
+    def _normalize_pdf_page_text_for_llm_context(page_text: Any) -> str:
+        """Collapse PDF text into a compact form suitable for page ranking."""
+        return " ".join(str(page_text or "").split()).strip()
+
+    @staticmethod
+    def _get_pdf_llm_max_page_images() -> int:
+        """Resolve the maximum number of page images sent to the local multimodal LLM."""
+        try:
+            return max(1, min(int(os.getenv("PDF_LLM_MAX_PAGE_IMAGES", "3")), 4))
+        except (TypeError, ValueError):
+            return 3
+
+    @staticmethod
+    def _get_pdf_llm_page_scan_limit() -> int:
+        """Resolve how many nearby PDF pages are inspected before selecting context images."""
+        try:
+            return max(1, min(int(os.getenv("PDF_LLM_PAGE_SCAN_LIMIT", "8")), 12))
+        except (TypeError, ValueError):
+            return 8
+
+    @classmethod
+    def _score_pdf_page_for_llm_context(
+        cls,
+        *,
+        page_number: int,
+        current_page_number: int,
+        page_text: Any,
+    ) -> float:
+        """Score one PDF page for multimodal context around the current extraction target."""
+        normalized = cls._normalize_pdf_page_text_for_llm_context(page_text)
+        if not normalized:
+            return 0.5 if page_number == current_page_number else 0.0
+
+        ascii_text = unicodedata.normalize('NFKD', normalized)
+        ascii_text = ''.join(ch for ch in ascii_text if not unicodedata.combining(ch)).lower()
+        tokens = re.findall(r'[a-z0-9-]+', ascii_text)
+        score = min(len(normalized) / 350.0, 3.0)
+
+        strong_hints = (
+            'produto',
+            'referencia',
+            'ref',
+            'codigo',
+            'sku',
+            'marca',
+            'modelo',
+            'aplicacao',
+            'compatibilidade',
+            'especificacao',
+            'especificacoes',
+            'medidas',
+            'dimensoes',
+            'voltagem',
+            'potencia',
+            'conteudo',
+            'embalagem',
+            'kit',
+            'manual',
+        )
+        score += min(sum(1 for hint in strong_hints if hint in ascii_text) * 1.3, 6.0)
+
+        upper_text = normalized.upper()
+        code_like_hits = len(re.findall(r'\b[A-Z0-9]{3,}(?:[-./][A-Z0-9]+)+\b', upper_text))
+        code_like_hits += len(re.findall(r'\b[A-Z]*\d[A-Z0-9-]{4,}\b', upper_text))
+        score += min(code_like_hits * 2.0, 6.0)
+
+        if len(tokens) >= 8:
+            score += 0.8
+
+        weak_hints = (
+            'indice',
+            'sumario',
+            'catalogo geral',
+            'politica de',
+            'quem somos',
+            'institucional',
+            'historia',
+        )
+        score -= sum(2.5 for hint in weak_hints if hint in ascii_text)
+        score -= min(abs(page_number - current_page_number) * 0.25, 1.0)
+        if page_number == current_page_number:
+            score += 1.0
+        return score
+
+    @classmethod
+    def _build_pdf_page_image_context_urls(
+        cls,
+        *,
+        pdf: PdfPlumberPDF,
+        page_numbers: List[int],
+        current_page_number: int,
+        current_page_bbox: Optional[List[float]] = None,
+    ) -> List[str]:
+        """Build a small multimodal image context centered on the current PDF page."""
+        if pdf is None or current_page_number <= 0:
+            return []
+
+        total_pages = len(getattr(pdf, 'pages', []) or [])
+        if total_pages <= 0:
+            return []
+
+        unique_page_numbers: List[int] = []
+        seen_numbers = set()
+        for page_number in page_numbers or []:
+            try:
+                normalized_page_number = int(page_number)
+            except (TypeError, ValueError):
+                continue
+            if not 1 <= normalized_page_number <= total_pages:
+                continue
+            if normalized_page_number in seen_numbers:
+                continue
+            seen_numbers.add(normalized_page_number)
+            unique_page_numbers.append(normalized_page_number)
+        if current_page_number not in seen_numbers and 1 <= current_page_number <= total_pages:
+            unique_page_numbers.append(current_page_number)
+
+        scan_limit = cls._get_pdf_llm_page_scan_limit()
+        nearby_page_numbers = sorted(
+            unique_page_numbers,
+            key=lambda page_number: (abs(page_number - current_page_number), page_number),
+        )[:scan_limit]
+        nearby_page_numbers = sorted(dict.fromkeys(nearby_page_numbers))
+
+        page_candidates: List[Dict[str, Any]] = []
+        for page_number in nearby_page_numbers:
+            page = pdf.pages[page_number - 1]
+            page_to_score = page.crop(current_page_bbox) if current_page_bbox and page_number == current_page_number else page
+            try:
+                page_text = page_to_score.extract_text(x_tolerance=2, y_tolerance=2) or ''
+            except Exception:
+                page_text = ''
+            page_candidates.append(
+                {
+                    'page_number': page_number,
+                    'page': page_to_score,
+                    'page_text': page_text,
+                }
+            )
+
+        max_page_images = cls._get_pdf_llm_max_page_images()
+        ranked_page_numbers = [
+            candidate['page_number']
+            for candidate in sorted(
+                page_candidates,
+                key=lambda candidate: (
+                    -cls._score_pdf_page_for_llm_context(
+                        page_number=int(candidate.get('page_number', 0) or 0),
+                        current_page_number=current_page_number,
+                        page_text=candidate.get('page_text'),
+                    ),
+                    abs(int(candidate.get('page_number', 0) or 0) - current_page_number),
+                    int(candidate.get('page_number', 0) or 0),
+                ),
+            )
+        ]
+
+        selected_page_numbers: List[int] = []
+        if current_page_number in ranked_page_numbers:
+            selected_page_numbers.append(current_page_number)
+        for page_number in ranked_page_numbers:
+            if page_number in selected_page_numbers:
+                continue
+            selected_page_numbers.append(page_number)
+            if len(selected_page_numbers) >= max_page_images:
+                break
+        if not selected_page_numbers and nearby_page_numbers:
+            selected_page_numbers = nearby_page_numbers[:max_page_images]
+
+        candidate_map = {
+            int(candidate['page_number']): candidate
+            for candidate in page_candidates
+            if int(candidate.get('page_number', 0) or 0) > 0
+        }
+        image_urls: List[str] = []
+        for page_number in selected_page_numbers[:max_page_images]:
+            candidate = candidate_map.get(page_number)
+            if not candidate:
+                continue
+            rendered = cls._render_pdf_page_image_data_url(candidate.get('page'))
+            if rendered and rendered not in image_urls:
+                image_urls.append(rendered)
+        return image_urls
+
+    @staticmethod
     def _is_low_confidence_dataframe(df_value: pd.DataFrame) -> bool:
         """Detect low-confidence OCR/text dataframe outputs that are likely narrative noise."""
         if df_value is None or df_value.empty:
@@ -1484,6 +1691,23 @@ class PdfIngestionRuntime:
                         if bbox_abs:
                             page_to_process = page.crop(bbox_abs)
                         page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
+                        page_image_data_url = (
+                            self._render_pdf_page_image_data_url(page_to_process)
+                            if allow_llm
+                            else None
+                        )
+                        page_image_data_urls = (
+                            self._build_pdf_page_image_context_urls(
+                                pdf=pdf,
+                                page_numbers=page_list_to_process,
+                                current_page_number=page_num,
+                                current_page_bbox=list(bbox_abs) if bbox_abs else None,
+                            )
+                            if allow_llm
+                            else []
+                        )
+                        if not page_image_data_url and page_image_data_urls:
+                            page_image_data_url = page_image_data_urls[0]
                         if page_text and page_text.strip():
                             log_pdf.append(f'Pagina {page_num}: Texto extraido.')
                             texto_chave = f'texto_completo_pagina_{page_num}'
@@ -1507,7 +1731,11 @@ class PdfIngestionRuntime:
                                     continue
                             if allow_llm:
                                 try:
-                                    dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(page_text)
+                                    dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(
+                                        texto_pagina=page_text,
+                                        page_image_data_url=page_image_data_url,
+                                        page_image_data_urls=page_image_data_urls,
+                                    )
                                     if isinstance(dados_produto, dict):
                                         dados_produto['texto_bruto'] = page_text.strip()[:20000]
                                         before_count = len(produtos_extraidos)
@@ -1549,6 +1777,32 @@ class PdfIngestionRuntime:
                                     log_pdf.append(
                                         f'Pagina {page_num}: Texto sem padrao de linha de produto; ignorado (usar regiao/mapeamento).'
                                     )
+                        elif allow_llm and page_image_data_url:
+                            try:
+                                dados_produto = await self._web_data_extractor_service.extrair_dados_produto_com_llm(
+                                    texto_pagina=None,
+                                    page_image_data_url=page_image_data_url,
+                                    page_image_data_urls=page_image_data_urls,
+                                )
+                                if isinstance(dados_produto, dict):
+                                    before_count = len(produtos_extraidos)
+                                    self._append_produto(
+                                        produtos_extraidos=produtos_extraidos,
+                                        produto_padronizado=dados_produto,
+                                        product_type_id=product_type_id,
+                                    )
+                                    if len(produtos_extraidos) > before_count:
+                                        log_pdf.append(f'Pagina {page_num}: Imagem da pagina processada com LLM.')
+                                    else:
+                                        log_pdf.append(
+                                            f'Pagina {page_num}: LLM visual retornou payload sem identidade de produto.'
+                                        )
+                                else:
+                                    log_pdf.append(
+                                        f'Pagina {page_num}: LLM visual retornou formato inesperado; ignorando payload.'
+                                    )
+                            except Exception as llm_e:
+                                log_pdf.append(f'Pagina {page_num}: Erro ao processar imagem com LLM: {str(llm_e)}')
                         else:
                             log_pdf.append(f'Pagina {page_num}: Nenhum texto extraivel (pode ser imagem ou protegido).')
                 if not produtos_extraidos:

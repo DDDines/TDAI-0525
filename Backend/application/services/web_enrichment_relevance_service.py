@@ -27,6 +27,54 @@ class WebEnrichmentRelevanceService:
         "peca",
         "pecas",
     }
+    _GENERIC_REFERENCE_TOKENS = {
+        "tool",
+        "tools",
+        "toolkit",
+        "kit",
+        "kits",
+        "set",
+        "jogo",
+        "jogos",
+        "combo",
+        "pack",
+        "item",
+        "itens",
+        "produto",
+        "produtos",
+        "acessorio",
+        "acessorios",
+        "linha",
+        "parts",
+        "part",
+        "modelo",
+        "geral",
+        "gerais",
+    }
+    _AUTOMOTIVE_HINTS = (
+        "estribo",
+        "strada",
+        "cabine",
+        "dupla",
+        "simples",
+        "veiculo",
+        "veiculos",
+        "dianteiro",
+        "traseiro",
+        "lateral",
+        "automotivo",
+        "automotiva",
+        "carro",
+        "caminhao",
+        "ford",
+        "fiat",
+        "iveco",
+        "mercedes",
+        "scania",
+        "volks",
+        "volvo",
+        "pickup",
+    )
 
     _URL_TRACKING_HINTS = (
         "ad_domain=",
@@ -76,6 +124,20 @@ class WebEnrichmentRelevanceService:
             return []
         return [t for t in base.split(" ") if len(t) >= 3 and t not in self._RELEVANCE_STOPWORDS]
 
+    def _count_hint_hits(self, text_folded: str, hints: Tuple[str, ...]) -> int:
+        """Count how many distinct domain hints appear in the folded text."""
+        if not text_folded:
+            return 0
+        return sum(1 for hint in hints if hint in text_folded)
+
+    @staticmethod
+    def extract_numeric_tokens(value: Any) -> List[str]:
+        """Extract meaningful numeric tokens to distinguish nearby product variants."""
+        text = unicodedata.normalize("NFKD", str(value or ""))
+        text = text.encode("ascii", "ignore").decode("ascii")
+        tokens = re.findall(r"\b\d{1,4}\b", text)
+        return list(dict.fromkeys(token for token in tokens if token != "0"))
+
     @staticmethod
     def extract_code_tokens(values: List[Any]) -> List[str]:
         """Execute extract code tokens as part of this module workflow."""
@@ -117,6 +179,14 @@ class WebEnrichmentRelevanceService:
             ref_parts.append(dados_brutos_web.get("codigo_original"))
             ref_parts.append(dados_brutos_web.get("sku_original"))
 
+        nome_base = getattr(db_produto_obj, "nome_base", None)
+        marca = getattr(db_produto_obj, "marca", None)
+        brand_tokens = set(self.tokens_for_relevance(marca))
+        ref_name_tokens = [
+            token
+            for token in self.tokens_for_relevance(nome_base)
+            if token not in brand_tokens and token not in self._GENERIC_REFERENCE_TOKENS
+        ]
         ref_tokens = self.tokens_for_relevance(" ".join(str(x or "") for x in ref_parts))
         if not ref_tokens:
             return True
@@ -124,12 +194,28 @@ class WebEnrichmentRelevanceService:
         source_text = " ".join(str(x or "") for x in [source_name, source_desc, source_url])
         src_tokens = set(self.tokens_for_relevance(source_text))
         overlap = [t for t in ref_tokens if t in src_tokens]
+        strong_overlap = [t for t in ref_name_tokens if t in src_tokens]
 
         code_tokens = self.extract_code_tokens(ref_parts)
         src_compact = re.sub(r"[^A-Z0-9]", "", str(source_text).upper())
         code_hit = any(re.sub(r"[^A-Z0-9]", "", token) in src_compact for token in code_tokens)
+        brand_hit = bool(brand_tokens and any(token in src_tokens for token in brand_tokens))
+        source_folded = self._fold_text(source_text)
+        source_automotive = self._count_hint_hits(source_folded, self._AUTOMOTIVE_HINTS) >= 3
+        ref_automotive = self._count_hint_hits(self._fold_text(nome_base), self._AUTOMOTIVE_HINTS) >= 2
+
+        if not ref_name_tokens and brand_tokens and not brand_hit and not code_hit:
+            return False
+
+        if ref_name_tokens:
+            required_overlap = 1 if len(ref_name_tokens) == 1 else 2
+            if len(strong_overlap) < required_overlap and not brand_hit and not code_hit:
+                return False
 
         if code_tokens and not code_hit and len(overlap) < 3:
+            return False
+
+        if source_automotive and not ref_automotive and not brand_hit and not code_hit:
             return False
 
         if len(ref_tokens) <= 4:
@@ -192,6 +278,15 @@ class WebEnrichmentRelevanceService:
         src_tokens = set(self.tokens_for_relevance(f"{host} {path} {query}"))
         overlap = len(ref_tokens.intersection(src_tokens))
         score += min(overlap * 6, 24)
+
+        ref_numeric = set(self.extract_numeric_tokens(ref_text))
+        src_numeric = set(self.extract_numeric_tokens(f"{path} {query}"))
+        if ref_numeric and src_numeric:
+            numeric_overlap = len(ref_numeric.intersection(src_numeric))
+            if numeric_overlap:
+                score += min(numeric_overlap * 8, 16)
+            else:
+                score -= min(len(src_numeric) * 4, 12)
         return score
 
     def prioritize_urls_for_enrichment(

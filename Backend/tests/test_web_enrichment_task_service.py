@@ -34,6 +34,21 @@ class _FakeTipoAcaoEnum(Enum):
     ENRIQUECIMENTO_WEB_PRODUTO = "enriquecimento_web_produto"
 
 
+class _FakeExternalCredentialProviderEnum(Enum):
+    """Represent fake provider enum used by credential resolution branches."""
+
+    OPENAI = "OPENAI"
+    GOOGLE_GEMINI = "GOOGLE_GEMINI"
+    GOOGLE_CSE = "GOOGLE_CSE"
+
+
+class _FakeExternalCredentialScopeEnum(Enum):
+    """Represent fake scope enum used by credential resolution branches."""
+
+    USER = "USER"
+    COMPANY = "COMPANY"
+
+
 class _FakeRegistroUsoIACreate:
     """Represent fake usage schema and centralize responsibilities for this module."""
 
@@ -49,6 +64,9 @@ class _FakeModels:
 
     StatusEnriquecimentoEnum = _FakeStatus
     TipoAcaoEnum = _FakeTipoAcaoEnum
+    ExternalCredentialProviderEnum = _FakeExternalCredentialProviderEnum
+    ExternalCredentialScopeEnum = _FakeExternalCredentialScopeEnum
+    ExternalCredentialConfig = SimpleNamespace
 
 
 class _FakeSchemas:
@@ -67,6 +85,24 @@ class _FakeSession:
         self.refreshes = []
         self.closed = False
 
+    class _QueryStub:
+        """Provide the minimal fluent query interface used by credential resolution."""
+
+        def filter_by(self, **_kwargs):
+            return self
+
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def order_by(self, *_args, **_kwargs):
+            return self
+
+        def first(self):
+            return None
+
+        def all(self):
+            return []
+
     def commit(self):
         """Track commit execution."""
         self.commits += 1
@@ -74,6 +110,10 @@ class _FakeSession:
     def refresh(self, obj):
         """Track refresh execution."""
         self.refreshes.append(obj)
+
+    def query(self, *_args, **_kwargs):
+        """Return a tiny SQLAlchemy-like query stub for repository tests."""
+        return self._QueryStub()
 
     def close(self):
         """Track session closing."""
@@ -315,13 +355,21 @@ class _TopLevelFunctionSurface:
         assert "produto" not in keywords
         assert "http" not in keywords
         assert "9999" in keywords
-        assert "abc" in keywords
+        assert "abc" not in keywords
 
         assert workflow._coerce_to_list(None) == []
         assert workflow._coerce_to_list("  unico  ") == ["unico"]
         assert workflow._coerce_to_list(["a", "", " b "]) == ["a", "b"]
         assert workflow._has_meaningful_llm_value("  ") is False
         assert workflow._has_meaningful_llm_value({"nome": "x"}) is True
+        assert workflow._reset_previous_enrichment_fields(
+            {
+                "nome": "stale",
+                "descricao_curta": "stale",
+                "fontes_web_coletadas": [{"url": "https://old"}],
+                "codigo_importacao": "keep",
+            }
+        ) == {"codigo_importacao": "keep"}
 
     @staticmethod
     def test_load_locked_product_fallback_e_close_session_quietly():
@@ -352,20 +400,28 @@ class _TopLevelFunctionSurface:
         assert await workflow._buscar_urls(
             query_candidates=["termo"],
             busca_web_disponivel=False,
+            google_api_key=None,
+            google_search_engine_id=None,
             log_mensagens=logs,
         ) == []
         assert "busca web pulada" in logs[-1].lower()
 
         logs = []
-        workflow.web_extractor = SimpleNamespace(buscar_urls_google=lambda **kwargs: [])
+        workflow.web_extractor = SimpleNamespace(
+            buscar_urls_google=lambda **kwargs: [],
+            buscar_urls_publicas=lambda **kwargs: [],
+        )
         assert await workflow._buscar_urls(
             query_candidates=[],
             busca_web_disponivel=True,
+            google_api_key=None,
+            google_search_engine_id=None,
             log_mensagens=logs,
         ) == []
         assert "nenhum termo de busca valido" in logs[-1].lower()
 
         attempts = []
+        public_attempts = []
 
         async def buscar_urls_google(**kwargs):
             attempts.append(kwargs["query"])
@@ -373,14 +429,71 @@ class _TopLevelFunctionSurface:
                 return ["https://ok"]
             return []
 
-        workflow.web_extractor = SimpleNamespace(buscar_urls_google=buscar_urls_google)
+        async def buscar_urls_publicas(**kwargs):
+            public_attempts.append(kwargs["query"])
+            return []
+
+        workflow.web_extractor = SimpleNamespace(
+            buscar_urls_google=buscar_urls_google,
+            buscar_urls_publicas=buscar_urls_publicas,
+        )
         logs = []
         assert await workflow._buscar_urls(
             query_candidates=["a", "b", "c"],
             busca_web_disponivel=True,
+            google_api_key="google-key",
+            google_search_engine_id="cse-id",
             log_mensagens=logs,
         ) == ["https://ok"]
         assert attempts == ["a", "b"]
+        assert public_attempts == ["a"]
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_busca_urls_usa_busca_publica_quando_google_nao_esta_configurado_ou_falha():
+        """Fallback to public search when Google CSE is absent or raises an exception."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        google_attempts = []
+        public_attempts = []
+
+        async def buscar_urls_google(**kwargs):
+            google_attempts.append(kwargs["query"])
+            raise RuntimeError("google down")
+
+        async def buscar_urls_publicas(**kwargs):
+            public_attempts.append(kwargs["query"])
+            return [f"https://public/{kwargs['query']}"]
+
+        workflow.web_extractor = SimpleNamespace(
+            buscar_urls_google=buscar_urls_google,
+            buscar_urls_publicas=buscar_urls_publicas,
+        )
+
+        logs = []
+        urls = await workflow._buscar_urls(
+            query_candidates=["reservatorio"],
+            busca_web_disponivel=True,
+            google_api_key=None,
+            google_search_engine_id=None,
+            log_mensagens=logs,
+        )
+        assert urls == ["https://public/reservatorio"]
+        assert google_attempts == []
+        assert public_attempts == ["reservatorio"]
+        assert any("usando busca publica" in item.lower() for item in logs)
+
+        logs = []
+        urls = await workflow._buscar_urls(
+            query_candidates=["compressor"],
+            busca_web_disponivel=True,
+            google_api_key="google-key",
+            google_search_engine_id="cse-id",
+            log_mensagens=logs,
+        )
+        assert urls == ["https://public/compressor"]
+        assert google_attempts == ["compressor"]
+        assert public_attempts == ["reservatorio", "compressor"]
+        assert any("google cse falhou" in item.lower() for item in logs)
 
     @staticmethod
     @pytest.mark.asyncio
@@ -476,6 +589,181 @@ class _TopLevelFunctionSurface:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_coletar_de_urls_prefere_texto_estruturado_do_fornecedor_quando_html_e_ruidoso():
+        """Prepend structured product facts so enrichment does not depend only on noisy trafilatura text."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+
+        async def coletar_html(url):
+            return f"<html>{url}</html>"
+
+        workflow.web_extractor = SimpleNamespace(
+            coletar_conteudo_pagina_playwright=coletar_html,
+            extrair_texto_principal_com_trafilatura=lambda _html: (
+                "Home Produtos Menu Categoria Categoria Categoria Reservatorio de ar para linha pesada"
+            ),
+            extrair_metadados_estruturados=lambda _html, _url: {"dom_product_candidate": {"name": "Reservatorio de Ar 20 L"}},
+            normalizar_dados_de_metadados=lambda _value: {
+                "nome": "Reservatorio de Ar 20 L",
+                "descricao_curta": "Reservatorio de ar para freio pneumático.",
+                "texto_estruturado_produto": (
+                    "Nome: Reservatorio de Ar 20 L\n"
+                    "Referencia original/similar: 308 430 70 05\n"
+                    "Aplicacao: Mercedes Benz LN 608/708"
+                ),
+            },
+        )
+        workflow.is_meaningful_extracted_text = lambda _text: False
+        workflow.metadata_has_minimum_signal = lambda metadata: bool(metadata.get("nome"))
+        workflow.is_source_relevant_for_product = lambda *args, **kwargs: True
+
+        payload = {}
+        logs = []
+        produto = SimpleNamespace(id=10, nome_base="Reservatorio")
+
+        result = await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=["https://example.com/1"],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        )
+
+        assert result is True
+        assert payload["texto_relevante_coletado"].startswith("Nome: Reservatorio de Ar 20 L")
+        assert "Aplicacao: Mercedes Benz LN 608/708" in payload["texto_relevante_coletado"]
+        assert "URL da fonte" not in payload["texto_relevante_coletado"]
+        assert "Controle sua privacidade" not in payload["texto_relevante_coletado"]
+        assert payload["descricao_curta"] == "Reservatorio de ar para freio pneumático."
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_coletar_de_urls_continua_ate_fonte_do_fornecedor_e_preserva_override():
+        """Do not stop on a generic source if a supplier URL still exists later in the queue."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        workflow.extrair_dominio_fornecedor = lambda value: value.split("//")[-1].split("/")[0]
+        produto = SimpleNamespace(
+            id=10,
+            nome_base="Reservatorio",
+            fornecedor=SimpleNamespace(site_url="https://catalogo.fornecedor.com.br"),
+        )
+
+        async def coletar_html(url):
+            return f"<html>{url}</html>"
+
+        def metadata_for_url(_html, url):
+            if "marketplace" in url:
+                return {"nome": "Reservatorio Marketplace", "descricao_curta": "Descricao marketplace"}
+            return {"nome": "Reservatorio Fornecedor", "descricao_curta": "Descricao fornecedor", "marca": "Fornecedor"}
+
+        workflow.web_extractor = SimpleNamespace(
+            coletar_conteudo_pagina_playwright=coletar_html,
+            extrair_texto_principal_com_trafilatura=lambda _html: "texto relevante suficientemente longo para passar",
+            extrair_metadados_estruturados=metadata_for_url,
+            normalizar_dados_de_metadados=lambda value: value,
+        )
+        workflow.is_meaningful_extracted_text = lambda _text: True
+        workflow.metadata_has_minimum_signal = lambda metadata: bool(metadata.get("nome"))
+        workflow.is_source_relevant_for_product = lambda *args, **kwargs: True
+
+        payload = {}
+        logs = []
+        result = await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=[
+                "https://marketplace.example.com/reservatorio",
+                "https://catalogo.fornecedor.com.br/reservatorio-20-l",
+            ],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        )
+
+        assert result is True
+        assert payload["nome"] == "Reservatorio Fornecedor"
+        assert payload["descricao_curta"] == "Descricao fornecedor"
+        assert payload["marca"] == "Fornecedor"
+        assert any("processamento continuara" in item.lower() for item in logs)
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_coletar_de_urls_limpa_ruido_generico_quando_fonte_do_fornecedor_vira_principal():
+        """Purge generic marketplace artifacts once the supplier page is confirmed as the primary source."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        workflow.extrair_dominio_fornecedor = lambda value: value.split("//")[-1].split("/")[0]
+        produto = SimpleNamespace(
+            id=10,
+            nome_base="Reservatorio",
+            fornecedor=SimpleNamespace(site_url="https://catalogo.fornecedor.com.br"),
+        )
+
+        async def coletar_html(url):
+            return f"<html>{url}</html>"
+
+        def metadata_for_url(_html, url):
+            if "marketplace" in url:
+                return {
+                    "nome": "Reservatorio Marketplace",
+                    "descricao_curta": "Descricao marketplace",
+                    "marca": "Mercadocar",
+                    "lista_caracteristicas_beneficios_bullets": ["Compre agora"],
+                    "palavras_chave_seo_relevantes_lista": ["mercado"],
+                }
+            return {
+                "nome": "Reservatorio Fornecedor",
+                "descricao_curta": "Descricao fornecedor",
+                "texto_estruturado_produto": "Nome: Reservatorio Fornecedor Codigo: 987",
+            }
+
+        workflow.web_extractor = SimpleNamespace(
+            coletar_conteudo_pagina_playwright=coletar_html,
+            extrair_texto_principal_com_trafilatura=lambda _html: "texto relevante suficientemente longo para passar",
+            extrair_metadados_estruturados=metadata_for_url,
+            normalizar_dados_de_metadados=lambda value: value,
+        )
+        workflow.is_meaningful_extracted_text = lambda _text: True
+        workflow.metadata_has_minimum_signal = lambda metadata: bool(metadata.get("nome"))
+        workflow.is_source_relevant_for_product = lambda *args, **kwargs: True
+
+        payload = {
+            "fontes_web_coletadas": [{"url": "https://marketplace.example.com/reservatorio"}],
+            "marca": "Mercadocar",
+            "lista_caracteristicas_beneficios_bullets": ["Compre agora"],
+            "palavras_chave_seo_relevantes_lista": ["mercado"],
+            "preco": "199.90",
+            "moeda_preco": "BRL",
+        }
+        logs = []
+        result = await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=[
+                "https://marketplace.example.com/reservatorio",
+                "https://catalogo.fornecedor.com.br/reservatorio-20-l",
+            ],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        )
+
+        assert result is True
+        assert payload["nome"] == "Reservatorio Fornecedor"
+        assert payload["descricao_curta"] == "Descricao fornecedor"
+        assert payload["fonte_principal_fornecedor"] is True
+        assert payload["fonte_principal_url"] == "https://catalogo.fornecedor.com.br/reservatorio-20-l"
+        assert payload["fontes_web_coletadas"] == [
+            {
+                "url": "https://catalogo.fornecedor.com.br/reservatorio-20-l",
+                "nome": "Reservatorio Fornecedor",
+                "descricao_curta": "Descricao fornecedor",
+            }
+        ]
+        assert "marca" not in payload
+        assert "preco" not in payload
+        assert "moeda_preco" not in payload
+        assert "lista_caracteristicas_beneficios_bullets" not in payload
+        assert "palavras_chave_seo_relevantes_lista" not in payload
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada():
         """Cover no-url branches and keep source list deduplicated."""
         workflow = _TopLevelFunctionSurface._build_workflow()
@@ -531,6 +819,54 @@ class _TopLevelFunctionSurface:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_coletar_de_urls_preserva_contexto_visual_de_pdf_do_fornecedor():
+        """Keep supplier PDF image context available even when the document has no extracted text."""
+        workflow = _TopLevelFunctionSurface._build_workflow()
+        workflow.extrair_dominio_fornecedor = lambda value: value.split("//")[-1].split("/")[0]
+        produto = SimpleNamespace(
+            id=10,
+            nome_base="Reservatorio",
+            fornecedor=SimpleNamespace(site_url="https://catalogo.fornecedor.com.br"),
+        )
+
+        async def coletar_html(_url):
+            return (
+                '<html><article>'
+                '<img data-tdai-page-image="1" src="data:image/png;base64,AAA" />'
+                '<img data-tdai-page-image="2" src="data:image/png;base64,BBB" />'
+                '</article></html>'
+            )
+
+        workflow.web_extractor = SimpleNamespace(
+            coletar_conteudo_pagina_playwright=coletar_html,
+            extrair_texto_principal_com_trafilatura=lambda _html: None,
+            extrair_metadados_estruturados=lambda _html, _url: {},
+            normalizar_dados_de_metadados=lambda value: value,
+        )
+        workflow.is_meaningful_extracted_text = lambda _text: False
+        workflow.metadata_has_minimum_signal = lambda _metadata: False
+        workflow.is_source_relevant_for_product = lambda *args, **kwargs: False
+
+        payload = {}
+        logs = []
+        result = await workflow._coletar_de_urls(
+            db_produto_obj=produto,
+            urls_a_processar=["https://catalogo.fornecedor.com.br/manual.pdf"],
+            dados_extraidos_agregados=payload,
+            log_mensagens=logs,
+            busca_web_disponivel=True,
+        )
+
+        assert result is True
+        assert payload["_page_image_data_urls_for_llm"] == [
+            "data:image/png;base64,AAA",
+            "data:image/png;base64,BBB",
+        ]
+        assert payload["fontes_web_coletadas"][0]["url"] == "https://catalogo.fornecedor.com.br/manual.pdf"
+        assert any("evidencia visual embutida" in item.lower() for item in logs)
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro():
         """Translate LLM provider errors into the expected terminal status."""
         workflow = _TopLevelFunctionSurface._build_workflow()
@@ -544,6 +880,7 @@ class _TopLevelFunctionSurface:
 
         collected, status = await workflow._executar_llm(
             openai_api_configurada=True,
+            usar_ia=True,
             db_produto_obj=produto,
             user=user,
             dados_extraidos_agregados={"texto_relevante_coletado": "texto relevante"},
@@ -570,6 +907,7 @@ class _TopLevelFunctionSurface:
 
         collected, status = await workflow._executar_llm(
             openai_api_configurada=False,
+            usar_ia=None,
             db_produto_obj=produto,
             user=user,
             dados_extraidos_agregados={},
@@ -589,6 +927,7 @@ class _TopLevelFunctionSurface:
         workflow.web_extractor = SimpleNamespace(extrair_dados_produto_com_llm=fake_llm_nao_usado)
         collected, status = await workflow._executar_llm(
             openai_api_configurada=True,
+            usar_ia=None,
             db_produto_obj=produto_sem_brutos,
             user=user,
             dados_extraidos_agregados={},
@@ -607,6 +946,7 @@ class _TopLevelFunctionSurface:
         logs = []
         collected, status = await workflow._executar_llm(
             openai_api_configurada=True,
+            usar_ia=None,
             db_produto_obj=produto,
             user=user,
             dados_extraidos_agregados={"descricao_curta": "metadata"},
@@ -620,13 +960,24 @@ class _TopLevelFunctionSurface:
 
         async def fake_llm_sucesso(**kwargs):
             assert kwargs["texto_pagina"] == "{}"
+            assert kwargs["page_image_data_url"] == "data:image/png;base64,AAA"
+            assert kwargs["page_image_data_urls"] == [
+                "data:image/png;base64,AAA",
+                "data:image/png;base64,BBB",
+            ]
             return {"nome_sugerido_seo": "Novo titulo", "descricao_detalhada_seo": "Descricao final"}
 
         workflow.web_extractor = SimpleNamespace(extrair_dados_produto_com_llm=fake_llm_sucesso)
         logs = []
-        payload = {}
+        payload = {
+            "_page_image_data_urls_for_llm": [
+                "data:image/png;base64,AAA",
+                "data:image/png;base64,BBB",
+            ]
+        }
         collected, status = await workflow._executar_llm(
             openai_api_configurada=True,
+            usar_ia=True,
             db_produto_obj=produto,
             user=user,
             dados_extraidos_agregados=payload,
@@ -638,6 +989,8 @@ class _TopLevelFunctionSurface:
         assert status == _FakeStatus.EM_PROGRESSO
         assert payload["nome_sugerido_seo"] == "Novo titulo"
         assert payload["descricao_detalhada_seo"] == "Descricao final"
+        assert "_page_image_data_url_for_llm" not in payload
+        assert "_page_image_data_urls_for_llm" not in payload
 
     @staticmethod
     @pytest.mark.asyncio
@@ -659,7 +1012,11 @@ class _TopLevelFunctionSurface:
             SQLAlchemyError=Exception,
             session_provider=_SessionProviderStub(session),
             user_repository_factory=lambda _session: SimpleNamespace(
-                get_user=lambda user_id: SimpleNamespace(id=user_id, chave_openai_pessoal=None)
+                get_user=lambda user_id: SimpleNamespace(
+                    id=user_id,
+                    chave_openai_pessoal=None,
+                    company_identifier=None,
+                )
             ),
             product_repository_factory=lambda _session: product_repo,
             usage_repository_factory=lambda _session: usage_repo,
@@ -688,6 +1045,80 @@ class _TopLevelFunctionSurface:
         assert len(usage_repo.calls) == 1
         assert usage_repo.calls[0].status == "FALHA"
         assert finalizer_calls[0]["status_para_salvar_no_final"] == _FakeStatus.FALHA_CONFIGURACAO_API_EXTERNA
+        assert session.closed is True
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_run_usa_supplier_direct_urls_mesmo_sem_busca_publica():
+        """Allow enrichment to proceed when the supplier provides direct search URLs."""
+        session = _FakeSession()
+        produto = SimpleNamespace(
+            id=188,
+            nome_base="Tela Central do Painel Superior",
+            fornecedor=SimpleNamespace(
+                site_url="https://catalogo.amalcaburio.com.br",
+                link_busca_padrao="https://catalogo.amalcaburio.com.br/busca?q={query_encoded}",
+            ),
+            dados_brutos_web={},
+            status_enriquecimento_web=_FakeStatus.PENDENTE,
+            log_enriquecimento_web=None,
+        )
+        product_repo = _FakeProductRepository(produto)
+        usage_repo = _FakeUsageRepository()
+        finalizer_calls = []
+        workflow = WebEnrichmentTaskWorkflow(
+            logger=SimpleNamespace(info=lambda *a, **k: None, error=lambda *a, **k: None),
+            SQLAlchemyError=Exception,
+            session_provider=_SessionProviderStub(session),
+            user_repository_factory=lambda _session: SimpleNamespace(
+                get_user=lambda user_id: SimpleNamespace(id=user_id, chave_openai_pessoal=None)
+            ),
+            product_repository_factory=lambda _session: product_repo,
+            usage_repository_factory=lambda _session: usage_repo,
+            models=_FakeModels,
+            schemas=_FakeSchemas,
+            web_extractor=SimpleNamespace(busca_publica_disponivel=lambda: False),
+            settings=SimpleNamespace(OPENAI_API_KEY=None, GOOGLE_CSE_API_KEY=None, GOOGLE_CSE_ID=None),
+            json=SimpleNamespace(dumps=lambda *args, **kwargs: "{}"),
+            normalize_human_text=lambda value: value,
+            build_payload_enriquecimento_visivel=lambda **kwargs: ({}, [], []),
+            extrair_dominio_fornecedor=lambda value: value.split("//")[-1].split("/")[0],
+            priorizar_urls_para_enriquecimento=lambda **kwargs: (
+                kwargs["urls_candidatas"],
+                [(url, 99 - idx) for idx, url in enumerate(kwargs["urls_candidatas"])],
+            ),
+            is_meaningful_extracted_text=lambda text: bool(text),
+            metadata_has_minimum_signal=lambda metadata: bool(metadata),
+            is_source_relevant_for_product=lambda *args, **kwargs: True,
+        )
+        workflow.finalization_service = SimpleNamespace(
+            apply=lambda **kwargs: finalizer_calls.append(kwargs) or kwargs["status_para_salvar_no_final"]
+        )
+
+        captured_queries = []
+        captured_urls = []
+
+        async def fake_busca_urls(**kwargs):
+            captured_queries.extend(kwargs["query_candidates"])
+            return []
+
+        async def fake_coleta(**kwargs):
+            captured_urls.extend(kwargs["urls_a_processar"])
+            return True
+
+        async def fake_llm(**kwargs):
+            return True, _FakeStatus.CONCLUIDO_COM_DADOS_PARCIAIS
+
+        workflow._buscar_urls = fake_busca_urls
+        workflow._coletar_de_urls = fake_coleta
+        workflow._executar_llm = fake_llm
+
+        await workflow.run(produto_id=188, user_id=5)
+
+        assert usage_repo.calls == []
+        assert any(item.startswith("site:catalogo.amalcaburio.com.br ") for item in captured_queries)
+        assert any(item.startswith("https://catalogo.amalcaburio.com.br/busca?q=") for item in captured_urls)
+        assert finalizer_calls[0]["status_para_salvar_no_final"] == _FakeStatus.CONCLUIDO_COM_DADOS_PARCIAIS
         assert session.closed is True
 
     @staticmethod
@@ -794,7 +1225,7 @@ class _TopLevelFunctionSurface:
         await workflow.run(produto_id=41, user_id=404)
 
         assert finalizer_calls[0]["status_para_salvar_no_final"] == _FakeStatus.FALHOU
-        assert finalizer_calls[0]["dados_extraidos_agregados"]["descricao_curta"] == "texto"
+        assert finalizer_calls[0]["dados_extraidos_agregados"]["descricao_curta"] == ""
         assert session.closed is True
 
         captured = {}
@@ -927,6 +1358,9 @@ test_coletar_de_urls_agrega_payload_e_para_quando_fonte_ja_tem_nome_e_descricao 
 )
 test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada = (
     _TopLevelFunctionSurface.test_coletar_de_urls_cobre_casos_sem_url_sem_busca_e_fonte_duplicada
+)
+test_coletar_de_urls_preserva_contexto_visual_de_pdf_do_fornecedor = (
+    _TopLevelFunctionSurface.test_coletar_de_urls_preserva_contexto_visual_de_pdf_do_fornecedor
 )
 test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro = (
     _TopLevelFunctionSurface.test_executar_llm_retorna_falha_api_externa_quando_provedor_responde_com_erro

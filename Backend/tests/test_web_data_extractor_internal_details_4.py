@@ -199,6 +199,9 @@ async def test_llm_runtime_prefers_valid_system_key_when_user_key_is_invalid(mon
             captured.update(kwargs)
             return '{"nome_base":"Produto"}'
 
+        def get_openai_provider_name(self):
+            return "openai"
+
     runtime = web_module.WebLLMExtractionEngineRuntime(
         ai_provider_workflow_factory=lambda: _WorkflowStub()
     )

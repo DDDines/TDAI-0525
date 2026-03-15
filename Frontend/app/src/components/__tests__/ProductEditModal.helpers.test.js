@@ -14,14 +14,20 @@ import {
 } from '../ProductEditModal.helpers.js';
 
 describe('ProductEditModal helpers', () => {
-  test('extractGeneratedTitles handles missing arrays, falsy values and duplicate casing', () => {
+  test('extractGeneratedTitles prefers final generated titles and only falls back to raw suggestions when needed', () => {
     expect(extractGeneratedTitles()).toEqual([]);
     expect(
       extractGeneratedTitles({
         titulos_sugeridos: ['Titulo A', null, '  '],
         dados_brutos_web: { titulos_sugeridos_gerados: ['titulo a', 'Titulo B'] },
       })
-    ).toEqual(['Titulo A', 'Titulo B']);
+    ).toEqual(['Titulo A']);
+    expect(
+      extractGeneratedTitles({
+        titulos_sugeridos: [],
+        dados_brutos_web: { titulos_sugeridos_gerados: ['Titulo B', 'titulo b', 'Titulo C'] },
+      })
+    ).toEqual(['Titulo B', 'Titulo C']);
   });
 
   test('normalizeDynamicAttrsToTemplateKeys skips empty-like values and blank aliases', () => {

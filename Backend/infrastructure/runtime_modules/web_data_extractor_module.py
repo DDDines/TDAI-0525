@@ -2,6 +2,9 @@
 """Document web data extractor module module responsibilities and runtime integration points."""
 
 import asyncio
+import base64
+import io
+import os
 import sys
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
@@ -9,7 +12,10 @@ from bs4 import BeautifulSoup
 import trafilatura # type: ignore
 import extruct # type: ignore
 import json
+from html import escape as html_escape
+import pdfplumber # type: ignore
 import re
+import unicodedata
 from typing import List, Dict, Optional, Any, Tuple, Callable
 from fastapi import HTTPException
 from urllib.parse import parse_qs, quote_plus, unquote, urljoin, urlparse
@@ -222,9 +228,6 @@ class WebSearchEngineRuntime:
         ):
             return True
 
-        if path.endswith(".pdf"):
-            return True
-
         return False
 
     def normalizar_url_busca(self, candidata: str, base_url: str) -> Optional[str]:
@@ -400,17 +403,27 @@ class WebSearchEngineRuntime:
         """Execute buscar urls publicas async as part of this module workflow."""
         return await asyncio.to_thread(self.buscar_urls_publicas_sync, query, num_results)
 
-    def _executar_busca_google_cse(self, query_limpa: str, limite: int) -> List[str]:
+    def _executar_busca_google_cse(
+        self,
+        query_limpa: str,
+        limite: int,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
+    ) -> List[str]:
         """Execute executar busca google cse as part of this module workflow."""
+        effective_api_key = str(api_key or settings.GOOGLE_CSE_API_KEY or "").strip()
+        effective_search_engine_id = str(
+            search_engine_id or settings.GOOGLE_CSE_ID or ""
+        ).strip()
         service = build(
             "customsearch",
             "v1",
-            developerKey=settings.GOOGLE_CSE_API_KEY,
+            developerKey=effective_api_key,
             cache_discovery=False,
         )
         res = (
             service.cse()
-            .list(q=query_limpa, cx=settings.GOOGLE_CSE_ID, num=limite)
+            .list(q=query_limpa, cx=effective_search_engine_id, num=limite)
             .execute()
         )
         return [item["link"] for item in res.get("items", []) if "link" in item]
@@ -419,13 +432,19 @@ class WebSearchEngineRuntime:
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Execute buscar urls google async as part of this module workflow."""
         query_limpa = str(query or "").strip()
         if not query_limpa:
             return []
         limite = max(1, num_results)
-        cache_key = query_limpa.lower()
+        effective_api_key = str(api_key or settings.GOOGLE_CSE_API_KEY or "").strip()
+        effective_search_engine_id = str(
+            search_engine_id or settings.GOOGLE_CSE_ID or ""
+        ).strip()
+        cache_key = f"{query_limpa.lower()}::{effective_search_engine_id or 'fallback'}"
 
         cached_urls = await self.search_cache_get(cache_key)
         if cached_urls is not None:
@@ -439,8 +458,8 @@ class WebSearchEngineRuntime:
         urls_encontradas: List[str] = []
         google_disponivel = (
             GOOGLE_API_CLIENT_INSTALLED
-            and bool(settings.GOOGLE_CSE_API_KEY)
-            and bool(settings.GOOGLE_CSE_ID)
+            and bool(effective_api_key)
+            and bool(effective_search_engine_id)
         )
 
         async with self.get_search_semaphore():
@@ -450,6 +469,8 @@ class WebSearchEngineRuntime:
                         self._executar_busca_google_cse,
                         query_limpa,
                         limite,
+                        effective_api_key,
+                        effective_search_engine_id,
                     )
                     if urls_encontradas:
                         urls_encontradas = [
@@ -476,9 +497,9 @@ class WebSearchEngineRuntime:
                 motivos_google_indisponivel: List[str] = []
                 if not GOOGLE_API_CLIENT_INSTALLED:
                     motivos_google_indisponivel.append("biblioteca ausente")
-                if not settings.GOOGLE_CSE_API_KEY:
+                if not effective_api_key:
                     motivos_google_indisponivel.append("GOOGLE_CSE_API_KEY ausente")
-                if not settings.GOOGLE_CSE_ID:
+                if not effective_search_engine_id:
                     motivos_google_indisponivel.append("GOOGLE_CSE_ID ausente")
                 motivos_txt = (
                     ", ".join(motivos_google_indisponivel)
@@ -600,6 +621,251 @@ class WebContentFetchEngineRuntime:
         except Exception:
             logger.debug("Falha ao encerrar recurso Playwright de forma segura.", exc_info=True)
 
+    @staticmethod
+    def _url_looks_like_pdf(url: str) -> bool:
+        """Detect direct PDF URLs so collection can bypass HTML-only strategies."""
+        try:
+            parsed = urlparse(str(url or "").strip())
+        except Exception:
+            return False
+        return (parsed.path or "").lower().endswith(".pdf")
+
+    @staticmethod
+    def _render_pdf_page_image_data_url(page: Any) -> Optional[str]:
+        """Render the first PDF page to a PNG data URL for downstream multimodal extraction."""
+        if page is None or not hasattr(page, "to_image"):
+            return None
+        try:
+            dpi = max(96, min(int(os.getenv("PDF_LLM_IMAGE_DPI", "144")), 200))
+        except (TypeError, ValueError):
+            dpi = 144
+        try:
+            page_image = page.to_image(resolution=dpi)
+            source_image = getattr(page_image, "original", page_image)
+            buffer = io.BytesIO()
+            source_image.save(buffer, format="PNG")
+            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+            if not encoded:
+                return None
+            return f"data:image/png;base64,{encoded}"
+        except Exception:
+            logger.debug(
+                "Nao foi possivel renderizar a primeira pagina do PDF para contexto visual.",
+                exc_info=True,
+            )
+            return None
+
+    @staticmethod
+    def _normalize_pdf_page_text(page_text: Any) -> str:
+        """Collapse PDF text into a compact form suitable for lightweight scoring."""
+        return " ".join(str(page_text or "").split()).strip()
+
+    @classmethod
+    def _score_pdf_page_for_visual_context(
+        cls,
+        *,
+        page_number: int,
+        page_text: str,
+    ) -> float:
+        """Prefer pages that look like product detail/specification content."""
+        normalized = cls._normalize_pdf_page_text(page_text)
+        if not normalized:
+            return 0.25 if page_number <= 2 else 0.0
+
+        ascii_text = unicodedata.normalize("NFKD", normalized)
+        ascii_text = "".join(
+            char for char in ascii_text if not unicodedata.combining(char)
+        ).lower()
+        tokens = re.findall(r"[a-z0-9-]+", ascii_text)
+        score = min(len(normalized) / 350.0, 3.0)
+
+        strong_hints = (
+            "produto",
+            "referencia",
+            "ref",
+            "codigo",
+            "sku",
+            "marca",
+            "modelo",
+            "aplicacao",
+            "compatibilidade",
+            "especificacao",
+            "especificacoes",
+            "voltagem",
+            "potencia",
+            "medidas",
+            "dimensoes",
+            "embalagem",
+            "conteudo",
+            "kit",
+        )
+        score += min(
+            sum(1 for hint in strong_hints if hint in ascii_text) * 1.4,
+            6.0,
+        )
+
+        code_like_hits = 0
+        upper_text = normalized.upper()
+        code_like_hits += len(
+            re.findall(r"\b[A-Z0-9]{3,}(?:[-./][A-Z0-9]+)+\b", upper_text)
+        )
+        code_like_hits += len(
+            re.findall(r"\b[A-Z]*\d[A-Z0-9-]{4,}\b", upper_text)
+        )
+        score += min(code_like_hits * 2.2, 6.0)
+
+        if len(tokens) >= 8:
+            score += 0.8
+
+        weak_hints = (
+            "indice",
+            "sumario",
+            "catalogo geral",
+            "politica de",
+            "fale conosco",
+            "quem somos",
+            "historia",
+            "institucional",
+        )
+        score -= sum(2.5 for hint in weak_hints if hint in ascii_text)
+        if re.search(r"\bpagina\s+\d+\b", ascii_text) and len(tokens) <= 12:
+            score -= 1.5
+
+        if page_number <= 2:
+            score += 0.5
+        return score
+
+    @classmethod
+    def _select_pdf_page_numbers_for_visual_context(
+        cls,
+        *,
+        page_candidates: List[Dict[str, Any]],
+        max_page_images: int,
+    ) -> List[int]:
+        """Choose the best PDF pages to render for multimodal LLM context."""
+        if not page_candidates or max_page_images <= 0:
+            return []
+
+        scored_candidates: List[Tuple[float, int]] = []
+        for candidate in page_candidates:
+            page_number = int(candidate.get("page_number", 0) or 0)
+            if page_number <= 0:
+                continue
+            score = cls._score_pdf_page_for_visual_context(
+                page_number=page_number,
+                page_text=str(candidate.get("page_text") or ""),
+            )
+            scored_candidates.append((score, page_number))
+
+        scored_candidates.sort(key=lambda item: (-item[0], item[1]))
+        selected = [
+            page_number
+            for score, page_number in scored_candidates
+            if score > 0.6
+        ][:max_page_images]
+        if not selected:
+            selected = [
+                int(candidate.get("page_number", 0) or 0)
+                for candidate in page_candidates[:max_page_images]
+                if int(candidate.get("page_number", 0) or 0) > 0
+            ]
+        return sorted(dict.fromkeys(selected))
+
+    @classmethod
+    def _extract_pdf_text_to_html(cls, raw_pdf: bytes, *, source_url: str) -> Optional[str]:
+        """Extract textual PDF content and wrap it into a lightweight HTML envelope."""
+        if not raw_pdf:
+            return None
+
+        extracted_chunks: List[str] = []
+        remaining_chars = 40000
+        page_image_items: List[Tuple[int, str]] = []
+        page_candidates: List[Dict[str, Any]] = []
+        try:
+            max_page_images = max(1, min(int(os.getenv("PDF_LLM_MAX_PAGE_IMAGES", "3")), 4))
+        except (TypeError, ValueError):
+            max_page_images = 3
+        try:
+            page_scan_limit = max(1, min(int(os.getenv("PDF_LLM_PAGE_SCAN_LIMIT", "8")), 12))
+        except (TypeError, ValueError):
+            page_scan_limit = 8
+        try:
+            with pdfplumber.open(io.BytesIO(raw_pdf)) as pdf:
+                for page_index, page in enumerate(pdf.pages[:page_scan_limit], start=1):
+                    page_text = page.extract_text(x_tolerance=2, y_tolerance=2) or ""
+                    normalized_page_text = cls._normalize_pdf_page_text(page_text)
+                    page_candidates.append(
+                        {
+                            "page_number": page_index,
+                            "page": page,
+                            "page_text": normalized_page_text,
+                        }
+                    )
+                    if remaining_chars <= 0:
+                        break
+                    if not normalized_page_text:
+                        continue
+                    chunk = normalized_page_text[:remaining_chars]
+                    extracted_chunks.append(chunk)
+                    remaining_chars -= len(chunk)
+
+                selected_page_numbers = set(
+                    cls._select_pdf_page_numbers_for_visual_context(
+                        page_candidates=page_candidates,
+                        max_page_images=max_page_images,
+                    )
+                )
+                for candidate in page_candidates:
+                    page_number = int(candidate.get("page_number", 0) or 0)
+                    if page_number not in selected_page_numbers:
+                        continue
+                    rendered_image = cls._render_pdf_page_image_data_url(candidate.get("page"))
+                    if not rendered_image:
+                        continue
+                    if any(image_url == rendered_image for _, image_url in page_image_items):
+                        continue
+                    page_image_items.append((page_number, rendered_image))
+        except Exception as exc:
+            logger.warning("Falha ao extrair texto do PDF %s: %s", source_url, exc)
+            return None
+
+        normalized_lines: List[str] = []
+        for chunk in extracted_chunks:
+            for raw_line in chunk.splitlines():
+                line = " ".join(str(raw_line or "").split()).strip()
+                if line:
+                    normalized_lines.append(line)
+                if len(normalized_lines) >= 500:
+                    break
+            if len(normalized_lines) >= 500:
+                break
+
+        if not normalized_lines and not page_image_items:
+            return None
+
+        body_html = "".join(f"<p>{html_escape(line)}</p>" for line in normalized_lines)
+        source_html = html_escape(str(source_url or "").strip())
+        image_html = "".join(
+            (
+                f'<img data-tdai-page-image="{page_number}" '
+                f'alt="Pagina {page_number} do PDF" '
+                f'src="{image_url}" />'
+            )
+            for page_number, image_url in page_image_items
+        )
+        if not body_html:
+            body_html = (
+                "<p>Documento PDF sem texto extraivel. "
+                "Use as imagens embutidas para analisar as paginas.</p>"
+            )
+        return (
+            "<html><body><article>"
+            f"<p>URL da fonte: {source_html}</p>"
+            f"{image_html}"
+            f"{body_html}"
+            "</article></body></html>"
+        )
+
     def coletar_conteudo_pagina_http_sync(
         self,
         url: str,
@@ -617,9 +883,11 @@ class WebContentFetchEngineRuntime:
             content_type = (resp.headers.get("Content-Type") or "").lower()
             raw = resp.read()
 
-        if "text/html" not in content_type and "application/xhtml+xml" not in content_type:
-            return None
-        return raw.decode("utf-8", errors="ignore")
+        if "text/html" in content_type or "application/xhtml+xml" in content_type:
+            return raw.decode("utf-8", errors="ignore")
+        if "application/pdf" in content_type or self._url_looks_like_pdf(url):
+            return self._extract_pdf_text_to_html(raw, source_url=url)
+        return None
 
     async def coletar_conteudo_pagina_http(
         self,
@@ -702,6 +970,12 @@ class WebContentFetchEngineRuntime:
                 url,
             )
             return None
+        if self._url_looks_like_pdf(url):
+            logger.info(
+                "URL PDF detectada; usando coleta HTTP direta para extrair texto do documento: %s",
+                url,
+            )
+            return await self.coletar_conteudo_pagina_http(url)
         if self._playwright_chromium_indisponivel:
             return await self.coletar_conteudo_pagina_http(url)
 
@@ -815,11 +1089,19 @@ class WebSearchWorkflow:
             num_results=num_results,
         )
 
-    async def buscar_urls_google(self, query: str, num_results: int = 3) -> List[str]:
+    async def buscar_urls_google(
+        self,
+        query: str,
+        num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
+    ) -> List[str]:
         """Execute buscar urls google as part of this module workflow."""
         return await self._runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
         )
 
     def url_deve_ser_ignorada_antes_da_coleta(self, url: str) -> bool:
@@ -877,11 +1159,15 @@ class WebSearchRuntime:
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Execute buscar urls google async as part of this module workflow."""
         return await self._engine_runtime.buscar_urls_google_async(
             query=query,
             num_results=num_results,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
         )
 
     def url_deve_ser_ignorada_antes_da_coleta(self, url: str) -> bool:
@@ -918,6 +1204,194 @@ class WebContentCollectionRuntime:
 # --- Text Extraction Service ---
 class MetadataExtractionRuntime:
     """Runtime OO para extracao de texto e metadados estruturados."""
+
+    @staticmethod
+    def _compact_soup_text(node: Any) -> str:
+        """Normalize BeautifulSoup node text into a compact single-line string."""
+        if node is None:
+            return ""
+        try:
+            text = node.get_text(" ", strip=True)
+        except Exception:
+            text = str(node or "")
+        return re.sub(r"\s+", " ", str(text or "")).strip()
+
+    @staticmethod
+    def _strip_known_title_prefixes(title_text: str) -> str:
+        """Remove supplier/site prefixes from HTML titles when a product name is present."""
+        title = str(title_text or "").strip(" -|")
+        if not title:
+            return ""
+        parts = re.split(r"\s[-|]\s", title)
+        if len(parts) >= 2:
+            return parts[-1].strip()
+        return title
+
+    @staticmethod
+    def _clean_breadcrumb_items(items: List[str]) -> List[str]:
+        """Filter breadcrumb noise while keeping category/application context."""
+        cleaned: List[str] = []
+        ignored = {"home", "produtos", "produto", "catalogo", "catálogo"}
+        for item in items:
+            text = re.sub(r"\s+", " ", str(item or "")).strip(" >|")
+            if not text:
+                continue
+            if text.lower() in ignored:
+                continue
+            cleaned.append(text)
+        return list(dict.fromkeys(cleaned))
+
+    @staticmethod
+    def _looks_like_generic_site_image(image_url: Any) -> bool:
+        """Detect theme or site-wide images that should lose to product-specific images."""
+        lowered = str(image_url or "").strip().lower()
+        if not lowered:
+            return False
+        return any(
+            hint in lowered
+            for hint in (
+                "/content/themes/",
+                "bg-axys",
+                "whatsapp-icon",
+                "logo",
+                "face.jpg",
+                "banner",
+            )
+        )
+
+    def _extract_dom_product_candidate(self, html_content: str, url: str) -> Dict[str, Any]:
+        """Extract structured product facts from catalog DOM when schema metadata is absent or weak."""
+        if not html_content:
+            return {}
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+        except Exception:
+            return {}
+
+        detail = (
+            soup.select_one("section#produto-detalhe")
+            or soup.select_one("section[id*='produto']")
+            or soup.select_one(".produto-detalhe")
+            or soup.select_one(".product-detail")
+            or soup
+        )
+
+        name = ""
+        for selector in (".produto", "[itemprop='name']", ".product-name", "h1", "h2"):
+            node = detail.select_one(selector)
+            name = self._compact_soup_text(node)
+            if name:
+                break
+
+        if not name:
+            title_node = soup.title.get_text(" ", strip=True) if soup.title else ""
+            name = self._strip_known_title_prefixes(title_node)
+
+        category_code = self._compact_soup_text(detail.select_one(".categoria"))
+        breadcrumb_items = self._clean_breadcrumb_items(
+            [
+                self._compact_soup_text(node)
+                for node in soup.select(".breadcrumb a, .breadcrumb li, nav.breadcrumb a, nav.breadcrumb li")
+            ]
+        )
+
+        reference_value = ""
+        reference_label = ""
+        application_value = ""
+        for heading in detail.select("h3, h4"):
+            label_text = self._compact_soup_text(heading)
+            label_folded = unicodedata.normalize("NFKD", label_text).encode("ascii", "ignore").decode("ascii").lower()
+            if not label_folded:
+                continue
+            if ("original" in label_folded or "similar" in label_folded or "refer" in label_folded) and not reference_value:
+                reference_label = label_text
+                sibling = heading.find_next_sibling(["dl", "div", "p", "ul"])
+                if sibling is not None and sibling.name == "dl":
+                    dd_values = [self._compact_soup_text(dd) for dd in sibling.select("dd")]
+                    dd_values = [item for item in dd_values if item]
+                    reference_value = " | ".join(dd_values)
+                elif sibling is not None:
+                    reference_value = self._compact_soup_text(sibling)
+            elif "aplic" in label_folded and not application_value:
+                sibling = heading.find_next_sibling(["div", "p", "ul", "dl"])
+                if sibling is not None and sibling.name == "div":
+                    paragraphs = [self._compact_soup_text(p) for p in sibling.select("p, li")]
+                    paragraphs = [item for item in paragraphs if item]
+                    application_value = " | ".join(paragraphs) or self._compact_soup_text(sibling)
+                elif sibling is not None:
+                    application_value = self._compact_soup_text(sibling)
+
+        image_url = ""
+        for image_node in detail.select("img[src]"):
+            src = self._compact_soup_text(image_node.get("src"))
+            if not src:
+                continue
+            resolved = urljoin(url, src)
+            lowered = resolved.lower()
+            if any(noise in lowered for noise in ("/content/themes/", "bg-axys", "whatsapp-icon")):
+                continue
+            image_url = resolved
+            break
+
+        specs: Dict[str, Any] = {}
+        if category_code:
+            specs["Codigo de catalogo"] = category_code
+        if reference_value:
+            specs["Referencia original/similar"] = reference_value
+        if application_value:
+            specs["Aplicacao"] = application_value
+        if breadcrumb_items:
+            specs["Caminho do catalogo"] = " > ".join(
+                item for item in breadcrumb_items if item != category_code
+            )
+
+        description_parts: List[str] = []
+        if name:
+            description_parts.append(name)
+        if application_value:
+            description_parts.append(f"Aplicacao: {application_value}")
+        if reference_value:
+            label = reference_label or "Referencia original/similar"
+            description_parts.append(f"{label}: {reference_value}")
+        descricao_curta = ". ".join(part.strip(" .") for part in description_parts if part).strip()
+        if descricao_curta and not descricao_curta.endswith("."):
+            descricao_curta += "."
+
+        structured_lines: List[str] = []
+        if name:
+            structured_lines.append(f"Nome: {name}")
+        if category_code:
+            structured_lines.append(f"Codigo de catalogo: {category_code}")
+        if reference_value:
+            structured_lines.append(f"Referencia original/similar: {reference_value}")
+        if application_value:
+            structured_lines.append(f"Aplicacao: {application_value}")
+        if breadcrumb_items:
+            structured_lines.append(
+                "Caminho do catalogo: "
+                + " > ".join(item for item in breadcrumb_items if item != category_code)
+            )
+        if url:
+            structured_lines.append(f"URL da fonte: {url}")
+
+        candidate: Dict[str, Any] = {}
+        if name:
+            candidate["name"] = name
+        if descricao_curta:
+            candidate["description"] = descricao_curta
+        if image_url:
+            candidate["image"] = image_url
+        if category_code:
+            candidate["sku"] = category_code
+        if reference_value:
+            candidate["codigo_original"] = reference_value
+        if application_value:
+            candidate["aplicacao"] = application_value
+        if specs:
+            candidate["especificacoes_tecnicas_dict"] = specs
+        if structured_lines:
+            candidate["texto_estruturado_produto"] = "\n".join(structured_lines)
+        return candidate
 
     def extrair_texto_principal_com_trafilatura(self, html_content: str) -> Optional[str]:
         """Extrair texto principal com trafilatura."""
@@ -992,6 +1466,9 @@ class MetadataExtractionRuntime:
                     metadata_extraida["opengraph"] = items_list[0] if items_list else None
         except Exception as e:
             logger.error("Erro ao extrair metadados estruturados de %s com extruct: %s", url, e)
+        dom_candidate = self._extract_dom_product_candidate(html_content, url)
+        if dom_candidate:
+            metadata_extraida["dom_product_candidate"] = dom_candidate
         return metadata_extraida
 
     def normalizar_dados_de_metadados(self, metadata_bruta: Dict[str, Any]) -> Dict[str, Any]:
@@ -999,6 +1476,7 @@ class MetadataExtractionRuntime:
         dados_norm: Dict[str, Any] = {}
         produto_json_ld = metadata_bruta.get("json-ld_product_candidate")
         produto_microdata = metadata_bruta.get("microdata_product_candidate")
+        produto_dom = metadata_bruta.get("dom_product_candidate")
         opengraph_props_list = metadata_bruta.get("opengraph")
         opengraph = (
             opengraph_props_list[0]
@@ -1068,6 +1546,43 @@ class MetadataExtractionRuntime:
             elif not dados_norm.get("marca"):
                 dados_norm["marca"] = self._get_first_string(opengraph.get("og:site_name"))
 
+        if produto_dom and isinstance(produto_dom, dict):
+            if not dados_norm.get("nome"):
+                dados_norm["nome"] = self._get_first_string(produto_dom.get("name"))
+            if not dados_norm.get("descricao_curta"):
+                dados_norm["descricao_curta"] = self._get_first_string(
+                    produto_dom.get("description")
+                )
+            dom_image = self._get_first_string(produto_dom.get("image"))
+            if dom_image and (
+                not dados_norm.get("imagem_url")
+                or self._looks_like_generic_site_image(dados_norm.get("imagem_url"))
+            ):
+                dados_norm["imagem_url"] = dom_image
+            if not dados_norm.get("sku"):
+                dados_norm["sku"] = self._get_first_string(produto_dom.get("sku"))
+            if not dados_norm.get("codigo_original"):
+                dados_norm["codigo_original"] = self._get_first_string(
+                    produto_dom.get("codigo_original")
+                )
+            if not dados_norm.get("aplicacao"):
+                dados_norm["aplicacao"] = self._get_first_string(produto_dom.get("aplicacao"))
+            if not dados_norm.get("texto_estruturado_produto"):
+                dados_norm["texto_estruturado_produto"] = self._get_first_string(
+                    produto_dom.get("texto_estruturado_produto")
+                )
+            dom_specs = produto_dom.get("especificacoes_tecnicas_dict")
+            if isinstance(dom_specs, dict):
+                current_specs = dados_norm.get("especificacoes_tecnicas_dict")
+                merged_specs = dict(current_specs) if isinstance(current_specs, dict) else {}
+                for key, value in dom_specs.items():
+                    clean_key = self._get_first_string(key)
+                    clean_value = self._get_first_string(value)
+                    if clean_key and clean_value and clean_key not in merged_specs:
+                        merged_specs[clean_key] = clean_value
+                if merged_specs:
+                    dados_norm["especificacoes_tecnicas_dict"] = merged_specs
+
         return {k: v for k, v in dados_norm.items() if v is not None and v != ""}
 
 
@@ -1090,9 +1605,21 @@ class WebLLMExtractionEngineRuntime:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
-        if not texto_pagina and not metadados_normalizados:
+        normalized_page_images: List[str] = []
+        for candidate in (page_image_data_urls or []):
+            value = str(candidate or "").strip()
+            if value.startswith("data:image/") and value not in normalized_page_images:
+                normalized_page_images.append(value)
+        single_page_image = str(page_image_data_url or "").strip()
+        if single_page_image.startswith("data:image/") and single_page_image not in normalized_page_images:
+            normalized_page_images.append(single_page_image)
+        normalized_page_images = normalized_page_images[:3]
+
+        if not texto_pagina and not metadados_normalizados and not normalized_page_images:
             logger.info("Nenhum texto de página nem metadados fornecidos para extração LLM.")
             return {"erro_llm": "Nenhum conteúdo para processar"}
 
@@ -1111,6 +1638,12 @@ class WebLLMExtractionEngineRuntime:
                 contexto_para_llm += f"- {k.replace('_', ' ')}: {str(v_item)[:200]}\n"
         if texto_pagina:
             contexto_para_llm += f'\nTexto Principal da Página (use para encontrar informações e complementar/corrigir metadados):\n"""\n{texto_pagina[:10000]}\n"""'
+
+        if normalized_page_images:
+            contexto_para_llm += (
+                "\nImagens de paginas do PDF disponiveis: use a evidencia visual para confirmar "
+                "nome, referencia, embalagem, tabela e demais sinais do produto."
+            )
 
         if not contexto_para_llm.strip():
             logger.info(
@@ -1135,13 +1668,18 @@ class WebLLMExtractionEngineRuntime:
             + "\n\nA partir do contexto e do texto da página fornecidos, extraia RIGOROSAMENTE os seguintes campos e retorne APENAS um objeto JSON válido com esta estrutura:\n"
             + f"{{\n{campos_formatados_prompt}\n}}\n"
             + "Se uma informação para um campo específico não for encontrada de forma clara e inequívoca, retorne null para esse campo. Não invente informações.\n"
+            + "Preserve códigos, SKUs, referências, EANs e números exatamente como aparecem na fonte, incluindo zeros à esquerda, hífens e letras finais. Não normalize, não complete e não remova sufixos.\n"
             + "Para campos do tipo lista (ex: 'lista_caracteristicas_beneficios_bullets', 'palavras_chave_seo_relevantes_lista'), retorne uma lista de strings.\n"
             + "Para campos do tipo dicionário (ex: 'especificacoes_tecnicas_dict'), retorne um dicionário chave-valor.\n"
             + f"\nContexto e Texto para Análise:\n{contexto_para_llm}"
         )
 
+        ai_provider_workflow = self._ai_provider_workflow_factory()
+        provider_name = ai_provider_workflow.get_openai_provider_name()
         api_key_para_usar = None
-        if user is not None:
+        if provider_name == "lm_studio":
+            api_key_para_usar = normalize_optional_secret(settings.LM_STUDIO_API_KEY) or "lm-studio"
+        elif user is not None:
             user_key = normalize_optional_secret(getattr(user, "chave_openai_pessoal", None))
             if looks_like_openai_api_key(user_key):
                 api_key_para_usar = user_key
@@ -1157,14 +1695,26 @@ class WebLLMExtractionEngineRuntime:
 
         json_str_resposta = ""
         try:
-            prompt_messages = [
+            prompt_messages: List[Dict[str, Any]] = [
                 {
                     "role": "system",
                     "content": "Sua tarefa é extrair informações de um texto e retorná-las em formato JSON conforme o schema solicitado. Seja preciso e não adicione campos extras.",
                 },
-                {"role": "user", "content": prompt},
             ]
-            ai_provider_workflow = self._ai_provider_workflow_factory()
+            if normalized_page_images and provider_name == "lm_studio":
+                multimodal_content: List[Dict[str, Any]] = [{"type": "text", "text": prompt}]
+                multimodal_content.extend(
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                    for image_url in normalized_page_images
+                )
+                prompt_messages.append(
+                    {
+                        "role": "user",
+                        "content": multimodal_content,
+                    }
+                )
+            else:
+                prompt_messages.append({"role": "user", "content": prompt})
             json_str_resposta = await ai_provider_workflow.call_openai_api(
                 prompt_messages=prompt_messages,
                 api_key=api_key_para_usar,
@@ -1532,6 +2082,8 @@ class WebExtractionSupportWorkflow:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
         return await self._llm_runtime.extrair_dados_produto_com_llm(
@@ -1540,6 +2092,8 @@ class WebExtractionSupportWorkflow:
             campos_desejados=campos_desejados,
             produto_nome_base=produto_nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
 
     async def extract_relevant_data_from_url(
@@ -1579,6 +2133,8 @@ class WebLLMExtractionRuntime:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
         return await self._engine_runtime.extrair_dados_produto_com_llm(
@@ -1587,6 +2143,8 @@ class WebLLMExtractionRuntime:
             campos_desejados=campos_desejados,
             produto_nome_base=produto_nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
 
 
@@ -1724,11 +2282,15 @@ class WebDataExtractorRuntime:
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Execute buscar urls google as part of this module workflow."""
         return await self._search_workflow.buscar_urls_google(
             query=query,
             num_results=num_results,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
@@ -1773,6 +2335,8 @@ class WebDataExtractorRuntime:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
         return await self._extraction_support_workflow.extrair_dados_produto_com_llm(
@@ -1781,6 +2345,8 @@ class WebDataExtractorRuntime:
             campos_desejados=campos_desejados,
             produto_nome_base=produto_nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
 
     async def extract_relevant_data_from_url(

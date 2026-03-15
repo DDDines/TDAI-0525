@@ -36,7 +36,8 @@ function AttributeTemplateModal(
           is_required: Boolean(attribute?.is_required),
           default_value: attribute?.default_value || DEFAULT_FORM_DATA.default_value,
           tooltip_text: attribute?.tooltip_text || DEFAULT_FORM_DATA.tooltip_text,
-          display_order: attribute?.display_order || DEFAULT_FORM_DATA.display_order
+          display_order: attribute?.display_order || DEFAULT_FORM_DATA.display_order,
+          collect_in_ai: attribute?.collect_in_ai ?? DEFAULT_FORM_DATA.collect_in_ai,
         });
       }
     }, [attribute, isOpen]);
@@ -131,8 +132,22 @@ function AttributeTemplateModal(
           </div>
           <div style={styles.formGroup}>
             <label style={styles.checkboxLabel}>
-              <input type="checkbox" name="is_required" checked={formData.is_required} onChange={handleChange} style={styles.checkboxInput} disabled={isSubmitting} />
+              <input type="checkbox" aria-label="Campo obrigatorio" name="is_required" checked={formData.is_required} onChange={handleChange} style={styles.checkboxInput} disabled={isSubmitting} />
               Ã‰ um campo obrigatÃ³rio?
+            </label>
+          </div>
+          <div style={styles.formGroup}>
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                aria-label="Usar este atributo na IA"
+                name="collect_in_ai"
+                checked={formData.collect_in_ai}
+                onChange={handleChange}
+                style={styles.checkboxInput}
+                disabled={isSubmitting}
+              />
+              Coletar e sugerir este atributo quando a IA estiver ativa
             </label>
           </div>
           <div style={styles.actions}>
@@ -144,4 +159,4 @@ function AttributeTemplateModal(
     </div>);
 
   }
-const styles = { modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }, modalContent: { background: 'white', padding: '2rem', borderRadius: 'var(--radius)', width: '90%', maxWidth: '600px', boxShadow: 'var(--shadow-md)' }, modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }, modalTitle: { margin: 0, fontSize: '1.4rem' }, closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888', lineHeight: 1 }, formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500' }, input: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' }, textarea: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box', minHeight: '80px' }, actions: { marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }, checkboxLabel: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'normal' }, checkboxInput: { width: 'auto' } };const DEFAULT_FORM_DATA = { label: '', attribute_key: '', field_type: 'TEXT', description: '', options: '', is_required: false, default_value: '', tooltip_text: '', display_order: 0 };export default AttributeTemplateModal;
+const styles = { modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100 }, modalContent: { background: 'white', padding: '2rem', borderRadius: 'var(--radius)', width: '90%', maxWidth: '600px', boxShadow: 'var(--shadow-md)' }, modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }, modalTitle: { margin: 0, fontSize: '1.4rem' }, closeButton: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#888', lineHeight: 1 }, formGroup: { marginBottom: '1rem' }, label: { display: 'block', marginBottom: '0.5rem', fontWeight: '500' }, input: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box' }, textarea: { width: '100%', padding: '0.7rem', border: '1px solid #ccc', borderRadius: 'var(--radius)', fontSize: '1rem', boxSizing: 'border-box', minHeight: '80px' }, actions: { marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }, checkboxLabel: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'normal' }, checkboxInput: { width: 'auto' } };const DEFAULT_FORM_DATA = { label: '', attribute_key: '', field_type: 'TEXT', description: '', options: '', is_required: false, default_value: '', tooltip_text: '', display_order: 0, collect_in_ai: true };export default AttributeTemplateModal;

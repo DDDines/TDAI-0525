@@ -41,6 +41,14 @@ class _TopLevelFunctionSurface:
         assert "TJG809201A" in tokens
         assert "2C456840300BB" in tokens
 
+    def test_extract_numeric_tokens_returns_variant_signals():
+        """Keep meaningful numeric signals available for variant scoring."""
+        tokens = WebEnrichmentRelevanceService.extract_numeric_tokens(
+            "Reservatorio de AR 20 Litros ref 236331"
+        )
+
+        assert tokens == ["20"]
+
     def test_is_source_relevant_for_product_rejects_unrelated_source():
         """Run test is source relevant for product rejects unrelated source in this workflow."""
         service = WebEnrichmentRelevanceService()
@@ -59,6 +67,26 @@ class _TopLevelFunctionSurface:
             source_url="https://example.com/estribo",
         )
     
+        assert is_relevant is False
+
+    def test_is_source_relevant_for_product_rejects_generic_seed_without_brand_match():
+        """Generic seeds must keep brand/code coherence to avoid drifting into unrelated catalog pages."""
+        service = WebEnrichmentRelevanceService()
+        produto = SimpleNamespace(
+            nome_base="Wera tool kit",
+            marca="wera",
+            sku=None,
+            ean=None,
+            dados_brutos_web={},
+        )
+
+        is_relevant = service.is_source_relevant_for_product(
+            produto,
+            source_name="Tool kit universal com organizador",
+            source_desc="Conjunto para veiculo Strada cabine dupla com kit de instalacao",
+            source_url="https://example.com/estribo-strada",
+        )
+
         assert is_relevant is False
 
     def test_score_url_for_product_prefers_supplier_and_marketplace_domains():
@@ -109,11 +137,38 @@ class _TopLevelFunctionSurface:
         assert urls[0].startswith("https://www.jocar.com.br/")
         assert all(item[1] > -25 for item in scored)
 
+    def test_prioritize_urls_for_enrichment_prefers_matching_numeric_variant():
+        """Prefer the supplier URL whose numeric variant matches the product name."""
+        service = WebEnrichmentRelevanceService()
+        produto = SimpleNamespace(
+            nome_base="Reservatorio de AR 20 Litros",
+            sku="9873084307005",
+            ean=None,
+            marca="Amalcaburio",
+        )
+
+        urls, scored = service.prioritize_urls_for_enrichment(
+            produto,
+            [
+                "https://www.amalcaburio.com.br/Produtos/implementos/ford/cargo/reservatorio-de-ar-70-l",
+                "https://www.amalcaburio.com.br/Produtos/implementos/mercedes-benz/ln-608-708/reservatorio-de-ar-20-l",
+                "https://www.amalcaburio.com.br/Produtos/implementos/scania/t-r---113-143/reservatorio-de-ar-27-l",
+            ],
+            fornecedor_domain="amalcaburio.com.br",
+            max_urls=3,
+        )
+
+        assert urls[0].endswith("reservatorio-de-ar-20-l")
+        assert scored[0][1] > scored[1][1]
+
 test_tokens_for_relevance_normalizes_and_removes_stopwords = _TopLevelFunctionSurface.test_tokens_for_relevance_normalizes_and_removes_stopwords
 test_extract_code_tokens_returns_structured_codes = _TopLevelFunctionSurface.test_extract_code_tokens_returns_structured_codes
+test_extract_numeric_tokens_returns_variant_signals = _TopLevelFunctionSurface.test_extract_numeric_tokens_returns_variant_signals
 test_is_source_relevant_for_product_rejects_unrelated_source = _TopLevelFunctionSurface.test_is_source_relevant_for_product_rejects_unrelated_source
+test_is_source_relevant_for_product_rejects_generic_seed_without_brand_match = _TopLevelFunctionSurface.test_is_source_relevant_for_product_rejects_generic_seed_without_brand_match
 test_score_url_for_product_prefers_supplier_and_marketplace_domains = _TopLevelFunctionSurface.test_score_url_for_product_prefers_supplier_and_marketplace_domains
 test_prioritize_urls_for_enrichment_orders_best_first_and_filters_low_quality = _TopLevelFunctionSurface.test_prioritize_urls_for_enrichment_orders_best_first_and_filters_low_quality
+test_prioritize_urls_for_enrichment_prefers_matching_numeric_variant = _TopLevelFunctionSurface.test_prioritize_urls_for_enrichment_prefers_matching_numeric_variant
 
 
 

@@ -1,11 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import HistoricoPage from '../HistoricoPage.jsx';
 import usoIAService from '../../services/usoIAService';
 import historicoService from '../../services/historicoService';
 import { useAuth } from '../../contexts/AuthContext';
-import { showErrorToast } from '../../utils/notifications';
 import logger from '../../utils/logger';
 
 jest.mock('../../services/usoIAService', () => ({
@@ -27,10 +26,6 @@ jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
-jest.mock('../../utils/notifications', () => ({
-  showErrorToast: jest.fn(),
-}));
-
 jest.mock('../../utils/logger', () => ({
   __esModule: true,
   default: {
@@ -40,20 +35,29 @@ jest.mock('../../utils/logger', () => ({
 
 jest.mock('../../components/common/PaginationControls', () => ({
   __esModule: true,
-  default: ({ onPageChange }) => <button onClick={() => onPageChange(1)}>next-page</button>,
-}));
-
-jest.mock('../../components/common/LoadingPopup.jsx', () => ({
-  __esModule: true,
-  default: ({ isOpen, message }) => (isOpen ? <div>{message}</div> : null),
+  default: ({
+    currentPage,
+    itemsPerPage,
+    onItemsPerPageChange,
+    onPageChange,
+    totalItems,
+  }) => (
+    <div>
+      <span>{`pagina-${currentPage}`}</span>
+      <span>{`total-${totalItems}`}</span>
+      <button onClick={() => onPageChange(1)}>next-page</button>
+      {onItemsPerPageChange ? (
+        <button onClick={() => onItemsPerPageChange(itemsPerPage === 10 ? 25 : 10)}>
+          change-size
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 describe('HistoricoPage', () => {
-  let consoleErrorSpy;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     useAuth.mockReturnValue({
       user: { id: 8 },
       isLoading: false,
@@ -63,11 +67,34 @@ describe('HistoricoPage', () => {
         {
           id: 1,
           produto_id: 2558,
-          tipo_acao: 'enriquecimento_web',
+          tipo_acao: 'enriquecimento_web_produto',
+          provedor_ia: 'lm_studio',
+          modelo_ia: 'gemma-3-12b',
+          prompt_utilizado: 'Prompt de teste',
           resposta_ia: 'Texto gerado para o produto',
           tokens_prompt: 10,
           tokens_resposta: 12,
+          custo_estimado_usd: 0.0042,
+          creditos_consumidos: 2,
+          status: 'SUCESSO',
+          detalhes_erro: null,
           created_at: '2026-03-07T10:20:30.000Z',
+        },
+        {
+          id: 2,
+          produto_id: 2559,
+          tipo_acao: 'criacao_descricao_produto',
+          provedor_ia: 'lm_studio',
+          modelo_ia: 'gemma-3-12b',
+          prompt_utilizado: 'Prompt com falha',
+          resposta_ia: '',
+          tokens_prompt: 5,
+          tokens_resposta: 0,
+          custo_estimado_usd: null,
+          creditos_consumidos: 1,
+          status: 'FALHA',
+          detalhes_erro: 'timeout no provider',
+          created_at: '2026-03-08T08:00:00.000Z',
         },
       ],
       total_items: 15,
@@ -76,25 +103,32 @@ describe('HistoricoPage', () => {
       items: [
         {
           id: 9,
+          user_id: 8,
           entidade: 'produto',
-          acao: 'atualizacao',
+          acao: 'ATUALIZACAO',
           entity_id: 2558,
+          detalhes_json: { nome_base: 'Produto Teste', campo: 'descricao' },
           created_at: '2026-03-07T11:20:30.000Z',
         },
+        {
+          id: 10,
+          user_id: 8,
+          entidade: 'fornecedor',
+          acao: 'CRIACAO',
+          entity_id: 20,
+          detalhes_json: { nome: 'Fornecedor XPTO' },
+          created_at: '2026-03-08T09:00:00.000Z',
+        },
       ],
-      total_items: 1,
+      total_items: 4,
     });
     usoIAService.getTiposHistorico.mockResolvedValue([
-      'enriquecimento_web',
-      'geracao_titulo_ia',
+      'enriquecimento_web_produto',
+      'criacao_descricao_produto',
     ]);
   });
 
-  afterEach(() => {
-    consoleErrorSpy.mockRestore();
-  });
-
-  test('skips API calls when the user is not authenticated', async () => {
+  test('nao chama APIs quando o usuario nao esta autenticado', async () => {
     useAuth.mockReturnValue({
       user: null,
       isLoading: false,
@@ -103,14 +137,14 @@ describe('HistoricoPage', () => {
     render(<HistoricoPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nenhum registro de uso de IA encontrado com os filtros atuais/i)).toBeInTheDocument();
     });
 
     expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
     expect(historicoService.getHistorico).not.toHaveBeenCalled();
   });
 
-  test('waits for auth loading before fetching history', () => {
+  test('mostra estado de carregamento enquanto a autenticacao ainda nao terminou', () => {
     useAuth.mockReturnValue({
       user: { id: 8 },
       isLoading: true,
@@ -118,27 +152,31 @@ describe('HistoricoPage', () => {
 
     render(<HistoricoPage />);
 
+    expect(screen.getByText(/Carregando historico/i)).toBeInTheDocument();
     expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
     expect(historicoService.getHistorico).not.toHaveBeenCalled();
-    expect(logger.log).toHaveBeenCalledWith(expect.stringMatching(/auth/i));
-    expect(screen.getByText(/Carregando hist/i)).toBeInTheDocument();
   });
 
-  test('loads IA history, system events, filters and paginates results', async () => {
+  test('carrega resumo, filtro de IA e usa tipo_geracao corretamente', async () => {
     render(<HistoricoPage />);
 
-    expect(await screen.findByText(/Texto gerado para o produto/)).toBeInTheDocument();
-    expect(screen.getByText('produto')).toBeInTheDocument();
+    expect(await screen.findByText(/Central de historico/i)).toBeInTheDocument();
+    expect(screen.getByText('Registros IA')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.getByText('Falhas IA')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Filtrar por tipo de a/i), {
-      target: { value: 'geracao_titulo_ia' },
+    fireEvent.change(screen.getByLabelText(/Tipo de acao de IA/i), {
+      target: { value: 'criacao_descricao_produto' },
     });
 
     await waitFor(() => {
       expect(usoIAService.getMeuHistoricoUsoIA).toHaveBeenLastCalledWith({
-        skip: 0,
+        data_fim: undefined,
+        data_inicio: undefined,
         limit: 10,
-        tipo_acao: 'geracao_titulo_ia',
+        skip: 0,
+        tipo_geracao: 'criacao_descricao_produto',
       });
     });
 
@@ -146,123 +184,144 @@ describe('HistoricoPage', () => {
 
     await waitFor(() => {
       expect(usoIAService.getMeuHistoricoUsoIA).toHaveBeenLastCalledWith({
-        skip: 10,
+        data_fim: undefined,
+        data_inicio: undefined,
         limit: 10,
-        tipo_acao: 'geracao_titulo_ia',
+        skip: 10,
+        tipo_geracao: 'criacao_descricao_produto',
       });
     });
   });
 
-  test('renders fallback values and formats custom action labels', async () => {
-    usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({
-      items: [
-        {
-          id: 2,
-          produto_id: null,
-          tipo_acao: undefined,
-          resposta_ia: '',
-          tokens_prompt: null,
-          tokens_resposta: null,
-          created_at: null,
-        },
-      ],
-      total_items: 1,
-    });
-    historicoService.getHistorico.mockResolvedValueOnce({
-      items: [
-        {
-          id: 10,
-          entidade: 'fornecedor',
-          acao: 'criacao',
-          entity_id: 33,
-          created_at: null,
-        },
-      ],
-      total_items: 1,
-    });
-    usoIAService.getTiposHistorico.mockResolvedValueOnce(['', 'acao_customizada']);
-
+  test('expande detalhes do uso de IA e mostra prompt, resposta e erro', async () => {
     render(<HistoricoPage />);
 
-    expect((await screen.findAllByText('N/A')).length).toBeGreaterThanOrEqual(4);
-    expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText(/N\/A\s+tokens/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Texto gerado para o produto/i)).toBeInTheDocument();
+
+    const detailButtons = screen.getAllByRole('button', { name: /^Ver$/i });
+    fireEvent.click(detailButtons[0]);
+
+    expect(await screen.findByText(/Prompt utilizado/i)).toBeInTheDocument();
+    expect(screen.getByText(/Prompt de teste/i)).toBeInTheDocument();
+    expect(screen.getByText(/Resposta retornada/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Ver$/i })[0]);
+    expect(await screen.findByText(/Erro registrado/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/timeout no provider/i).length).toBeGreaterThan(0);
   });
 
-  test('shows an error toast when the IA history request fails', async () => {
+  test('separa eventos do sistema em aba propria e filtra por entidade e acao', async () => {
+    render(<HistoricoPage />);
+
+    await screen.findByText(/Central de historico/i);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Eventos do sistema/i }));
+    expect(await screen.findByLabelText(/Entidade do historico do sistema/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Entidade do historico do sistema/i), {
+      target: { value: 'produto' },
+    });
+
+    await waitFor(() => {
+      expect(historicoService.getHistorico).toHaveBeenLastCalledWith({
+        acao: undefined,
+        entidade: 'produto',
+        limit: 10,
+        skip: 0,
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText(/Acao do historico do sistema/i), {
+      target: { value: 'ATUALIZACAO' },
+    });
+
+    await waitFor(() => {
+      expect(historicoService.getHistorico).toHaveBeenLastCalledWith({
+        acao: 'ATUALIZACAO',
+        entidade: 'produto',
+        limit: 10,
+        skip: 0,
+      });
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Ver$/i })[0]);
+    expect(await screen.findByText(/Detalhes registrados/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Produto Teste/i).length).toBeGreaterThan(0);
+  });
+
+  test('aplica busca textual local nas duas abas', async () => {
+    render(<HistoricoPage />);
+
+    await screen.findByText(/Central de historico/i);
+
+    fireEvent.change(screen.getByLabelText(/Busca textual no historico de IA/i), {
+      target: { value: 'timeout' },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/timeout no provider/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Texto gerado para o produto/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: /Eventos do sistema/i }));
+    fireEvent.change(screen.getByLabelText(/Busca textual no historico do sistema/i), {
+      target: { value: 'Fornecedor XPTO' },
+    });
+
+    await waitFor(() => {
+      const table = screen.getByRole('table');
+      expect(within(table).getByText(/Nome relacionado: Fornecedor XPTO/i)).toBeInTheDocument();
+      expect(within(table).queryByText(/Produto relacionado: Produto Teste/i)).not.toBeInTheDocument();
+    });
+  });
+
+  test('renderiza estado de erro do historico de IA sem quebrar a pagina', async () => {
     usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce(new Error('historico indisponivel'));
 
     render(<HistoricoPage />);
 
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('historico indisponivel');
-    });
-    expect(screen.getByText(/Erro ao carregar hist/i)).toBeInTheDocument();
+    expect(await screen.findByText(/historico indisponivel/i)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Eventos do sistema/i })).toBeInTheDocument();
   });
 
-  test('uses the generic history error fallback when the request rejects without details', async () => {
-    usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce({});
-
-    render(<HistoricoPage />);
-
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith(
-        expect.stringMatching(/Falha ao buscar hist.rico de uso de IA/i)
-      );
-    });
-  });
-
-  test('uses backend response detail when the IA history request fails with API payload', async () => {
-    usoIAService.getMeuHistoricoUsoIA.mockRejectedValueOnce({
-      response: { data: { detail: 'detalhe do backend' } },
-    });
-
-    render(<HistoricoPage />);
-
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('detalhe do backend');
-    });
-    expect(screen.getByText(/detalhe do backend/i)).toBeInTheDocument();
-  });
-
-  test('handles unexpected payloads and logs secondary fetch failures', async () => {
+  test('registra warnings e erros secundarios para payloads inesperados', async () => {
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({ invalid: true });
-    historicoService.getHistorico.mockRejectedValueOnce(new Error('falha sistema'));
+    historicoService.getHistorico.mockResolvedValueOnce({ invalid: true });
     usoIAService.getTiposHistorico.mockRejectedValueOnce(new Error('falha tipos'));
 
     render(<HistoricoPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nenhum registro de uso de IA encontrado com os filtros atuais/i)).toBeInTheDocument();
     });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      'HistoricoPage: formato de dados inesperado recebido:',
+      'HistoricoPage: formato de dados inesperado recebido para historico IA:',
+      { invalid: true }
+    );
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'HistoricoPage: formato de dados inesperado recebido para historico do sistema:',
       { invalid: true }
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Erro ao buscar histórico do sistema:',
+      'HistoricoPage: erro ao carregar tipos de acao de IA:',
       expect.any(Error)
     );
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Erro ao carregar tipos de histórico:',
-      expect.any(Error)
-    );
+
     consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 
-  test('ignores non-array secondary payloads while still rendering the empty state', async () => {
-    usoIAService.getMeuHistoricoUsoIA.mockResolvedValueOnce({ items: [], total_items: 0 });
-    historicoService.getHistorico.mockResolvedValueOnce({ items: null, total_items: 0 });
-    usoIAService.getTiposHistorico.mockResolvedValueOnce({ invalid: true });
+  test('mantem o log de autenticacao enquanto aguarda carregar historico autenticado', () => {
+    useAuth.mockReturnValue({
+      user: { id: 8 },
+      isLoading: true,
+    });
 
     render(<HistoricoPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText(/Nenhum registro de uso de IA encontrado/i)).toBeInTheDocument();
-    });
-
-    expect(screen.queryByText('produto')).not.toBeInTheDocument();
+    expect(logger.log).not.toHaveBeenCalledWith(expect.stringMatching(/usuario nao autenticado/i));
   });
 });

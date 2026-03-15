@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qsl, quote_plus, urlencode, urlparse, urlunparse
 
-from Backend.core.api_key_validation import looks_like_openai_api_key
+from Backend import models
+from Backend.core.api_key_validation import looks_like_openai_api_key, normalize_optional_secret
+from Backend.infrastructure.repositories.external_credential_repository import (
+    ExternalCredentialRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -30,21 +36,75 @@ class WebEnrichmentConfigSnapshot:
         )
 
 
+@dataclass(frozen=True)
+class WebEnrichmentSearchPlan:
+    """Represent the full supplier-aware enrichment search plan for a product."""
+
+    query_candidates: List[str]
+    direct_candidate_urls: List[str]
+    supplier_domain: str
+
+
 class WebEnrichmentConfigInspector:
     """Inspeciona disponibilidade de provedores externos para enriquecimento."""
 
-    def inspect(self, *, user: Any, settings: Any, web_extractor: Any) -> WebEnrichmentConfigSnapshot:
+    def inspect(
+        self,
+        *,
+        user: Any,
+        settings: Any,
+        web_extractor: Any,
+        db: Any | None = None,
+    ) -> WebEnrichmentConfigSnapshot:
         """Execute inspect as part of this module workflow."""
         openai_user_configurada = looks_like_openai_api_key(
             getattr(user, "chave_openai_pessoal", None)
         )
+        provider_name = normalize_optional_secret(getattr(settings, "AI_PROVIDER", None))
+        lm_studio_configurada = str(provider_name or "").strip().lower() == "lm_studio"
         openai_system_configurada = looks_like_openai_api_key(
             getattr(settings, "OPENAI_API_KEY", None)
         )
-        openai_api_configurada = bool(openai_user_configurada or openai_system_configurada)
         google_api_configurada = bool(
             getattr(settings, "GOOGLE_CSE_API_KEY", None)
             and getattr(settings, "GOOGLE_CSE_ID", None)
+        )
+        openai_company_or_effective_configurada = False
+        if db is not None:
+            credential_repo = ExternalCredentialRepository(db)
+            openai_effective = credential_repo.resolve_effective_source(
+                provider=models.ExternalCredentialProviderEnum.OPENAI,
+                current_user=user,
+                settings=settings,
+            )
+            openai_company_or_effective_configurada = bool(
+                openai_effective.get("configured")
+                and looks_like_openai_api_key(openai_effective.get("secret_value"))
+            )
+            openai_user_configurada = openai_effective.get("source") == "user" and looks_like_openai_api_key(
+                openai_effective.get("secret_value")
+            )
+            openai_system_configurada = (
+                openai_effective.get("source") == "system"
+                and looks_like_openai_api_key(openai_effective.get("secret_value"))
+            ) or openai_system_configurada
+
+            google_effective = credential_repo.resolve_effective_source(
+                provider=models.ExternalCredentialProviderEnum.GOOGLE_CSE,
+                current_user=user,
+                settings=settings,
+            )
+            google_api_configurada = bool(
+                google_effective.get("configured")
+                and google_effective.get("secret_value")
+                and (google_effective.get("config_json") or {}).get("search_engine_id")
+            )
+        if lm_studio_configurada:
+            openai_system_configurada = True
+        openai_api_configurada = bool(
+            openai_user_configurada
+            or openai_system_configurada
+            or openai_company_or_effective_configurada
         )
         busca_publica_fallback = bool(
             getattr(web_extractor, "busca_publica_disponivel", lambda: False)()
@@ -63,10 +123,54 @@ class WebEnrichmentConfigInspector:
 class WebEnrichmentQueryPlanner:
     """Monta termos de busca para maximizar recall com baixo ruido."""
 
+    _SEARCH_PARAM_KEYS = (
+        "q",
+        "query",
+        "search",
+        "s",
+        "term",
+        "keyword",
+        "keywords",
+        "busca",
+    )
+
     @staticmethod
     def _dedupe(values: List[str]) -> List[str]:
         """Execute dedupe as part of this module workflow."""
         return [v for v in dict.fromkeys(v for v in values if v)]
+
+    @staticmethod
+    def _extract_supplier_domain(site_url: Any) -> str:
+        """Extract supplier domain from a configured site URL."""
+        raw = str(site_url or "").strip()
+        if not raw:
+            return ""
+        normalized = raw if "://" in raw else f"https://{raw}"
+        try:
+            parsed = urlparse(normalized)
+        except Exception:
+            return ""
+        return (parsed.netloc or "").lower()
+
+    @staticmethod
+    def _domain_variants(supplier_domain: str) -> List[str]:
+        """Return the supplier domain with and without the leading www when relevant."""
+        domain = str(supplier_domain or "").strip().lower()
+        if not domain:
+            return []
+        variants = [domain]
+        if domain.startswith("www."):
+            variants.append(domain[4:])
+        return list(dict.fromkeys(variants))
+
+    @staticmethod
+    def _fold_search_text(value: Any) -> str:
+        """Fold accented characters and normalize whitespace for web search terms."""
+        text = unicodedata.normalize("NFKD", str(value or ""))
+        text = text.encode("ascii", "ignore").decode("ascii")
+        text = " ".join(text.split())
+        return text.strip()
+        return (parsed.netloc or "").lower()
 
     @staticmethod
     def _extract_code_tokens(value: Any) -> List[str]:
@@ -107,15 +211,219 @@ class WebEnrichmentQueryPlanner:
                 hints["marca"] = text_value
         return hints
 
-    def build_candidates(
+    def _build_supplier_search_terms(
+        self,
+        *,
+        nome_base_clean: str,
+        fornecedor_nome: str,
+        codigo_original: str,
+        sku: str,
+        ean_digits: str,
+        code_hints: List[str],
+        dynamic_hints: Dict[str, str],
+    ) -> List[str]:
+        """Build compact search terms to search inside the supplier site first."""
+        supplier_terms: List[str] = []
+        if nome_base_clean:
+            supplier_terms.append(nome_base_clean)
+            if codigo_original:
+                supplier_terms.append(f"{nome_base_clean} {codigo_original}")
+            if sku:
+                supplier_terms.append(f"{nome_base_clean} {sku}")
+            if fornecedor_nome:
+                supplier_terms.append(f"{nome_base_clean} {fornecedor_nome}")
+            if dynamic_hints["aplicacao"]:
+                supplier_terms.append(f"{nome_base_clean} {dynamic_hints['aplicacao']}")
+        for code_hint in code_hints[:4]:
+            supplier_terms.append(code_hint)
+            if nome_base_clean:
+                supplier_terms.append(f"{nome_base_clean} {code_hint}")
+        if ean_digits:
+            supplier_terms.append(ean_digits)
+        return self._dedupe([term.strip() for term in supplier_terms if term.strip()])
+
+    def _build_supplier_scoped_queries(
+        self,
+        *,
+        supplier_domain: str,
+        supplier_terms: List[str],
+        fornecedor_nome: str,
+    ) -> List[str]:
+        """Restrict early search queries to the supplier domain before broad web search."""
+        if not supplier_domain:
+            return []
+        queries: List[str] = []
+        fornecedor_folded = self._fold_search_text(fornecedor_nome)
+        for domain_variant in self._domain_variants(supplier_domain):
+            for term in supplier_terms[:6]:
+                folded_term = self._fold_search_text(term)
+                if folded_term:
+                    queries.append(f"site:{domain_variant} {folded_term}")
+                    queries.append(f"site:{domain_variant} filetype:pdf {folded_term}")
+                    if " " in folded_term:
+                        queries.append(f'site:{domain_variant} "{folded_term}"')
+                        queries.append(f'site:{domain_variant} filetype:pdf "{folded_term}"')
+                if fornecedor_folded and fornecedor_folded.lower() not in folded_term.lower():
+                    queries.append(f"site:{domain_variant} {folded_term} {fornecedor_folded}")
+                    queries.append(
+                        f"site:{domain_variant} filetype:pdf {folded_term} {fornecedor_folded}"
+                    )
+        return self._dedupe(queries)
+
+    def _build_template_context(
+        self,
+        *,
+        term: str,
+        nome_base_clean: str,
+        sku: str,
+        codigo_original: str,
+        ean_digits: str,
+        supplier_domain: str,
+    ) -> Dict[str, str]:
+        """Provide the placeholder context used to render supplier search URLs."""
+        encoded_term = quote_plus(term)
+        return {
+            "{query}": term,
+            "{query_encoded}": encoded_term,
+            "{termo}": term,
+            "{termo_encoded}": encoded_term,
+            "{nome_base}": nome_base_clean,
+            "{nome_base_encoded}": quote_plus(nome_base_clean),
+            "{sku}": sku,
+            "{sku_encoded}": quote_plus(sku),
+            "{codigo_original}": codigo_original,
+            "{codigo_original_encoded}": quote_plus(codigo_original),
+            "{ean}": ean_digits,
+            "{ean_encoded}": quote_plus(ean_digits),
+            "{supplier_domain}": supplier_domain,
+        }
+
+    def _render_supplier_search_url(
+        self,
+        *,
+        link_busca_padrao: str,
+        term: str,
+        nome_base_clean: str,
+        sku: str,
+        codigo_original: str,
+        ean_digits: str,
+        supplier_domain: str,
+    ) -> Optional[str]:
+        """Render a direct supplier search URL from either placeholders or a known query param."""
+        raw = str(link_busca_padrao or "").strip()
+        if not raw:
+            return None
+        normalized = raw if "://" in raw else f"https://{raw}"
+        context = self._build_template_context(
+            term=term,
+            nome_base_clean=nome_base_clean,
+            sku=sku,
+            codigo_original=codigo_original,
+            ean_digits=ean_digits,
+            supplier_domain=supplier_domain,
+        )
+        rendered = normalized
+        used_template = False
+        for placeholder, value in context.items():
+            if placeholder in rendered:
+                rendered = rendered.replace(placeholder, value)
+                used_template = True
+        if used_template:
+            return rendered
+
+        if rendered.endswith("="):
+            return f"{rendered}{quote_plus(term)}"
+
+        try:
+            parsed = urlparse(rendered)
+        except Exception:
+            return None
+
+        if not parsed.netloc:
+            return None
+
+        query_items = parse_qsl(parsed.query, keep_blank_values=True)
+        updated_items: List[tuple[str, str]] = []
+        replaced = False
+        for key, value in query_items:
+            if not replaced and key.lower() in self._SEARCH_PARAM_KEYS and not value:
+                updated_items.append((key, term))
+                replaced = True
+            else:
+                updated_items.append((key, value))
+
+        if replaced:
+            return urlunparse(
+                parsed._replace(query=urlencode(updated_items, doseq=True))
+            )
+        return None
+
+    def _build_supplier_direct_urls(
+        self,
+        *,
+        link_busca_padrao: str,
+        supplier_terms: List[str],
+        nome_base_clean: str,
+        sku: str,
+        codigo_original: str,
+        ean_digits: str,
+        supplier_domain: str,
+    ) -> List[str]:
+        """Render supplier search URLs when the supplier provides a search endpoint template."""
+        direct_urls: List[str] = []
+        for term in supplier_terms[:4]:
+            rendered = self._render_supplier_search_url(
+                link_busca_padrao=link_busca_padrao,
+                term=term,
+                nome_base_clean=nome_base_clean,
+                sku=sku,
+                codigo_original=codigo_original,
+                ean_digits=ean_digits,
+                supplier_domain=supplier_domain,
+            )
+            if rendered:
+                direct_urls.append(rendered)
+        return self._dedupe(direct_urls)
+
+    def build_search_plan(
         self,
         *,
         db_produto_obj: Any,
         termos_busca_override: Optional[str],
-    ) -> List[str]:
-        """Build candidates from current inputs and configuration."""
+    ) -> WebEnrichmentSearchPlan:
+        """Build a supplier-aware search plan with domain-first queries and optional direct URLs."""
+        fornecedor_obj = getattr(db_produto_obj, "fornecedor", None)
+        supplier_domain = self._extract_supplier_domain(
+            getattr(fornecedor_obj, "site_url", "") if fornecedor_obj else ""
+        )
+        link_busca_padrao = (
+            str(getattr(fornecedor_obj, "link_busca_padrao", "") or "").strip()
+            if fornecedor_obj
+            else ""
+        )
+
         if termos_busca_override:
-            return self._dedupe([termos_busca_override.strip()])
+            supplier_terms = [termos_busca_override.strip()]
+            return WebEnrichmentSearchPlan(
+                query_candidates=self._dedupe(
+                    self._build_supplier_scoped_queries(
+                        supplier_domain=supplier_domain,
+                        supplier_terms=supplier_terms,
+                        fornecedor_nome=str(getattr(fornecedor_obj, "nome", "") or "").strip(),
+                    )
+                    + supplier_terms
+                ),
+                direct_candidate_urls=self._build_supplier_direct_urls(
+                    link_busca_padrao=link_busca_padrao,
+                    supplier_terms=supplier_terms,
+                    nome_base_clean="",
+                    sku="",
+                    codigo_original="",
+                    ean_digits="",
+                    supplier_domain=supplier_domain,
+                ),
+                supplier_domain=supplier_domain,
+            )
 
         nome_base_clean = str(getattr(db_produto_obj, "nome_base", "") or "").strip()
         query_parts: List[str] = [nome_base_clean]
@@ -128,7 +436,6 @@ class WebEnrichmentQueryPlanner:
             query_parts.append(ean_digits)
         query_base = " ".join([part for part in query_parts if part])
 
-        fornecedor_obj = getattr(db_produto_obj, "fornecedor", None)
         fornecedor_nome = (
             str(getattr(fornecedor_obj, "nome", "") or "").strip() if fornecedor_obj else ""
         )
@@ -186,7 +493,46 @@ class WebEnrichmentQueryPlanner:
 
         if dynamic_hints["marca"] and nome_base_clean:
             query_candidates.append(f"{nome_base_clean} {dynamic_hints['marca']}")
-        return self._dedupe(query_candidates)
+        supplier_terms = self._build_supplier_search_terms(
+            nome_base_clean=nome_base_clean,
+            fornecedor_nome=fornecedor_nome,
+            codigo_original=codigo_original,
+            sku=sku,
+            ean_digits=ean_digits,
+            code_hints=code_hints,
+            dynamic_hints=dynamic_hints,
+        )
+        supplier_queries = self._build_supplier_scoped_queries(
+            supplier_domain=supplier_domain,
+            supplier_terms=supplier_terms,
+            fornecedor_nome=fornecedor_nome,
+        )
+        direct_candidate_urls = self._build_supplier_direct_urls(
+            link_busca_padrao=link_busca_padrao,
+            supplier_terms=supplier_terms,
+            nome_base_clean=nome_base_clean,
+            sku=sku,
+            codigo_original=codigo_original,
+            ean_digits=ean_digits,
+            supplier_domain=supplier_domain,
+        )
+        return WebEnrichmentSearchPlan(
+            query_candidates=self._dedupe(supplier_queries + query_candidates),
+            direct_candidate_urls=direct_candidate_urls,
+            supplier_domain=supplier_domain,
+        )
+
+    def build_candidates(
+        self,
+        *,
+        db_produto_obj: Any,
+        termos_busca_override: Optional[str],
+    ) -> List[str]:
+        """Build candidates from current inputs and configuration."""
+        return self.build_search_plan(
+            db_produto_obj=db_produto_obj,
+            termos_busca_override=termos_busca_override,
+        ).query_candidates
 
 
 class WebEnrichmentStatusResolver:
@@ -201,8 +547,10 @@ class WebEnrichmentStatusResolver:
         openai_api_configurada: bool,
         busca_web_disponivel: bool,
         urls_a_processar: List[str],
+        usar_ia: Optional[bool] = None,
     ) -> Any:
         """Execute resolve as part of this module workflow."""
+        llm_requested = usar_ia is not False
         if status_para_salvar_no_final not in {
             models.StatusEnriquecimentoEnum.EM_PROGRESSO,
             models.StatusEnriquecimentoEnum.FALHOU,
@@ -210,11 +558,11 @@ class WebEnrichmentStatusResolver:
             return status_para_salvar_no_final
 
         if dados_coletados_de_fontes_web:
-            if not openai_api_configurada:
+            if llm_requested and not openai_api_configurada:
                 return models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS
             return models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO
 
-        if urls_a_processar or busca_web_disponivel or openai_api_configurada:
+        if urls_a_processar or busca_web_disponivel or (llm_requested and openai_api_configurada):
             return models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
         return models.StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA
 
@@ -273,6 +621,31 @@ class WebEnrichmentFinalizationService:
             db_produto_obj=db_produto_obj,
             dados_extraidos_agregados=dados_extraidos_agregados,
         )
+        payload_rejeitado_por_relevancia = next(
+            (
+                item
+                for item in notas_ignoradas
+                if str(item).startswith("validacao_relevancia=")
+            ),
+            None,
+        )
+        if (
+            payload_rejeitado_por_relevancia
+            and not notas_campos
+            and status_para_salvar_no_final
+            in {
+                self._models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO,
+                self._models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS,
+            }
+        ):
+            status_para_salvar_no_final = (
+                self._models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA
+            )
+            log_mensagens.append(
+                "Conteudo web coletado, mas descartado pelo validador de relevancia. "
+                "Status ajustado para NENHUMA_FONTE_ENCONTRADA."
+            )
+            status_valor_str = status_para_salvar_no_final.value
         if notas_campos:
             log_mensagens.append(
                 "Campos preenchidos no produto a partir do enriquecimento: "

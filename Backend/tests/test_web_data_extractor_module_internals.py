@@ -13,8 +13,8 @@ from Backend.testing.runtime_apis import web_extractor as web_module
 class _UrlOpenResponse:
     """Simple urlopen response stub."""
 
-    def __init__(self, body: str, content_type: str = "text/html"):
-        self._body = body.encode("utf-8")
+    def __init__(self, body: str | bytes, content_type: str = "text/html"):
+        self._body = body if isinstance(body, bytes) else body.encode("utf-8")
         self.headers = {"Content-Type": content_type}
 
     def read(self):
@@ -30,9 +30,10 @@ class _UrlOpenResponse:
 class _AiWorkflowStub:
     """AI workflow stub used by LLM extraction tests."""
 
-    def __init__(self, response=None, error=None):
+    def __init__(self, response=None, error=None, provider_name="openai"):
         self.response = response
         self.error = error
+        self.provider_name = provider_name
         self.calls = []
 
     async def call_openai_api(self, **kwargs):
@@ -40,6 +41,9 @@ class _AiWorkflowStub:
         if self.error:
             raise self.error
         return self.response
+
+    def get_openai_provider_name(self):
+        return self.provider_name
 
 
 class _TopLevelFunctionSurface:
@@ -92,7 +96,7 @@ class _TopLevelFunctionSurface:
             "https://duckduckgo.com/?uddg=https%3A%2F%2Fexample.com%2Fdest"
         ) == "https://example.com/dest"
         assert runtime.url_deve_ser_ignorada_antes_da_coleta("ftp://server/file") is True
-        assert runtime.url_deve_ser_ignorada_antes_da_coleta("https://example.com/file.pdf") is True
+        assert runtime.url_deve_ser_ignorada_antes_da_coleta("https://example.com/file.pdf") is False
         assert runtime.normalizar_url_busca("/produto/1", "https://loja.com/base") == "https://loja.com/produto/1"
         assert runtime.normalizar_url_busca(
             "https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fp",
@@ -133,12 +137,39 @@ class _TopLevelFunctionSurface:
         assert await runtime.coletar_conteudo_pagina_http("https://example.com") is None
         assert await runtime.coletar_conteudo_pagina_playwright("https://example.com/file.pdf") is None
 
+        class _PdfPage:
+            def extract_text(self, **kwargs):
+                return "Linha 1\nLinha 2\nRef ABC-123"
+
+        class _PdfContext:
+            def __enter__(self):
+                return SimpleNamespace(pages=[_PdfPage()])
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        monkeypatch.setattr(
+            web_module,
+            "urlopen",
+            lambda req, timeout=20: _UrlOpenResponse(b"%PDF-1.4", "application/pdf"),
+        )
+        monkeypatch.setattr(web_module.pdfplumber, "open", lambda fp: _PdfContext())
+        pdf_html = runtime.coletar_conteudo_pagina_http_sync("https://example.com/catalogo.pdf")
+        assert "Linha 1" in pdf_html
+        assert "Ref ABC-123" in pdf_html
+
         runtime = web_module.WebContentFetchEngineRuntime(
             search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
         )
         runtime.set_playwright_chromium_indisponivel(True)
         monkeypatch.setattr(runtime, "coletar_conteudo_pagina_http", lambda url: asyncio.sleep(0, result="http-fallback"))
         assert await runtime.coletar_conteudo_pagina_playwright("https://example.com/a") == "http-fallback"
+
+        runtime = web_module.WebContentFetchEngineRuntime(
+            search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
+        )
+        monkeypatch.setattr(runtime, "coletar_conteudo_pagina_http", lambda url: asyncio.sleep(0, result="pdf-http"))
+        assert await runtime.coletar_conteudo_pagina_playwright("https://example.com/catalogo.pdf") == "pdf-http"
 
         runtime = web_module.WebContentFetchEngineRuntime(
             search_runtime=SimpleNamespace(url_deve_ser_ignorada_antes_da_coleta=lambda url: False)
@@ -206,7 +237,13 @@ class _TopLevelFunctionSurface:
             "extract",
             lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("bad metadata")),
         )
-        assert runtime.extrair_metadados_estruturados("<html></html>", "https://example.com") == {}
+        fallback_metadata = runtime.extrair_metadados_estruturados(
+            "<html></html>",
+            "https://example.com",
+        )
+        assert fallback_metadata["dom_product_candidate"]["texto_estruturado_produto"].startswith(
+            "URL da fonte: https://example.com"
+        )
 
     @pytest.mark.asyncio
     async def test_web_llm_extraction_engine_covers_key_paths(monkeypatch):
@@ -231,6 +268,30 @@ class _TopLevelFunctionSurface:
         assert result["marca"] == "Master"
         assert result["sku"] == "SKU-1"
         assert workflow.calls[0]["model"] == "gpt-3.5-turbo-0125"
+
+        monkeypatch.setattr(web_module.settings, "AI_PROVIDER", "lm_studio", raising=False)
+        monkeypatch.setattr(web_module.settings, "LM_STUDIO_API_KEY", "", raising=False)
+        workflow = _AiWorkflowStub(
+            response='{"marca":"Vision","sku":"SKU-V"}',
+            provider_name="lm_studio",
+        )
+        runtime = web_module.WebLLMExtractionEngineRuntime(ai_provider_workflow_factory=lambda: workflow)
+        result = await runtime.extrair_dados_produto_com_llm(
+            "texto principal",
+            {"nome": "Reservatorio"},
+            ["marca", "sku"],
+            "Reservatorio",
+            page_image_data_url="data:image/png;base64,AAA",
+            page_image_data_urls=["data:image/png;base64,BBB", "data:image/png;base64,CCC"],
+        )
+        assert result["marca"] == "Vision"
+        assert workflow.calls[0]["api_key"] == "lm-studio"
+        user_message = workflow.calls[0]["prompt_messages"][1]
+        assert isinstance(user_message["content"], list)
+        assert user_message["content"][1]["image_url"]["url"] == "data:image/png;base64,BBB"
+        assert user_message["content"][2]["image_url"]["url"] == "data:image/png;base64,CCC"
+        assert user_message["content"][3]["image_url"]["url"] == "data:image/png;base64,AAA"
+        monkeypatch.setattr(web_module.settings, "AI_PROVIDER", "openai", raising=False)
 
         runtime = web_module.WebLLMExtractionEngineRuntime(
             ai_provider_workflow_factory=lambda: _AiWorkflowStub(response="nao-json")

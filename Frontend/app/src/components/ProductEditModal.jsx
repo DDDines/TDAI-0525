@@ -15,6 +15,7 @@ import { normalizeDisplayText } from '../utils/textNormalization';
 import productService from '../services/productService';
 import fornecedorService from '../services/fornecedorService';
 import AttributeField from './produtos/shared/AttributeField';
+import ProductContentWorkspace from './produtos/ProductContentWorkspace.jsx';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import {
   buildProductFormState,
@@ -53,6 +54,8 @@ function ProductEditModal(
     const [isLoading, setIsLoading] = useState(false);
     const [isGeneratingIA, setIsGeneratingIA] = useState(false);
     const [isEnrichingWeb, setIsEnrichingWeb] = useState(false);
+    const [usarIAEnriquecimentoWeb, setUsarIAEnriquecimentoWeb] = useState(false);
+    const [usarIAConteudo, setUsarIAConteudo] = useState(false);
     const [isSuggestingGemini, setIsSuggestingGemini] = useState(false);
     const [_error, setError] = useState(null);
     const [fornecedores, setFornecedores] = useState([]);
@@ -118,6 +121,21 @@ function ProductEditModal(
     }, [isOpen, product, formData.fornecedor_id, formData.product_type_id]);
 
     useEffect(() => {
+      if (isOpen) {
+        setUsarIAEnriquecimentoWeb(false);
+        setUsarIAConteudo(false);
+      }
+    }, [isOpen, product?.id]);
+
+    useEffect(() => {
+      if (!isOpen) {
+        return;
+      }
+      setActiveTab('info');
+      setError(null);
+    }, [isOpen, product?.id]);
+
+    useEffect(() => {
       isOpenRef.current = isOpen;
       if (!isOpen) {
         enrichmentPollRunRef.current += 1;
@@ -155,6 +173,8 @@ function ProductEditModal(
       const loadDetails = async () => {
         if (!isOpen) return;
         if (product && product.id) {
+          populateFormData(product);
+          setStage('form');
           try {
             const fullProduct = await productService.getProdutoById(product.id);
             populateFormData(fullProduct);
@@ -174,8 +194,6 @@ function ProductEditModal(
           setIsGeneratingIA(false);
           setIsSuggestingGemini(false);
         }
-        setActiveTab('info');
-        setError(null);
       };
       loadDetails();
     }, [product, isOpen, populateFormData]);
@@ -184,6 +202,9 @@ function ProductEditModal(
       const { name, value, type, checked } = e.target;
       if (name === 'product_type_id') {
         setFormData((prev) => ({ ...prev, [name]: value }));
+        if (!value) {
+          setUsarIAEnriquecimentoWeb(false);
+        }
         if (value) {
           initializeAttributesForType(value);
         }
@@ -296,14 +317,26 @@ function ProductEditModal(
 
 
     const _handleEnrichWeb = async () => {
+      if (showAiFeatures && usarIAEnriquecimentoWeb && !formData.product_type_id) {
+        showWarningToast('Defina um tipo de produto antes de usar IA no enriquecimento web.');
+        return;
+      }
       const productId = product.id;
       const runId = Date.now();
       enrichmentPollRunRef.current = runId;
       setIsEnrichingWeb(true);
       setError(null);
-      showInfoToast("Processo de enriquecimento web iniciado. Isso pode levar alguns minutos e atualizar o log e as sugestoes.");
+      showInfoToast(
+        `Processo de enriquecimento web ${showAiFeatures && usarIAEnriquecimentoWeb ? 'com IA' : 'basico'} iniciado. Isso pode levar alguns minutos e atualizar o log e as sugestoes.`
+      );
       try {
-        await productService.iniciarEnriquecimentoWebProduto(productId);
+        if (showAiFeatures && usarIAEnriquecimentoWeb) {
+          await productService.iniciarEnriquecimentoWebProduto(productId, {
+            usarIA: true,
+          });
+        } else {
+          await productService.iniciarEnriquecimentoWebProduto(productId);
+        }
         if (enrichmentPollRunRef.current !== runId) return;
 
         setFormData((prev) => ({
@@ -359,6 +392,10 @@ function ProductEditModal(
 
 
     const handleFetchGeminiSuggestions = async () => {
+      if (!formData.product_type_id) {
+        showWarningToast('Defina um tipo de produto para buscar atributos relevantes com IA.');
+        return;
+      }
       setIsSuggestingGemini(true);
       setError(null);
       showInfoToast("Buscando sugestões de atributos com a IA (Gemini)... Isso pode levar um momento.");
@@ -433,12 +470,10 @@ function ProductEditModal(
     const handleGenerateTitles = async () => {
       setIsGeneratingIA(true);
       try {
-        if (showAiFeatures) {
+        if (showAiFeatures && usarIAConteudo) {
           await productService.gerarTitulosProduto(product.id);
-          showInfoToast("Geração de títulos iniciada. Verifique em breve.");
         } else {
           await productService.gerarTitulosProdutoModoBasico(product.id);
-          showInfoToast("Títulos gerados no modo básico.");
         }
         clearRefreshTimeout(titleRefreshTimeoutRef);
         titleRefreshTimeoutRef.current = setTimeout(() => {
@@ -489,12 +524,10 @@ function ProductEditModal(
     const handleGenerateDescription = async () => {
       setIsGeneratingIA(true);
       try {
-        if (showAiFeatures) {
+        if (showAiFeatures && usarIAConteudo) {
           await productService.gerarDescricaoProduto(product.id);
-          showInfoToast("Geração de descrição iniciada. Verifique em breve.");
         } else {
           await productService.gerarDescricaoProdutoModoBasico(product.id);
-          showInfoToast("Descrição gerada no modo básico.");
         }
         clearRefreshTimeout(descriptionRefreshTimeoutRef);
         descriptionRefreshTimeoutRef.current = setTimeout(() => {
@@ -677,23 +710,57 @@ function ProductEditModal(
               }
                     {activeTab === 'conteudo-ia' &&
               <div className="form-section">
-                            <h3>{showAiFeatures ? 'Conteúdo Gerado por IA' : 'Conteúdo Gerado'}</h3>
-                            <button type="button" onClick={handleOpenContentView} disabled={isNewProduct}>
-                              Ver 5 Títulos + Descrição em Tela Dedicada
-                            </button>
-                            <button type="button" onClick={_handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
-                              {isEnrichingWeb ? 'Enriquecendo Web...' : 'Enriquecer Web'}
-                            </button>
-                            <hr />
-                            <button type="button" onClick={handleGenerateTitles} disabled={isGeneratingIA || isNewProduct}>
-                              {isGeneratingIA ? 'Gerando Títulos...' : showAiFeatures ? 'Gerar Títulos (OpenAI)' : 'Gerar Títulos (Básico)'}
-                            </button>
-                            {formData.titulos_sugeridos && formData.titulos_sugeridos.length > 0 && <div> <h4>Títulos Sugeridos:</h4> <ul> {formData.titulos_sugeridos.map((title, index) => <li key={index}>{title}</li>)} </ul> </div>}
-                            <hr />
-                            <button type="button" onClick={handleGenerateDescription} disabled={isGeneratingIA || isNewProduct}>
-                              {isGeneratingIA ? 'Gerando Descrição...' : showAiFeatures ? 'Gerar Descrição (OpenAI)' : 'Gerar Descrição (Básico)'}
-                            </button>
-                            {formData.descricao_chat_api && <div style={{ marginTop: '10px' }}> <h4>Descrição Principal Gerada:</h4> <textarea value={formData.descricao_chat_api} readOnly rows="10" style={{ width: '100%', backgroundColor: '#f9f9f9' }} /> </div>}
+                            <h3>{showAiFeatures ? 'Conteúdo Gerado com IA ou Básico' : 'Conteúdo Gerado'}</h3>
+                            <div className="product-edit-content-toolbar">
+                              <button type="button" onClick={_handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
+                                {isEnrichingWeb ? 'Enriquecendo Web...' : showAiFeatures && usarIAEnriquecimentoWeb ? 'Enriquecer Web + IA' : 'Enriquecer Web'}
+                              </button>
+                              {showAiFeatures &&
+                                <label className="product-edit-inline-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={usarIAEnriquecimentoWeb}
+                                    onChange={(event) => {
+                                      if (event.target.checked && !formData.product_type_id) {
+                                        showWarningToast('Defina um tipo de produto antes de usar IA no enriquecimento web.');
+                                        return;
+                                      }
+                                      setUsarIAEnriquecimentoWeb(event.target.checked);
+                                    }}
+                                    disabled={isEnrichingWeb || isNewProduct}
+                                  />
+                                  <span>Usar IA no enriquecimento web</span>
+                                </label>
+                              }
+                            </div>
+                            {!formData.product_type_id && showAiFeatures ?
+                              <p className="warning-text">
+                                Defina um tipo de produto para habilitar coleta de atributos relevantes com IA no enriquecimento e nas sugestões.
+                              </p> :
+                              null}
+                            <ProductContentWorkspace
+                              titles={formData.titulos_sugeridos}
+                              description={formData.descricao_chat_api}
+                              editable={true}
+                              onTitleChange={(index, value) => {
+                                setFormData((prev) => {
+                                  const nextTitles = Array.isArray(prev.titulos_sugeridos) ? [...prev.titulos_sugeridos] : [];
+                                  nextTitles[index] = value;
+                                  return { ...prev, titulos_sugeridos: nextTitles };
+                                });
+                              }}
+                              onDescriptionChange={(value) => setFormData((prev) => ({ ...prev, descricao_chat_api: value }))}
+                              onGenerateTitles={handleGenerateTitles}
+                              onGenerateDescription={handleGenerateDescription}
+                              isGenerating={isGeneratingIA}
+                              disableActions={isNewProduct}
+                              showUseAiToggle={showAiFeatures}
+                              useAi={usarIAConteudo}
+                              onUseAiChange={setUsarIAConteudo}
+                              onOpenDedicatedView={handleOpenContentView}
+                              titleButtonLabel={showAiFeatures && usarIAConteudo ? 'Gerar títulos com IA' : 'Gerar títulos no básico'}
+                              descriptionButtonLabel={showAiFeatures && usarIAConteudo ? 'Gerar descrição com IA' : 'Gerar descrição no básico'}
+                            />
                         </div>
               }
                     {showAiFeatures && activeTab === 'sugestoes-ia' &&

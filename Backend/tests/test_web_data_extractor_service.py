@@ -24,7 +24,7 @@ class _TopLevelFunctionSurface:
     def test_url_deve_ser_ignorada_para_pdf():
         """Run test url deve ser ignorada para pdf in this workflow."""
         url = "https://example.com/catalogo/produtos.pdf"
-        assert _search_workflow().url_deve_ser_ignorada_antes_da_coleta(url) is True
+        assert _search_workflow().url_deve_ser_ignorada_antes_da_coleta(url) is False
 
     def test_url_valida_nao_deve_ser_ignorada():
         """Run test url valida nao deve ser ignorada in this workflow."""

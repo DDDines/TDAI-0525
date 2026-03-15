@@ -110,11 +110,13 @@ class _TopLevelFunctionSurface:
             produto_id="5",
             user_id=9,
             termos_busca_override="   termo de busca   ",
+            usar_ia="true",
         )
     
         assert result["produto_id"] == 5
         assert result["user_id"] == 9
         assert result["termos_busca_override"] == "termo de busca"
+        assert result["usar_ia"] is True
 
     @pytest.mark.asyncio
     async def test_web_enrichment_use_case_rejects_invalid_produto_id():
@@ -135,6 +137,7 @@ class _TopLevelFunctionSurface:
             produto_id=12,
             user_id=9,
             termos_busca_override="  abc  ",
+            usar_ia=False,
         )
         result = await use_case.execute_command(
             command=command,
@@ -142,6 +145,7 @@ class _TopLevelFunctionSurface:
     
         assert result["produto_id"] == 12
         assert result["termos_busca_override"] == "abc"
+        assert result["usar_ia"] is False
 
 _dummy_processor = _TopLevelFunctionSurface._dummy_processor
 test_catalog_import_use_case_normalizes_payload = _TopLevelFunctionSurface.test_catalog_import_use_case_normalizes_payload

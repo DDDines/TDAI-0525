@@ -35,8 +35,13 @@ const usoIAService = {
    */
   async getMeuHistoricoUsoIA(params = {}) {
     try {
+      const resolvedParams = { ...params };
+      if (resolvedParams.tipo_acao && !resolvedParams.tipo_geracao) {
+        resolvedParams.tipo_geracao = resolvedParams.tipo_acao;
+        delete resolvedParams.tipo_acao;
+      }
       // Endpoint correto do backend: /api/v1/uso-ia/
-      const response = await apiClient.get(`${USO_IA_RESOURCE_URL}/`, { params });
+      const response = await apiClient.get(`${USO_IA_RESOURCE_URL}/`, { params: resolvedParams });
       return response.data;
     } catch (error) {
       console.error('Error fetching my IA usage history:', error.response?.data || error.message);

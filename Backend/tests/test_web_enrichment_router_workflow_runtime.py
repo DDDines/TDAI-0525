@@ -34,12 +34,14 @@ class _TopLevelFunctionSurface:
             produto_id=10,
             user_id=20,
             termos_busca_override="termo",
+            usar_ia=True,
         )
     
         assert called[0][0] == "task"
         assert called[0][1]["produto_id"] == 10
         assert called[0][1]["user_id"] == 20
         assert called[0][1]["termos_busca_override"] == "termo"
+        assert called[0][1]["usar_ia"] is True
 
     def test_workflow_iniciar_enriquecimento_usa_validacao_e_dispatch_do_runtime():
         """Run test workflow iniciar enriquecimento usa validacao e dispatch do runtime in this workflow."""
@@ -64,6 +66,7 @@ class _TopLevelFunctionSurface:
             background_tasks=background_tasks,
             current_user=user,
             termos_busca_override="teste",
+            usar_ia=False,
         )
     
         assert response["msg"].startswith("Processo de enriquecimento web")
@@ -80,6 +83,7 @@ class _TopLevelFunctionSurface:
         assert command.produto_id == 77
         assert command.user_id == 99
         assert command.termos_busca_override == "teste"
+        assert command.usar_ia is False
         assert dispatch_call[1]["background_tasks"] is background_tasks
         assert callable(dispatch_call[1]["oop_executor"])
         assert "fallback_executor" not in dispatch_call[1]

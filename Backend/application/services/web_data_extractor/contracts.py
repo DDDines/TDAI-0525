@@ -27,6 +27,8 @@ class WebDataExtractorPort(Protocol):
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Search candidate URLs using Google CSE."""
         ...
@@ -64,6 +66,8 @@ class WebDataExtractorPort(Protocol):
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Use LLM extraction to produce enriched product fields."""
         ...

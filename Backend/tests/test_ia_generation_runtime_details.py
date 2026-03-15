@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import httpx
@@ -222,6 +223,62 @@ async def test_ai_provider_runtime_routes_openai_compatible_calls_to_lm_studio(m
     assert client_stub.calls[0][1] == "http://127.0.0.1:1234/v1/models"
     assert client_stub.calls[1][1] == "http://127.0.0.1:1234/v1/chat/completions"
     assert client_stub.calls[1][2]["json"]["model"] == "google/gemma-3-12b"
+
+
+@pytest.mark.asyncio
+async def test_ai_provider_runtime_serializes_lm_studio_requests(monkeypatch):
+    runtime = ia_service.AiProviderRuntime()
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_MAX_CONCURRENCY", 1, raising=False)
+
+    active_calls = {"current": 0, "peak": 0}
+
+    async def _fake_resolve_openai_model(*, api_key, requested_model=None):
+        _ = api_key, requested_model
+        return "google/gemma-3-12b"
+
+    async def _fake_request_with_retry(**_kwargs):
+        active_calls["current"] += 1
+        active_calls["peak"] = max(active_calls["peak"], active_calls["current"])
+        await asyncio.sleep(0.02)
+        active_calls["current"] -= 1
+        return _ResponseStub(
+            json_data={"choices": [{"message": {"content": "titulo local"}}]}
+        )
+
+    monkeypatch.setattr(runtime, "resolve_openai_model", _fake_resolve_openai_model)
+    monkeypatch.setattr(runtime, "_request_with_retry", _fake_request_with_retry)
+
+    results = await asyncio.gather(
+        runtime.call_openai_api(
+            prompt_messages=[{"role": "user", "content": "primeira"}],
+            api_key="lm-studio",
+        ),
+        runtime.call_openai_api(
+            prompt_messages=[{"role": "user", "content": "segunda"}],
+            api_key="lm-studio",
+        ),
+    )
+
+    assert results == ["titulo local", "titulo local"]
+    assert active_calls["peak"] == 1
+
+
+def test_ai_provider_runtime_lm_studio_timeout_and_description_profile(monkeypatch):
+    runtime = ia_service.AiProviderRuntime()
+
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "lm_studio", raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_REQUEST_TIMEOUT_SECONDS", 135, raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_DESCRIPTION_WORD_TARGET", 55, raising=False)
+    monkeypatch.setattr(ia_service.settings, "LM_STUDIO_DESCRIPTION_MAX_TOKENS", 145, raising=False)
+
+    assert runtime.get_openai_compatible_request_timeout_seconds() == 135.0
+    assert runtime.get_lm_studio_description_word_target(140) == 55
+    assert runtime.get_lm_studio_description_word_target(50) == 50
+    assert runtime.get_lm_studio_description_max_tokens(55) == 145
+
+    monkeypatch.setattr(ia_service.settings, "AI_PROVIDER", "openai", raising=False)
+    assert runtime.get_openai_compatible_request_timeout_seconds() == 60.0
 
 
 @pytest.mark.asyncio
@@ -446,10 +503,7 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
     assert runtime._looks_like_company_timeline_claim("Empresa fundada em 2015") is True
     assert runtime._looks_like_company_timeline_claim("Produto premium para uso severo") is False
     assert runtime._sanitize_generated_description("") == ""
-    assert (
-        runtime._sanitize_generated_description("Empresa fundada em 2015.")
-        == "Empresa fundada em 2015."
-    )
+    assert runtime._sanitize_generated_description("Empresa fundada em 2015.") == ""
 
     sanitized_titles = runtime._sanitize_title_candidates(
         '1. Titulo Limpo\n2. titulo limpo\n3. www.exemplo.com contato\n4. ok\n5. Fundada em 2010'
@@ -485,7 +539,15 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
         source_title="Tier Displayer",
         desired_count=3,
     )
-    assert safe_fallback_titles == ["Tier Displayer"]
+    assert safe_fallback_titles == ["Tier Displayer", "Displayer Tier"]
+
+    translated_display_titles = runtime._sanitize_title_candidates(
+        "1. Display em Camadas - Tier Displayer",
+        source_title="Tier Displayer",
+        source_aliases=["Tier Displayer Expositor"],
+        desired_count=3,
+    )
+    assert translated_display_titles == ["Tier Displayer", "Displayer Tier", "Tier Displayer Expositor"]
 
     produto = SimpleNamespace(
         nome_base="Reservatorio ComÃ©rcio EletrÃ´nico 9999",
@@ -502,8 +564,9 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
     assert title_candidates[0].startswith("Reservatorio")
     assert len(title_candidates) == 3
     description = runtime._build_local_description(produto, tamanho_palavras=80)
+    assert "Resumo tecnico:" in description
+    assert "Referencia:" in description
     assert "SKU-1" in description
-    assert "Descricao base" in description
 
     class _BrokenUsageRepo:
         def __init__(self, _db):
@@ -528,7 +591,7 @@ def test_ia_generation_runtime_helper_paths(monkeypatch):
         context={"nome_base": "Reservatorio"},
     )
     assert "Reservatorio" in rendered
-    assert "Marca:" in rendered
+    assert "Marca confirmada:" in rendered
 
 
 @pytest.mark.asyncio
@@ -578,7 +641,8 @@ async def test_ia_generation_runtime_impl_paths_with_provider_and_suggestions(mo
         user=SimpleNamespace(id=1, is_superuser=False),
         num_titulos=2,
     )
-    assert titles == ["Paralama Dianteiro"]
+    assert titles[0] == "Paralama Dianteiro"
+    assert len(titles) == 2
 
     description = await runtime._gerar_descricao_com_openai_impl(
         db=object(),

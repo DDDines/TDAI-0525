@@ -199,6 +199,19 @@ describe('productService', () => {
     expect(result).toEqual({ ok: true });
   });
 
+  test('iniciarEnriquecimentoWebProduto adds usar_ia query param when requested', async () => {
+    apiClient.post.mockResolvedValueOnce({ data: { ok: true } });
+
+    await productService.iniciarEnriquecimentoWebProduto(55, {
+      termosBuscaOverride: 'filtro mann',
+      usarIA: true,
+    });
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/enriquecimento-web/produto/55?termos_busca_override=filtro%20mann&usar_ia=true'
+    );
+  });
+
   test('iniciarEnriquecimentoWebProduto maps 401 and 409 to user-facing errors', async () => {
     apiClient.post
       .mockRejectedValueOnce({ response: { status: 401, data: {} } })

@@ -176,8 +176,9 @@ class _TopLevelFunctionSurface:
         )
 
         assert "Suporte reforcado para linha pesada" in descricao
-        assert "Destaques:" in descricao
-        assert "Palavras-chave:" in descricao
+        assert "Referencia orcado" not in descricao
+        assert "Destaques tecnicos:" in descricao
+        assert "Resumo tecnico:" in descricao
         assert "Material: Metal" in descricao
 
     @pytest.mark.asyncio
@@ -328,8 +329,8 @@ class _TopLevelFunctionSurface:
         assert "Produto: Bomba Dagua (Pierburg)" in descricao
         assert "Specs:" in descricao
         assert "Material: Aluminio" in descricao
-        assert "Tags: motor diesel" in descricao
-        assert "bomba dagua, motor diesel" not in descricao
+        assert "motor diesel" in descricao
+        assert "Tags:" in descricao
 
     @pytest.mark.asyncio
     async def test_gerar_descricao_basica_filtra_keywords_fracas_do_contexto_web():
@@ -367,7 +368,6 @@ class _TopLevelFunctionSurface:
         )
 
         lowered = descricao.lower()
-        assert "palavras-chave:" in lowered
         assert "seguran" not in lowered
         assert "tranquilidade" not in lowered
         assert " sua" not in lowered
@@ -675,6 +675,126 @@ class _TopLevelFunctionSurface:
         assert "rochepecas" in descricao.lower()
         assert "marca mercadocar" not in descricao.lower()
 
+    @pytest.mark.asyncio
+    async def test_geracao_basica_estrutura_saida_automotiva_e_remove_keywords_lixo():
+        """Keep automotive outputs technical and structured even when the collected web context is noisy."""
+        produto = SimpleNamespace(
+            id=44,
+            nome_base="Tela Central do Painel Superior",
+            nome_chat_api="Vidro Porta 111 Scania 111 - 236331",
+            descricao_original="Tela Central do Painel Superior",
+            descricao_chat_api=None,
+            marca="Giro Diesel Peças para Caminhões",
+            modelo="",
+            sku="6131 1459134/880737",
+            ean="",
+            categoria_original="Cabine",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={},
+            dados_brutos_web={
+                "descricao_detalhada_seo": (
+                    "Tela Central do Painel Superior, marca Vidro. Vidro para porta da linha 111 da Scania, "
+                    "peça única com encaixe específico. Referência 236331 para aplicação correta e técnica. "
+                    "Atua no sistema de ventilação frontal do veículo. Aplicação: G/R SERIE 5 ATE 2009 "
+                    "Material: Vidro Conteúdo: 1 peça. Atendimento via WhatsApp e compra online protegida."
+                ),
+                "palavras_chave_seo_relevantes_lista": [
+                    "total",
+                    "caminh",
+                    "digo",
+                    "aplica",
+                    "whatsapp",
+                    "scania",
+                ],
+                "especificacoes_tecnicas_dict": {
+                    "Aplicacao": "G/R SERIE 5 ATE 2009",
+                    "Material": "Vidro",
+                    "Conteudo": "1 peça",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        titulos = await service.gerar_titulos_basicos(
+            session=object(),
+            produto_id=44,
+            user=SimpleNamespace(id=1),
+            num_titulos=5,
+        )
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=44,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=180,
+        )
+
+        lowered_titles = [titulo.lower() for titulo in titulos]
+        assert all("whatsapp" not in titulo for titulo in lowered_titles)
+        assert all(" total" not in f" {titulo}" for titulo in lowered_titles)
+        assert all("caminh" not in titulo for titulo in lowered_titles)
+        assert all("digo" not in titulo for titulo in lowered_titles)
+        assert all("aplica" not in titulo for titulo in lowered_titles)
+        assert any("scania" in titulo for titulo in lowered_titles)
+        assert any("ref 236331" in titulo for titulo in lowered_titles)
+
+        lowered_desc = descricao.lower()
+        assert "resumo tecnico:" in lowered_desc
+        assert "aplicacao:" in lowered_desc
+        assert "referencia:" in lowered_desc
+        assert "material:" in lowered_desc
+        assert "especificacoes tecnicas:" in lowered_desc
+        assert "whatsapp" not in lowered_desc
+        assert "compra online" not in lowered_desc
+        assert "scania" in lowered_desc
+        assert "236331" in lowered_desc
+        assert "vidro para porta" not in lowered_desc
+        assert "tela central do painel superior" in lowered_desc
+
+    @pytest.mark.asyncio
+    async def test_gerar_descricao_basica_canonicaliza_e_deduplica_specs_equivalentes():
+        """Keep only one canonical spec entry per concept while preserving the richer value."""
+        produto = SimpleNamespace(
+            id=45,
+            nome_base="Kit de Embreagem Luk",
+            marca="Luk",
+            modelo="62030847",
+            sku="KIT-45",
+            ean="",
+            categoria_original="Transmissao",
+            categoria_mapeada=None,
+            fornecedor=None,
+            dynamic_attributes={
+                "material": "aco temperado",
+                "Material": "Aco",
+                "temperatura_cor": "6500K",
+                "conteudo da embalagem": "disco, plato e rolamento",
+            },
+            dados_brutos_web={
+                "descricao_curta": "Kit de embreagem para linha leve com acoplamento estavel.",
+                "especificacoes_tecnicas_dict": {
+                    "Conteudo": "disco",
+                    "material": "aco",
+                },
+            },
+        )
+        service = _TopLevelFunctionSurface._build_service(produto)
+
+        descricao = await service.gerar_descricao_basica(
+            session=object(),
+            produto_id=45,
+            user=SimpleNamespace(id=1),
+            tamanho_palavras=160,
+            template_descricao="{specs}",
+        )
+
+        lowered = descricao.lower()
+        assert lowered.count("material:") == 1
+        assert "Material: aco temperado" in descricao
+        assert "Temperatura Cor: 6500K" in descricao
+        assert lowered.count("conteudo da embalagem:") == 1
+        assert "Conteudo da embalagem: disco, plato e rolamento" in descricao
+
 
 _build_service = _TopLevelFunctionSurface._build_service
 test_gerar_titulos_basicos_respeita_limite = _TopLevelFunctionSurface.test_gerar_titulos_basicos_respeita_limite
@@ -693,3 +813,5 @@ test_gerar_descricao_basica_remove_boilerplate_promocional_em_segmentos_com_pont
 test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade = _TopLevelFunctionSurface.test_gerar_titulos_basicos_ignora_keywords_redundantes_da_identidade
 test_gerar_titulos_basicos_recupera_keywords_do_texto_limpo = _TopLevelFunctionSurface.test_gerar_titulos_basicos_recupera_keywords_do_texto_limpo
 test_geracao_basica_prefere_marca_do_nome_gerado_quando_marca_salva_parece_loja = _TopLevelFunctionSurface.test_geracao_basica_prefere_marca_do_nome_gerado_quando_marca_salva_parece_loja
+test_geracao_basica_estrutura_saida_automotiva_e_remove_keywords_lixo = _TopLevelFunctionSurface.test_geracao_basica_estrutura_saida_automotiva_e_remove_keywords_lixo
+test_gerar_descricao_basica_canonicaliza_e_deduplica_specs_equivalentes = _TopLevelFunctionSurface.test_gerar_descricao_basica_canonicaliza_e_deduplica_specs_equivalentes

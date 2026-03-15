@@ -145,6 +145,26 @@ class _TopLevelFunctionSurface:
             current_user=user,
         )
 
+    def test_validate_start_preconditions_blocks_ai_without_product_type():
+        """Run test validate start preconditions blocks ai without product type in this workflow."""
+        produto = SimpleNamespace(
+            user_id=1,
+            status_enriquecimento_web="PENDENTE",
+            product_type_id=None,
+        )
+        service, _ = _build_service(produto=produto)
+        user = SimpleNamespace(id=1, is_superuser=False)
+
+        with pytest.raises(HTTPException) as exc:
+            service.validate_start_preconditions(
+                produto_id=10,
+                current_user=user,
+                usar_ia=True,
+            )
+
+        assert exc.value.status_code == 400
+        assert "tipo de produto" in exc.value.detail.lower()
+
     def test_dispatch_start_selects_and_dispatches():
         """Run test dispatch start selects and dispatches in this workflow."""
         _DispatcherStub.reset()
@@ -169,6 +189,7 @@ test_validate_start_preconditions_not_found = _TopLevelFunctionSurface.test_vali
 test_validate_start_preconditions_forbidden = _TopLevelFunctionSurface.test_validate_start_preconditions_forbidden
 test_validate_start_preconditions_conflict = _TopLevelFunctionSurface.test_validate_start_preconditions_conflict
 test_validate_start_preconditions_success = _TopLevelFunctionSurface.test_validate_start_preconditions_success
+test_validate_start_preconditions_blocks_ai_without_product_type = _TopLevelFunctionSurface.test_validate_start_preconditions_blocks_ai_without_product_type
 test_dispatch_start_selects_and_dispatches = _TopLevelFunctionSurface.test_dispatch_start_selects_and_dispatches
 
 

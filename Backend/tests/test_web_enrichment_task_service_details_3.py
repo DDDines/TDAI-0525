@@ -150,6 +150,25 @@ def test_helper_branches_cover_short_chunks_specs_keywords_and_none_signal():
     assert workflow._has_meaningful_llm_value(None) is False
 
 
+def test_extract_keywords_filters_truncated_and_commercial_tokens():
+    workflow = _build_workflow()
+
+    keywords = workflow._extract_keywords(
+        source_texts=[
+            "Tela central scania aplica caminh whatsapp total atendimento freio vidro superior"
+        ],
+        limit=8,
+    )
+
+    assert "scania" in keywords
+    assert "freio" in keywords
+    assert "vidro" in keywords
+    assert "aplica" not in keywords
+    assert "caminh" not in keywords
+    assert "whatsapp" not in keywords
+    assert "total" not in keywords
+
+
 def test_heuristic_branches_cover_existing_values_duplicates_and_breaks(monkeypatch):
     workflow = _build_workflow()
     produto = SimpleNamespace(

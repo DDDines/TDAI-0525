@@ -25,7 +25,10 @@ function extractGeneratedTitles(prod) {
   const rawTitles = Array.isArray(prod?.dados_brutos_web?.titulos_sugeridos_gerados)
     ? prod.dados_brutos_web.titulos_sugeridos_gerados
     : [];
-  const merged = [...directTitles, ...rawTitles]
+  const primarySource = directTitles.filter((item) => String(item || '').trim()).length > 0
+    ? directTitles
+    : rawTitles;
+  const merged = primarySource
     .map((item) => String(item || '').trim())
     .filter(Boolean);
   const seen = new Set();

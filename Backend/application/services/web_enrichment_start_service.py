@@ -34,6 +34,7 @@ class WebEnrichmentStartService:
         *,
         produto_id: int,
         current_user: Any,
+        usar_ia: bool | None = None,
     ) -> None:
         """Execute validate start preconditions as part of this module workflow."""
         db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
@@ -54,6 +55,14 @@ class WebEnrichmentStartService:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Processo de enriquecimento ja esta em andamento para este produto.",
+            )
+        if usar_ia is True and not getattr(db_produto_check, "product_type_id", None):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    "Defina um tipo de produto antes de usar IA no enriquecimento web. "
+                    "O tipo orienta quais atributos relevantes devem ser coletados."
+                ),
             )
 
     def _mark_pending_status(self, *, produto_id: int) -> None:

@@ -1,13 +1,15 @@
 import React from 'react';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProdutoConteudoPage from '../ProdutoConteudoPage.jsx';
 import productService from '../../services/productService';
-import { showErrorToast, showSuccessToast } from '../../utils/notifications';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../../utils/notifications';
+import userEvent from '@testing-library/user-event';
 
 const mockNavigate = jest.fn();
+let mockEffectiveMode = 'basic';
 
 jest.mock('react-router-dom', () => {
   const actual = jest.requireActual('react-router-dom');
@@ -22,13 +24,24 @@ jest.mock('../../services/productService', () => ({
   default: {
     getProdutoById: jest.fn(),
     getProdutos: jest.fn(),
+    gerarTitulosProduto: jest.fn(),
+    gerarDescricaoProduto: jest.fn(),
+    gerarTitulosProdutoModoBasico: jest.fn(),
+    gerarDescricaoProdutoModoBasico: jest.fn(),
     registrarFeedbackConteudoGerado: jest.fn(),
   },
 }));
 
 jest.mock('../../utils/notifications', () => ({
   showErrorToast: jest.fn(),
+  showInfoToast: jest.fn(),
   showSuccessToast: jest.fn(),
+}));
+
+jest.mock('../../contexts/AppExperienceContext.jsx', () => ({
+  useAppExperience: () => ({
+    effectiveMode: mockEffectiveMode,
+  }),
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -64,6 +77,7 @@ describe('ProdutoConteudoPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEffectiveMode = 'basic';
     productService.getProdutos.mockResolvedValue({
       items: [{ id: 30 }, { id: 31 }, { id: 32 }],
       total_items: 3,
@@ -89,10 +103,14 @@ describe('ProdutoConteudoPage', () => {
         },
       },
     });
+    productService.gerarTitulosProduto.mockResolvedValue({ ok: true });
+    productService.gerarDescricaoProduto.mockResolvedValue({ ok: true });
+    productService.gerarTitulosProdutoModoBasico.mockResolvedValue({ ok: true });
+    productService.gerarDescricaoProdutoModoBasico.mockResolvedValue({ ok: true });
     feedbackReject = null;
   });
 
-  test('renders unique generated titles, sanitizes company timeline claims and enables navigation', async () => {
+  test('renders final generated titles without mixing stale raw suggestions, sanitizes company timeline claims and enables navigation', async () => {
     renderPage({
       pathname: '/produtos/31/conteudo',
       state: {
@@ -107,9 +125,9 @@ describe('ProdutoConteudoPage', () => {
 
     expect(await screen.findByText('Titulo A')).toBeInTheDocument();
     expect(screen.getByText('Titulo B')).toBeInTheDocument();
-    expect(screen.getByText('Titulo C')).toBeInTheDocument();
-    expect(screen.getByText('Titulo D')).toBeInTheDocument();
-    expect(screen.getByText('Titulo E')).toBeInTheDocument();
+    expect(screen.queryByText('Titulo C')).not.toBeInTheDocument();
+    expect(screen.queryByText('Titulo D')).not.toBeInTheDocument();
+    expect(screen.queryByText('Titulo E')).not.toBeInTheDocument();
     expect(
       screen.getByText('Produto ideal para sistemas de freio pesado.')
     ).toBeInTheDocument();
@@ -167,6 +185,117 @@ describe('ProdutoConteudoPage', () => {
       });
     });
     expect(showSuccessToast).toHaveBeenCalledWith('Feedback salvo com sucesso.');
+  });
+
+  test('starts direct title generation in basic mode from the dedicated page', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31, 32],
+        productQuery: { sort_by: 'id', sort_order: 'desc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    await user.click(screen.getByRole('button', { name: /Gerar t.*tulos no b.*sico/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(31);
+    });
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      'Geracao basica de titulos iniciada. Atualizando em instantes.'
+    );
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+  });
+
+  test('starts direct description generation in basic mode from the dedicated page', async () => {
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31, 32],
+        productQuery: { sort_by: 'id', sort_order: 'desc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    expect(screen.queryByLabelText(/Usar IA/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Gerar descri.*o no b.*sico/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(31);
+    });
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      'Geracao basica de descricao iniciada. Atualizando em instantes.'
+    );
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+  });
+
+  test('allows IA opt-in for direct title generation in complete mode', async () => {
+    mockEffectiveMode = 'complete';
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    jest.useFakeTimers();
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31, 32],
+        productQuery: { sort_by: 'id', sort_order: 'desc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    await user.click(screen.getByLabelText(/Usar IA/i));
+    await user.click(screen.getByRole('button', { name: /Gerar t.*tulos com IA/i }));
+    await waitFor(() => {
+      expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(31);
+    });
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
+  });
+
+  test('allows IA opt-in for direct description generation in complete mode', async () => {
+    mockEffectiveMode = 'complete';
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    jest.useFakeTimers();
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [30, 31, 32],
+        productQuery: { sort_by: 'id', sort_order: 'desc' },
+      },
+    });
+
+    await screen.findByText('Titulo A');
+
+    await user.click(screen.getByLabelText(/Usar IA/i));
+    await user.click(screen.getByRole('button', { name: /Gerar descri.*o com IA/i }));
+    await waitFor(() => {
+      expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(31);
+    });
+
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.useRealTimers();
   });
 
   test('shows an error toast when the product content cannot be loaded', async () => {
@@ -333,6 +462,45 @@ describe('ProdutoConteudoPage', () => {
     });
 
     expect(await screen.findByText('Descricao SEO aproveitavel.')).toBeInTheDocument();
+  });
+
+  test('preserves structured description line breaks while removing company timeline claims', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 31,
+      nome_base: 'Tela Central do Painel Superior',
+      titulos_sugeridos: ['Tela Central do Painel Superior'],
+      descricao_chat_api: [
+        'Fundada em 1999.',
+        '',
+        'Tela Central do Painel Superior',
+        '',
+        'Resumo tecnico:',
+        'Vidro com encaixe especifico para cabine Scania.',
+        '',
+        'Aplicacao:',
+        'Serie 5 2009',
+      ].join('\n'),
+      dados_brutos_web: {},
+    });
+
+    const { container } = renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        productIds: [31],
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
+      },
+    });
+
+    const descriptionNode = container.querySelector('.produto-conteudo-description');
+    expect(descriptionNode).not.toBeNull();
+    await waitFor(() => {
+      expect(descriptionNode.textContent).toContain('Resumo tecnico:');
+    });
+    expect(descriptionNode.textContent).toContain('Aplicacao:');
+    expect(descriptionNode.textContent).not.toContain('Fundada em 1999.');
+    expect(descriptionNode.textContent).toContain(
+      'Tela Central do Painel Superior\n\nResumo tecnico:\nVidro com encaixe especifico para cabine Scania.\n\nAplicacao:\nSerie 5 2009'
+    );
   });
 
   test('keeps empty saved comments and preserves timeline-only descriptions when they are the first valid candidate', async () => {

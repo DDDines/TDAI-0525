@@ -34,6 +34,7 @@ jest.mock('../../services/productService', () => ({
   __esModule: true,
   default: {
     getProdutos: jest.fn(),
+    getProdutosIds: jest.fn(),
     getProdutoById: jest.fn(),
     batchDeleteProdutos: jest.fn(),
     gerarTitulosProduto: jest.fn(),
@@ -47,6 +48,11 @@ jest.mock('../../services/productService', () => ({
 jest.mock('../../components/common/Modal', () => ({
   __esModule: true,
   default: ({ children }) => <div data-testid="modal-wrapper">{children}</div>,
+}));
+
+jest.mock('../../components/common/LoadingOverlay.jsx', () => ({
+  __esModule: true,
+  default: ({ isOpen, message }) => (isOpen ? <div data-testid="page-loading-overlay">{message}</div> : null),
 }));
 
 jest.mock('../../components/ProductEditModal', () => ({
@@ -150,6 +156,16 @@ function renderPage(initialEntries = ['/produtos']) {
   );
 }
 
+function getSelectionMenuTrigger() {
+  return screen.getByLabelText(/Opcoes de selecao/i);
+}
+
+function getFirstProductRowCheckbox() {
+  return screen
+    .getAllByRole('checkbox')
+    .filter((checkbox) => !checkbox.getAttribute('aria-label'))[0];
+}
+
 describe('ProdutosPage', () => {
   let consoleErrorSpy;
 
@@ -167,6 +183,7 @@ describe('ProdutosPage', () => {
       items: baseItems,
       total_items: baseItems.length,
     });
+    productService.getProdutosIds.mockResolvedValue({ ids: baseItems.map((item) => item.id) });
     productService.batchDeleteProdutos.mockResolvedValue({ deleted: 1 });
     productService.gerarTitulosProduto.mockResolvedValue({ ok: true });
     productService.gerarDescricaoProduto.mockResolvedValue({ ok: true });
@@ -189,9 +206,30 @@ describe('ProdutosPage', () => {
     });
 
     expect(await screen.findByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
-    expect(screen.getAllByText('Web').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Tit').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Desc').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/Enriquecimento web: Concluido/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/Titulos: Concluido/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/Descricao: Concluido/i).length).toBeGreaterThan(0);
+  });
+
+  test('usa o loader de tela enquanto a lista inicial de produtos ainda nao chegou', async () => {
+    let resolveProdutos;
+    productService.getProdutos.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveProdutos = resolve;
+        })
+    );
+
+    renderPage();
+
+    expect(screen.getByTestId('page-loading-overlay')).toHaveTextContent('Carregando produtos...');
+
+    resolveProdutos({
+      items: baseItems,
+      total_items: baseItems.length,
+    });
+
+    expect(await screen.findByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
   });
 
   test('mostra estado de erro e permite tentar novamente', async () => {
@@ -210,6 +248,75 @@ describe('ProdutosPage', () => {
 
     expect(await screen.findByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
     expect(productService.getProdutos).toHaveBeenCalledTimes(2);
+  });
+
+  test('supports selecting the current page and all filtered product results', async () => {
+    productService.getProdutos.mockResolvedValueOnce({
+      items: baseItems,
+      total_items: 3,
+    });
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
+    expect(
+      screen.getByText('2 item(ns) selecionado(s) (pagina atual)')
+    ).toBeInTheDocument();
+
+    productService.getProdutosIds.mockResolvedValueOnce({ ids: [2558, 2559, 3000] });
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar todos os resultados da pesquisa' }));
+
+    await waitFor(() => {
+      expect(productService.getProdutosIds).toHaveBeenCalledWith({
+        sort_by: 'id',
+        sort_order: 'desc',
+      });
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText('3 item(ns) selecionado(s) (todos os resultados)')
+      ).toBeInTheDocument();
+    });
+    fireEvent.click(getSelectionMenuTrigger());
+    expect(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' })).toBeInTheDocument();
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      '3 produto(s) selecionado(s) em todos os resultados filtrados.'
+    );
+  });
+
+  test('clears product selection when filters change', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
+    });
+
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
+    expect(
+      screen.getByText('2 item(ns) selecionado(s) (pagina atual)')
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText('Buscar por nome, SKU, EAN...'), {
+      target: { value: 'Reservatorio' },
+    });
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        skip: 0,
+        limit: 10,
+        search: 'Reservatorio',
+        sort_by: 'id',
+        sort_order: 'desc',
+      });
+    });
+    expect(screen.queryByText('Nenhum item selecionado')).not.toBeInTheDocument();
+    expect(screen.queryByText(/item\(ns\) selecionado\(s\)/i)).not.toBeInTheDocument();
   });
 
   test('treats malformed list payloads as empty and shows the loading label for product types', async () => {
@@ -231,6 +338,19 @@ describe('ProdutosPage', () => {
 
     expect(screen.queryByText('Reservatorio de AR 20 Litros')).not.toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Carregando tipos...' })).toBeInTheDocument();
+  });
+
+  test('mantem a lista de produtos visivel mesmo quando o carregamento dos tipos falha', async () => {
+    mockProductTypesState = {
+      productTypes: [],
+      isLoading: false,
+      error: new Error('Falha ao carregar tipos'),
+    };
+
+    renderPage();
+
+    expect(await screen.findByText('Reservatorio de AR 20 Litros')).toBeInTheDocument();
+    expect(screen.getByText('Valvula de Pressao')).toBeInTheDocument();
   });
 
   test('normaliza payloads de lista com total invalido para um contador seguro', () => {
@@ -296,10 +416,8 @@ describe('ProdutosPage', () => {
       );
     });
 
-    fireEvent.click(screen.getByTitle('Atualizar lista de produtos'));
-
     await waitFor(() => {
-      expect(productService.getProdutos).toHaveBeenCalledTimes(5);
+      expect(productService.getProdutos).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -316,6 +434,7 @@ describe('ProdutosPage', () => {
           sort_by: 'id',
           sort_order: 'desc',
         },
+        returnTo: '/produtos?page=1&limit=10&sort_by=id&sort_order=desc',
       },
     });
   });
@@ -339,20 +458,20 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByRole('button', { name: /Gerar T/i }));
 
     await waitFor(() => {
       expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(2558);
     });
-    expect(showInfoToast).toHaveBeenCalledWith('Geração de títulos iniciada para 1 produto(s).');
+    expect(showInfoToast).not.toHaveBeenCalledWith('Geração de títulos iniciada para 1 produto(s).');
 
     await act(async () => {
       jest.advanceTimersByTime(15000);
     });
 
     await waitFor(() => {
-      expect(showInfoToast).toHaveBeenCalledWith(
+      expect(showInfoToast).not.toHaveBeenCalledWith(
         'Atualizando lista para verificar resultados da geração de títulos...'
       );
       expect(productService.getProdutos).toHaveBeenCalledTimes(2);
@@ -363,13 +482,13 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Deletar'));
 
     await waitFor(() => {
       expect(productService.batchDeleteProdutos).toHaveBeenCalledWith([2558]);
     });
-    expect(showSuccessToast).toHaveBeenCalledWith('1 produto(s) deletado(s) com sucesso!');
+    expect(showSuccessToast).not.toHaveBeenCalledWith('1 produto(s) deletado(s) com sucesso!');
     expect(window.confirm).toHaveBeenCalledWith(
       'Tem certeza que deseja deletar 1 produto(s) selecionado(s)?'
     );
@@ -379,15 +498,31 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
       expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558);
     });
-    expect(showInfoToast).toHaveBeenCalledWith('Enriquecimento web iniciado para 1 produto(s).');
+    expect(showInfoToast).not.toHaveBeenCalledWith('Enriquecimento web basico iniciado para 1 produto(s).');
     await waitFor(() => {
       expect(productService.getProdutoById).toHaveBeenCalledWith('2558');
+    });
+  });
+
+  test('permite optar por IA no enriquecimento web quando a experiencia completa esta ativa', async () => {
+    mockEffectiveMode = 'complete';
+    renderPage();
+    await screen.findByText('Reservatorio de AR 20 Litros');
+
+    fireEvent.click(getFirstProductRowCheckbox());
+    fireEvent.click(screen.getByLabelText(/Usar IA no enriquecimento web/i));
+    fireEvent.click(screen.getByText('Enriquecer Web + IA'));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(2558, {
+        usarIA: true,
+      });
     });
   });
 
@@ -398,7 +533,7 @@ describe('ProdutosPage', () => {
     const { unmount } = renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
@@ -424,7 +559,6 @@ describe('ProdutosPage', () => {
       expect(productService.getProdutoById).toHaveBeenCalledWith('2558');
     });
     expect(await screen.findByTestId('product-edit-modal')).toBeInTheDocument();
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos', { replace: true });
   });
 
   test('mostra toast de erro quando carregar produto via query string falha', async () => {
@@ -451,7 +585,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getByText('+ Novo Produto'));
+    fireEvent.click(screen.getByRole('button', { name: /Novo Produto/i }));
 
     expect(await screen.findByTestId('product-edit-modal')).toHaveAttribute('data-product-id', 'new');
 
@@ -463,6 +597,7 @@ describe('ProdutosPage', () => {
           sort_by: 'id',
           sort_order: 'desc',
         },
+        returnTo: '/produtos?page=1&limit=10&sort_by=id&sort_order=desc',
       },
     });
 
@@ -500,7 +635,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
 
     window.confirm = jest.fn(() => false);
     fireEvent.click(screen.getByText('Deletar'));
@@ -527,7 +662,8 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
@@ -557,7 +693,8 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
@@ -605,13 +742,13 @@ describe('ProdutosPage', () => {
       );
     });
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByRole('button', { name: /Gerar T.*IA/i }));
     await waitFor(() => {
       expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(2558);
     });
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByRole('button', { name: /Gerar Descri.*IA/i }));
     await waitFor(() => {
       expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(2558);
@@ -623,20 +760,20 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByRole('button', { name: /Gerar Descri/i }));
 
     await waitFor(() => {
       expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(2558);
     });
-    expect(showInfoToast).toHaveBeenCalledWith('Geração de descrições iniciada para 1 produto(s).');
+    expect(showInfoToast).not.toHaveBeenCalledWith('Geração de descrições iniciada para 1 produto(s).');
 
     await act(async () => {
       jest.advanceTimersByTime(15000);
     });
 
     await waitFor(() => {
-      expect(showInfoToast).toHaveBeenCalledWith(
+      expect(showInfoToast).not.toHaveBeenCalledWith(
         'Atualizando lista para verificar resultados da geração de descrições...'
       );
     });
@@ -646,18 +783,24 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    const [selectAllCheckbox, firstRowCheckbox] = screen.getAllByRole('checkbox');
+    const firstRowCheckbox = getFirstProductRowCheckbox();
 
-    fireEvent.click(selectAllCheckbox);
-    expect(screen.getByText('2 produto(s) selecionado(s)')).toBeInTheDocument();
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
+    expect(screen.getByText('2 item(ns) selecionado(s) (pagina atual)')).toBeInTheDocument();
+    expect(screen.queryByText('2 produto(s) selecionado(s)')).not.toBeInTheDocument();
 
     fireEvent.click(firstRowCheckbox);
-    expect(screen.getByText('1 produto(s) selecionado(s)')).toBeInTheDocument();
+    expect(screen.getByText('1 item(ns) selecionado(s) (selecao manual)')).toBeInTheDocument();
+    expect(screen.queryByText('1 produto(s) selecionado(s)')).not.toBeInTheDocument();
 
-    fireEvent.click(selectAllCheckbox);
-    expect(screen.getByText('2 produto(s) selecionado(s)')).toBeInTheDocument();
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar pagina atual' }));
+    expect(screen.getByText('2 item(ns) selecionado(s) (pagina atual)')).toBeInTheDocument();
+    expect(screen.queryByText('2 produto(s) selecionado(s)')).not.toBeInTheDocument();
 
-    fireEvent.click(selectAllCheckbox);
+    fireEvent.click(getSelectionMenuTrigger());
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Limpar selecao' }));
     expect(screen.queryByText(/produto\(s\) selecionado\(s\)/i)).not.toBeInTheDocument();
   });
 
@@ -667,7 +810,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByRole('button', { name: /Gerar Descri/i }));
 
     await waitFor(() => {
@@ -675,7 +818,7 @@ describe('ProdutosPage', () => {
         'Erro ao gerar descricao para produto ID 2558: modelo basico indisponivel'
       );
     });
-    expect(screen.getByTitle('Falha')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Descricao: Falha/i)).toBeInTheDocument();
   });
 
   test('uses the default batch delete fallback when the backend rejects without details', async () => {
@@ -684,7 +827,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Deletar'));
 
     await waitFor(() => {
@@ -698,7 +841,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
@@ -707,7 +850,7 @@ describe('ProdutosPage', () => {
       );
     });
     expect(productService.getProdutoById).not.toHaveBeenCalled();
-    expect(screen.getByTitle('Falha')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Enriquecimento web: Falha/i)).toBeInTheDocument();
   });
 
   test('permite trocar o tamanho da pagina e reseta a navegacao para a primeira pagina', async () => {
@@ -775,7 +918,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {
@@ -787,11 +930,9 @@ describe('ProdutosPage', () => {
       await jest.advanceTimersByTimeAsync(3000);
     }
 
-    await waitFor(() => {
-      expect(showInfoToast).toHaveBeenCalledWith(
-        'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
-      );
-    });
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+    );
   });
 
   test('continua o polling quando o status enriquecimento vem vazio antes do estado terminal', async () => {
@@ -809,7 +950,7 @@ describe('ProdutosPage', () => {
     renderPage();
     await screen.findByText('Reservatorio de AR 20 Litros');
 
-    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    fireEvent.click(getFirstProductRowCheckbox());
     fireEvent.click(screen.getByText('Enriquecer Web'));
 
     await waitFor(() => {

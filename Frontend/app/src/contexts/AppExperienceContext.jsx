@@ -101,8 +101,11 @@ function AppExperienceProvider({ children }) {
     if (isAdmin && canAdminPreview && adminPreviewMode && EXPERIENCE_MODES.has(adminPreviewMode)) {
       return adminPreviewMode;
     }
+    if (user?.product_experience_mode) {
+      return normalizeMode(user.product_experience_mode);
+    }
     return defaultMode;
-  }, [adminPreviewMode, canAdminPreview, defaultMode, isAdmin]);
+  }, [adminPreviewMode, canAdminPreview, defaultMode, isAdmin, user?.product_experience_mode]);
 
   const setAdminPreviewMode = useCallback((mode) => {
     if (!isAdmin || !canAdminPreview) {

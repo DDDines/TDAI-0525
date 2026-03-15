@@ -77,11 +77,15 @@ class WebEnrichmentTaskRunner:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ) -> None:
         """Execute execute as part of this module workflow."""
-        await self._get_service().execute(
-            produto_id=produto_id,
-            user_id=user_id,
-            termos_busca_override=termos_busca_override,
-        )
+        execute_kwargs = {
+            "produto_id": produto_id,
+            "user_id": user_id,
+            "termos_busca_override": termos_busca_override,
+        }
+        if usar_ia is not None:
+            execute_kwargs["usar_ia"] = usar_ia
+        await self._get_service().execute(**execute_kwargs)
 

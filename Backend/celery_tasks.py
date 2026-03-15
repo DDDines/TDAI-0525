@@ -31,16 +31,18 @@ class CeleryTaskRuntime:
         produto_id: int,
         user_id: int,
         termos_busca_override: str | None = None,
+        usar_ia: bool | None = None,
     ) -> None:
         """Execute the web enrichment pipeline through Celery."""
         runner = build_web_enrichment_task_runner()
-        CeleryTaskRuntime._run_async(
-            runner.execute(
-                produto_id=produto_id,
-                user_id=user_id,
-                termos_busca_override=termos_busca_override,
-            )
-        )
+        execute_kwargs = {
+            "produto_id": produto_id,
+            "user_id": user_id,
+            "termos_busca_override": termos_busca_override,
+        }
+        if usar_ia is not None:
+            execute_kwargs["usar_ia"] = usar_ia
+        CeleryTaskRuntime._run_async(runner.execute(**execute_kwargs))
 
     @staticmethod
     def run_catalog_import_finalize_task(

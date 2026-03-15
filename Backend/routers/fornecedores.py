@@ -10,6 +10,7 @@ from Backend import schemas
 from Backend.application.services.fornecedor_catalog_process_service import FornecedorCatalogProcessService
 from Backend.application.services.fornecedor_import_job_service import FornecedorImportJobService
 from Backend.application.services.fornecedor_import_tracking_service import FornecedorImportTrackingService
+from Backend.application.services.fornecedor_logo_service import FornecedorLogoService
 from Backend.application.services.fornecedor_management_service import FornecedorManagementService
 from Backend.application.services.fornecedor_preview_service import FornecedorPreviewService
 from Backend.application.services.catalog_import_diagnostics_service import CatalogImportDiagnosticsService
@@ -99,6 +100,10 @@ class FornecedoresRequestService:
     def list_fornecedores_page(self, current_user: models.User, skip: int, limit: int, termo_busca: Optional[str], fornecedor_management_service: FornecedorManagementService) -> schemas.FornecedorPage:
         """Execute list fornecedores page as part of this module workflow."""
         return self._runtime.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=fornecedor_management_service)
+
+    def list_fornecedor_ids(self, current_user: models.User, termo_busca: Optional[str], fornecedor_management_service: FornecedorManagementService) -> schemas.FilteredIdsResponse:
+        """Return lightweight supplier IDs for bulk-selection workflows."""
+        return self._runtime.list_fornecedor_ids(current_user=current_user, termo_busca=termo_busca, fornecedor_management_service=fornecedor_management_service)
 
     def read_fornecedor(self, fornecedor_id: int, current_user: models.User, fornecedor_management_service: FornecedorManagementService) -> models.Fornecedor:
         """Handle Read fornecedor in this request workflow."""
@@ -241,6 +246,19 @@ class _FornecedoresServiceGateway:
             current_user=current_user,
             skip=skip,
             limit=limit,
+            termo_busca=termo_busca,
+        )
+
+    def list_fornecedor_ids(
+        self,
+        *,
+        current_user: models.User,
+        termo_busca: Optional[str],
+        fornecedor_management_service: FornecedorManagementService,
+    ):
+        """Return lightweight supplier IDs for bulk-selection workflows."""
+        return fornecedor_management_service.list_fornecedor_ids(
+            current_user=current_user,
             termo_busca=termo_busca,
         )
 
@@ -511,6 +529,10 @@ class _FornecedoresRequestScope:
         """Execute list fornecedores page as part of this module workflow."""
         return self._request_service.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
 
+    def list_fornecedor_ids(self, *, current_user: models.User, termo_busca: Optional[str]) -> schemas.FilteredIdsResponse:
+        """Return lightweight supplier IDs for bulk-selection workflows."""
+        return self._request_service.list_fornecedor_ids(current_user=current_user, termo_busca=termo_busca, fornecedor_management_service=self._fornecedor_management_service)
+
     def read_fornecedor(self, *, fornecedor_id: int, current_user: models.User) -> models.Fornecedor:
         """Handle Read fornecedor in this request workflow."""
         return self._request_service.read_fornecedor(fornecedor_id=fornecedor_id, current_user=current_user, fornecedor_management_service=self._fornecedor_management_service)
@@ -591,6 +613,31 @@ class _EndpointHandlers:
     def read_user_fornecedores(skip: int=Query(0, ge=0, description='Numero de itens para pular'), limit: int=Query(10, ge=1, le=100, description='Numero maximo de itens por pagina'), termo_busca: Optional[str]=Query(None, description='Termo para buscar no nome do fornecedor'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (read_user_fornecedores)."""
         return request_scope.list_fornecedores_page(current_user=current_user, skip=skip, limit=limit, termo_busca=termo_busca)
+
+    @router.get('/ids', response_model=schemas.FilteredIdsResponse)
+    def read_user_fornecedor_ids(termo_busca: Optional[str]=Query(None, description='Termo para buscar no nome do fornecedor'), current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):
+        """Lista leve de IDs filtrados para selecao em massa entre paginas."""
+        return request_scope.list_fornecedor_ids(current_user=current_user, termo_busca=termo_busca)
+
+    @router.post('/resolve-logo', response_model=schemas.FornecedorLogoResolveResponse)
+    def resolve_supplier_logo(
+        request: schemas.FornecedorLogoResolveRequest,
+        current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user),
+    ):
+        """Resolve um logo a partir do site do fornecedor sem persistir a alteracao."""
+        _ = current_user
+        try:
+            return FornecedorLogoService.resolve_logo(request.site_url)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(exc),
+            ) from exc
+        except RuntimeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=str(exc),
+            ) from exc
 
     @router.get('/{fornecedor_id}', response_model=schemas.FornecedorResponse)
     def read_fornecedor(fornecedor_id: int, current_user: models.User=Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user), request_scope: _FornecedoresRequestScope=Depends(_build_fornecedores_request_scope)):

@@ -19,6 +19,16 @@ async function getProdutos(params = {}) {
   }
 }
 
+async function getProdutosIds(params = {}) {
+  try {
+    const response = await apiClient.get('/produtos/ids', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Erro ao buscar IDs de produtos:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao buscar IDs de produtos');
+  }
+}
+
 async function getProdutoById(produtoId) {
   try {
     const response = await apiClient.get(`/produtos/${produtoId}/`);
@@ -158,11 +168,24 @@ async function gerarDescricaoProdutoModoBasico(produtoId, options = {}) {
   }
 }
 
-async function iniciarEnriquecimentoWebProduto(produtoId, termosBuscaOverride = null) {
+async function iniciarEnriquecimentoWebProduto(produtoId, options = null) {
   try {
     let endpoint = `/enriquecimento-web/produto/${produtoId}`;
+    const normalizedOptions =
+      typeof options === 'string'
+        ? { termosBuscaOverride: options, usarIA: false }
+        : (options && typeof options === 'object' ? options : {});
+    const termosBuscaOverride = normalizedOptions.termosBuscaOverride || null;
+    const usarIA = Boolean(normalizedOptions.usarIA);
+    const queryParams = [];
     if (termosBuscaOverride) {
-      endpoint += `?termos_busca_override=${encodeURIComponent(termosBuscaOverride)}`;
+      queryParams.push(`termos_busca_override=${encodeURIComponent(termosBuscaOverride)}`);
+    }
+    if (usarIA) {
+      queryParams.push('usar_ia=true');
+    }
+    if (queryParams.length > 0) {
+      endpoint += `?${queryParams.join('&')}`;
     }
     const response = await apiClient.post(endpoint);
     return response.data;
@@ -238,6 +261,7 @@ async function registrarFeedbackConteudoGerado(produtoId, feedbackPayload = {}) 
 
 export {
   getProdutos,
+  getProdutosIds,
   getProdutoById,
   createProduto,
   updateProduto,
@@ -257,6 +281,7 @@ export {
 
 export default {
   getProdutos,
+  getProdutosIds,
   getProdutoById,
   createProduto,
   updateProduto,

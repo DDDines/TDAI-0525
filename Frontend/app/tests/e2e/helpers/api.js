@@ -28,7 +28,7 @@ export function extractGeneratedTitles(product) {
   return unique.slice(0, 10);
 }
 
-export async function createAdminApiContext(playwright) {
+export async function createApiContext(playwright, { email, password }) {
   const bootstrapContext = await playwright.request.newContext();
   let tokenResponse = null;
   let lastTokenBody = '';
@@ -37,8 +37,8 @@ export async function createAdminApiContext(playwright) {
   while (Date.now() < deadline) {
     tokenResponse = await bootstrapContext.post(`${backendApiBaseUrl}auth/token`, {
       form: {
-        username: e2eEmail,
-        password: e2ePassword,
+        username: email,
+        password,
       },
     });
     if (tokenResponse.ok()) {
@@ -64,6 +64,37 @@ export async function createAdminApiContext(playwright) {
       Authorization: `Bearer ${tokenData.access_token}`,
     },
   });
+}
+
+export async function createAdminApiContext(playwright) {
+  return createApiContext(playwright, { email: e2eEmail, password: e2ePassword });
+}
+
+export async function createUser(playwright, payload) {
+  const context = await playwright.request.newContext();
+  try {
+    const response = await context.post(`${backendApiBaseUrl}users/`, {
+      data: payload,
+    });
+    expect(response.ok()).toBeTruthy();
+    return parseJson(response);
+  } finally {
+    await context.dispose();
+  }
+}
+
+export async function getCurrentUser(api) {
+  const response = await api.get('auth/users/me');
+  expect(response.ok()).toBeTruthy();
+  return parseJson(response);
+}
+
+export async function updateCurrentUser(api, payload) {
+  const response = await api.put('auth/users/me', {
+    data: payload,
+  });
+  expect(response.ok()).toBeTruthy();
+  return parseJson(response);
 }
 
 export async function findFornecedorByName(api, nome) {
@@ -127,4 +158,17 @@ export async function deleteIfExists(api, resourcePath) {
   } catch {
     return false;
   }
+}
+
+export async function upsertCredential(api, payload) {
+  const response = await api.put('credenciais', {
+    data: payload,
+  });
+  expect(response.ok()).toBeTruthy();
+  return parseJson(response);
+}
+
+export async function deleteCredential(api, scopeType, provider) {
+  const response = await api.delete(`credenciais/${scopeType}/${provider}`);
+  return response.ok() || response.status() === 404;
 }

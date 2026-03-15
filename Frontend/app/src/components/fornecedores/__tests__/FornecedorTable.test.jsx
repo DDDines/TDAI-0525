@@ -18,6 +18,7 @@ describe('FornecedorTable', () => {
       id: 1,
       nome: 'Fornecedor 1',
       site_url: 'https://fornecedor-1.example',
+      logo_url: 'https://cdn.example.com/logo-1.png',
       created_at: '2026-01-10T00:00:00Z',
     },
     {
@@ -44,9 +45,7 @@ describe('FornecedorTable', () => {
       />
     );
 
-    expect(
-      screen.getByText(/Carregando tabela de fornecedores/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Carregando fornecedores/i)).toBeInTheDocument();
   });
 
   test('shows the empty state and keeps the select-all checkbox disabled', () => {
@@ -62,7 +61,7 @@ describe('FornecedorTable', () => {
     );
 
     expect(screen.getByText(/Nenhum fornecedor encontrado/i)).toBeInTheDocument();
-    expect(screen.getByRole('checkbox')).toBeDisabled();
+    expect(screen.getByLabelText(/Selecionar pagina atual/i)).toBeDisabled();
   });
 
   test('supports row selection, select-all and isolates row click from link/checkbox clicks', async () => {
@@ -78,8 +77,16 @@ describe('FornecedorTable', () => {
       />
     );
 
-    const [selectAll, firstRowCheckbox, secondRowCheckbox] = screen.getAllByRole('checkbox');
+    const selectAll = screen.getByLabelText(/Selecionar pagina atual/i);
+    const rowCheckboxes = screen
+      .getAllByRole('checkbox')
+      .filter(
+        (checkbox) =>
+          checkbox !== selectAll
+      );
+    const [firstRowCheckbox, secondRowCheckbox] = rowCheckboxes;
     expect(selectAll).toBeChecked();
+    expect(screen.queryByLabelText(/Selecionar todos os resultados/i)).not.toBeInTheDocument();
 
     await user.click(selectAll);
     expect(onSelectAllRows).toHaveBeenCalledTimes(1);
@@ -91,12 +98,13 @@ describe('FornecedorTable', () => {
     await user.click(firstRowCheckbox.closest('td'));
     expect(onRowClick).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('link', { name: /https:\/\/fornecedor-1\.example/i }));
+    await user.click(screen.getByRole('link', { name: /fornecedor-1\.example/i }));
     expect(onRowClick).not.toHaveBeenCalled();
 
     await user.click(screen.getByText('Fornecedor 2'));
     expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
 
     expect(secondRowCheckbox).toBeChecked();
+    expect(screen.getByAltText(/Logo de Fornecedor 1/i)).toBeInTheDocument();
   });
 });

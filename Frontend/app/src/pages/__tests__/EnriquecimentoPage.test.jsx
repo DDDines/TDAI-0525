@@ -13,10 +13,13 @@ import {
   showWarningToast,
 } from '../../utils/notifications';
 
+let mockEffectiveMode = 'basic';
+
 jest.mock('../../services/productService', () => ({
   __esModule: true,
   default: {
     getProdutos: jest.fn(),
+    getProdutosIds: jest.fn(),
     iniciarEnriquecimentoWebProduto: jest.fn(),
     getProdutoById: jest.fn(),
   },
@@ -44,6 +47,12 @@ jest.mock('../../utils/logger', () => ({
   },
 }));
 
+jest.mock('../../contexts/AppExperienceContext.jsx', () => ({
+  useAppExperience: () => ({
+    effectiveMode: mockEffectiveMode,
+  }),
+}));
+
 jest.mock('../../components/produtos/ProductTable', () => ({
   __esModule: true,
   default: ({
@@ -63,6 +72,13 @@ jest.mock('../../components/produtos/ProductTable', () => ({
       <button onClick={() => onSelectProduto(produtos[0]?.id)}>select-first</button>
       <button onClick={() => onSelectAllProdutos(true)}>select-all</button>
       <button onClick={() => onSelectAllProdutos(false)}>clear-all</button>
+      <label htmlFor="mock-select-page-enrichment">Selecionar pagina atual</label>
+      <input
+        id="mock-select-page-enrichment"
+        type="checkbox"
+        aria-label="Selecionar pagina atual"
+        onChange={(event) => onSelectAllProdutos(event.target.checked)}
+      />
       <button onClick={() => onEdit(produtos[0])}>row-click</button>
       <button onClick={() => onSort('nome_base')}>sort-name</button>
     </div>
@@ -94,6 +110,7 @@ describe('EnriquecimentoPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockEffectiveMode = 'basic';
     consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -101,6 +118,7 @@ describe('EnriquecimentoPage', () => {
       items: [baseProduto],
       total_items: 25,
     });
+    productService.getProdutosIds.mockResolvedValue({ ids: [1] });
     productService.iniciarEnriquecimentoWebProduto.mockResolvedValue({
       msg: 'ok',
     });
@@ -122,6 +140,7 @@ describe('EnriquecimentoPage', () => {
 
     await waitFor(() => expect(productService.getProdutos).toHaveBeenCalledTimes(1));
     expect(productService.getProdutos).toHaveBeenLastCalledWith({
+      enrichment_scope: 'enriched',
       skip: 0,
       limit: 10,
       search: undefined,
@@ -134,6 +153,7 @@ describe('EnriquecimentoPage', () => {
     });
     await waitFor(() => {
       expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'enriched',
         skip: 0,
         limit: 10,
         search: 'reservatorio',
@@ -145,6 +165,7 @@ describe('EnriquecimentoPage', () => {
     await userEvent.click(screen.getByText('sort-name'));
     await waitFor(() => {
       expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'enriched',
         skip: 0,
         limit: 10,
         search: 'reservatorio',
@@ -156,6 +177,7 @@ describe('EnriquecimentoPage', () => {
     await userEvent.click(screen.getByText('next-page'));
     await waitFor(() => {
       expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'enriched',
         skip: 10,
         limit: 10,
         search: 'reservatorio',
@@ -187,6 +209,98 @@ describe('EnriquecimentoPage', () => {
       'Enriquecimento web finalizado para os produtos selecionados.'
     );
     expect(showWarningToast).not.toHaveBeenCalled();
+  });
+
+  test('allows explicit IA opt-in in complete mode before starting enrichment', async () => {
+    mockEffectiveMode = 'complete';
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+    await userEvent.click(screen.getByText('select-first'));
+    await userEvent.click(screen.getByLabelText(/Usar IA no enriquecimento web/i));
+    await userEvent.click(screen.getByRole('button', { name: /Enriquecer Web \+ IA/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(1, {
+        usarIA: true,
+      })
+    );
+  });
+
+  test('supports selecting the current page and all filtered results', async () => {
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
+    expect(
+      screen.getByText('1 item(ns) selecionado(s) (pagina atual)')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Selecionar todos os 25 resultados' })
+    ).toBeInTheDocument();
+
+    productService.getProdutosIds.mockResolvedValueOnce({ ids: [1, 8, 9] });
+    await userEvent.click(screen.getByRole('button', { name: 'Selecionar todos os 25 resultados' }));
+
+    await waitFor(() => {
+      expect(productService.getProdutosIds).toHaveBeenCalledWith({
+        enrichment_scope: 'enriched',
+        limit: undefined,
+        search: undefined,
+        skip: undefined,
+        sort_by: 'id',
+        sort_order: 'desc',
+      });
+    });
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('1,8,9');
+    expect(
+      screen.getByText('3 item(ns) selecionado(s) (todos os resultados)')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Manter apenas os 1 itens desta pagina' })
+    ).toBeInTheDocument();
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      '3 item(ns) selecionado(s) em todos os resultados filtrados.'
+    );
+  });
+
+  test('clears selection when the list context changes', async () => {
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    await userEvent.click(screen.getByText('select-first'));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
+
+    fireEvent.change(screen.getByPlaceholderText(/Nome, SKU/i), {
+      target: { value: 'contexto novo' },
+    });
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'enriched',
+        skip: 0,
+        limit: 10,
+        search: 'contexto novo',
+        sort_by: 'id',
+        sort_order: 'desc',
+      });
+    });
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('');
+    expect(screen.queryByText('Nenhum item selecionado')).not.toBeInTheDocument();
+    expect(screen.queryByText(/item\(ns\) selecionado\(s\)/i)).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText('select-first'));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
+    await userEvent.click(screen.getByText('next-page'));
+    expect(screen.getByTestId('selecionados')).toHaveTextContent('');
   });
 
   test('shows row logs when enrichment history exists', async () => {
@@ -414,7 +528,7 @@ describe('EnriquecimentoPage', () => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Secundario');
     });
 
-    fireEvent.click(screen.getByText('select-all'));
+    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
     fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
 
     await waitFor(() => {
@@ -441,17 +555,17 @@ describe('EnriquecimentoPage', () => {
     expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('');
   });
 
-  test('toggles select-all off and sorts descending on the second click', async () => {
+  test('toggles page selection off and sorts descending on the second click', async () => {
     renderWithQueryClient(<EnriquecimentoPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
     });
 
-    await userEvent.click(screen.getByText('select-all'));
+    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
     expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
 
-    await userEvent.click(screen.getByText('clear-all'));
+    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
     expect(screen.getByTestId('selecionados')).toHaveTextContent('');
 
     await userEvent.click(screen.getByText('sort-name'));
@@ -459,10 +573,32 @@ describe('EnriquecimentoPage', () => {
 
     await waitFor(() => {
       expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'enriched',
         skip: 0,
         limit: 10,
         search: undefined,
         sort_by: 'nome_base',
+        sort_order: 'desc',
+      });
+    });
+  });
+
+  test('updates the query when the enrichment scope filter changes', async () => {
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'pending');
+
+    await waitFor(() => {
+      expect(productService.getProdutos).toHaveBeenLastCalledWith({
+        enrichment_scope: 'pending',
+        skip: 0,
+        limit: 10,
+        search: undefined,
+        sort_by: 'id',
         sort_order: 'desc',
       });
     });

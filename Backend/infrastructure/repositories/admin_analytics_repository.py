@@ -50,6 +50,19 @@ class AdminAnalyticsRepository:
             or 0
         )
 
+    def count_web_enrichment_usage_by_user_since(self, *, user_id: int, start_at: datetime) -> int:
+        """Return web-enrichment usage count for one user from a datetime boundary."""
+        return (
+            self._db.query(func.count(models.RegistroUsoIA.id))
+            .filter(
+                models.RegistroUsoIA.user_id == user_id,
+                models.RegistroUsoIA.created_at >= start_at,
+                cast(models.RegistroUsoIA.tipo_acao, String).ilike("%enriquecimento_web%"),
+            )
+            .scalar()
+            or 0
+        )
+
     def count_plan_usage_since(self, *, plano_id: int, start_at: datetime) -> int:
         """Return IA usage count for one plan from a datetime boundary."""
         return (
@@ -103,6 +116,18 @@ class AdminAnalyticsRepository:
                 models.Produto.status_enriquecimento_web,
                 func.count(models.Produto.id).label("total"),
             )
+            .group_by(models.Produto.status_enriquecimento_web)
+            .all()
+        )
+
+    def list_product_status_counts_by_user(self, *, user_id: int):
+        """Return grouped product status counts for one user."""
+        return (
+            self._db.query(
+                models.Produto.status_enriquecimento_web,
+                func.count(models.Produto.id).label("total"),
+            )
+            .filter(models.Produto.user_id == user_id)
             .group_by(models.Produto.status_enriquecimento_web)
             .all()
         )

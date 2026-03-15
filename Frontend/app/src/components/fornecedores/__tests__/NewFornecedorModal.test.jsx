@@ -2,9 +2,18 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import NewFornecedorModal from '../NewFornecedorModal.jsx';
-import { showWarningToast } from '../../../utils/notifications';
+import fornecedorService from '../../../services/fornecedorService';
+import { showErrorToast, showWarningToast } from '../../../utils/notifications';
+
+jest.mock('../../../services/fornecedorService', () => ({
+  __esModule: true,
+  default: {
+    resolveFornecedorLogo: jest.fn(),
+  },
+}));
 
 jest.mock('../../../utils/notifications', () => ({
+  showErrorToast: jest.fn(),
   showWarningToast: jest.fn(),
 }));
 
@@ -16,6 +25,11 @@ describe('NewFornecedorModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     onSave.mockResolvedValue({});
+    fornecedorService.resolveFornecedorLogo.mockResolvedValue({
+      logo_url: 'https://cdn.example.com/logo.png',
+      resolved_site_url: 'https://exemplo.com',
+      source: 'img-logo',
+    });
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -76,6 +90,7 @@ describe('NewFornecedorModal', () => {
       expect(onSave).toHaveBeenCalledWith({
         nome: 'Fornecedor Teste',
         site_url: 'http://exemplo.com',
+        logo_url: null,
       });
     });
     expect(nomeInput).toHaveValue('');
@@ -93,6 +108,7 @@ describe('NewFornecedorModal', () => {
       expect(onSave).toHaveBeenCalledWith({
         nome: 'Fornecedor Sem Site',
         site_url: null,
+        logo_url: null,
       });
     });
   });
@@ -109,6 +125,7 @@ describe('NewFornecedorModal', () => {
       expect(onSave).toHaveBeenCalledWith({
         nome: 'Fornecedor Seguro',
         site_url: 'https://seguro.example',
+        logo_url: null,
       });
     });
   });
@@ -133,5 +150,23 @@ describe('NewFornecedorModal', () => {
       expect(onSave).toHaveBeenCalled();
     });
     expect(nomeInput).toHaveValue('Fornecedor Instavel');
+  });
+
+  test('resolves logo from the site and fills the dedicated field', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.type(screen.getByLabelText(/Nome/i), 'Fornecedor Logo');
+    await user.type(screen.getByLabelText(/Site URL/i), 'exemplo.com');
+    await user.click(screen.getByRole('button', { name: /Buscar do site/i }));
+
+    await waitFor(() => {
+      expect(fornecedorService.resolveFornecedorLogo).toHaveBeenCalledWith(
+        'http://exemplo.com'
+      );
+    });
+    expect(screen.getByLabelText(/Logo URL/i)).toHaveValue('https://cdn.example.com/logo.png');
+    expect(screen.getByAltText(/Logo de Fornecedor Logo/i)).toBeInTheDocument();
+    expect(showErrorToast).not.toHaveBeenCalled();
   });
 });

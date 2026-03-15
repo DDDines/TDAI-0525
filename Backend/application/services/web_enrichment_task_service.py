@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
 from Backend.application.services.service_container import SessionProviderPort
@@ -12,6 +13,9 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentFinalizationService,
     WebEnrichmentQueryPlanner,
     WebEnrichmentStatusResolver,
+)
+from Backend.infrastructure.repositories.external_credential_repository import (
+    ExternalCredentialRepository,
 )
 
 
@@ -87,6 +91,9 @@ class WebEnrichmentTaskRuntime:
 class WebEnrichmentTaskWorkflow:
     """Orquestra o fluxo completo de enriquecimento web com etapas coesas."""
 
+    _INTERNAL_LLM_PAGE_IMAGE_KEY = "_page_image_data_url_for_llm"
+    _INTERNAL_LLM_PAGE_IMAGES_KEY = "_page_image_data_urls_for_llm"
+
     _KEYWORD_STOPWORDS = {
         "com",
         "para",
@@ -121,6 +128,42 @@ class WebEnrichmentTaskWorkflow:
         "http",
         "https",
     }
+    _WEAK_KEYWORD_TERMS = {
+        "aplica",
+        "atende",
+        "atendimento",
+        "caminh",
+        "compra",
+        "compras",
+        "contato",
+        "digo",
+        "garantia",
+        "loja",
+        "online",
+        "pagamento",
+        "parcelamento",
+        "politica",
+        "qualidade",
+        "seguranca",
+        "sua",
+        "seu",
+        "total",
+        "whatsapp",
+    }
+    _WEAK_KEYWORD_PREFIXES = (
+        "aplic",
+        "atend",
+        "caminh",
+        "compr",
+        "contat",
+        "garant",
+        "pag",
+        "parcel",
+        "politic",
+        "qualidad",
+        "seguran",
+        "whats",
+    )
     _COMPANY_TIMELINE_HINTS = (
         "iniciou suas atividades",
         "iniciou as atividades",
@@ -139,6 +182,27 @@ class WebEnrichmentTaskWorkflow:
         r"\b(?:empresa|marca|fabricante|industria|loja|grupo|nos|nossa|historia|tradicao|mercado)\b",
         re.IGNORECASE,
     )
+    _RESETTABLE_ENRICHMENT_KEYS = {
+        "nome",
+        "nome_sugerido_seo",
+        "descricao_curta",
+        "descricao_detalhada_seo",
+        "imagem_url",
+        "marca",
+        "preco",
+        "moeda_preco",
+        "disponibilidade",
+        "texto_relevante_coletado",
+        "fontes_web_coletadas",
+        "lista_caracteristicas_beneficios_bullets",
+        "palavras_chave_seo_relevantes_lista",
+        "especificacoes_tecnicas_dict",
+        "aplicacao",
+        "texto_estruturado_produto",
+        "codigo_original",
+        _INTERNAL_LLM_PAGE_IMAGE_KEY,
+        _INTERNAL_LLM_PAGE_IMAGES_KEY,
+    }
 
     def __init__(
         self,
@@ -302,6 +366,175 @@ class WebEnrichmentTaskWorkflow:
                 normalized_sources.append(source_copy)
             payload["fontes_web_coletadas"] = normalized_sources[:8]
 
+    @staticmethod
+    def _extract_embedded_page_image_data_urls(html_content: Any) -> List[str]:
+        """Recover embedded PDF page image data URLs from a synthetic HTML envelope."""
+        html_text = str(html_content or "")
+        if not html_text:
+            return []
+
+        matches = re.findall(
+            r'data-tdai-page-image=["\']\d+["\'][^>]*src=["\'](data:image/[^"\']+)["\']',
+            html_text,
+            re.IGNORECASE,
+        )
+        if not matches:
+            matches = re.findall(
+                r'src=["\'](data:image/[^"\']+)["\'][^>]*data-tdai-page-image=["\']\d+["\']',
+                html_text,
+                re.IGNORECASE,
+            )
+
+        normalized: List[str] = []
+        for match in matches:
+            value = str(match or "").strip()
+            if value.startswith("data:image/") and value not in normalized:
+                normalized.append(value)
+        return normalized[:3]
+
+    @classmethod
+    def _consume_internal_page_image_data_urls(cls, payload: Dict[str, Any]) -> List[str]:
+        """Pop the temporary multimodal page images from the in-flight payload."""
+        if not isinstance(payload, dict):
+            return []
+        values: List[str] = []
+        raw_values = payload.pop(cls._INTERNAL_LLM_PAGE_IMAGES_KEY, None)
+        if isinstance(raw_values, list):
+            for raw_value in raw_values:
+                value = str(raw_value or "").strip()
+                if value.startswith("data:image/") and value not in values:
+                    values.append(value)
+        fallback_value = str(payload.pop(cls._INTERNAL_LLM_PAGE_IMAGE_KEY, "") or "").strip()
+        if fallback_value.startswith("data:image/") and fallback_value not in values:
+            values.append(fallback_value)
+        return values[:3]
+
+    def _reset_previous_enrichment_fields(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Drop stale enrichment-derived fields so a new run is driven by fresh supplier evidence."""
+        if not isinstance(payload, dict):
+            return {}
+        return {
+            key: value
+            for key, value in payload.items()
+            if key not in self._RESETTABLE_ENRICHMENT_KEYS
+        }
+
+    @staticmethod
+    def _source_matches_supplier_domain(*, source_url: str, supplier_domain: str) -> bool:
+        """Return whether a source URL belongs to the supplier domain."""
+        if not supplier_domain:
+            return False
+        host = (urlparse(str(source_url or "").strip()).netloc or "").lower()
+        return bool(host and supplier_domain in host)
+
+    def _remaining_supplier_url_exists(
+        self,
+        *,
+        urls_a_processar: List[str],
+        current_index: int,
+        supplier_domain: str,
+    ) -> bool:
+        """Check if a supplier URL still exists later in the processing queue."""
+        if not supplier_domain:
+            return False
+        for url in urls_a_processar[current_index + 1 :]:
+            if self._source_matches_supplier_domain(
+                source_url=url,
+                supplier_domain=supplier_domain,
+            ):
+                return True
+        return False
+
+    @staticmethod
+    def _merge_source_metadata(
+        *,
+        aggregated_payload: Dict[str, Any],
+        source_payload: Dict[str, Any],
+        allow_override_existing: bool,
+    ) -> None:
+        """Merge source metadata while optionally protecting already trusted fields."""
+        for key, value in source_payload.items():
+            if value in (None, "", [], {}):
+                continue
+            if key == "especificacoes_tecnicas_dict" and isinstance(value, dict):
+                current = aggregated_payload.get(key)
+                merged = dict(current) if isinstance(current, dict) else {}
+                for spec_key, spec_value in value.items():
+                    if spec_value in (None, "", [], {}):
+                        continue
+                    if allow_override_existing or spec_key not in merged:
+                        merged[spec_key] = spec_value
+                if merged:
+                    aggregated_payload[key] = merged
+                continue
+            if allow_override_existing or key not in aggregated_payload or aggregated_payload.get(key) in (None, "", [], {}):
+                aggregated_payload[key] = value
+
+    @staticmethod
+    def _normalize_structured_product_text(value: Any, *, max_len: int = 1800) -> str:
+        """Preserve structured supplier facts while removing obvious footer/privacy noise."""
+        text = str(value or "").replace("\r\n", "\n").replace("\r", "\n")
+        if not text.strip():
+            return ""
+        lines: List[str] = []
+        for raw_line in text.splitlines():
+            clean_line = " ".join(raw_line.strip().split())
+            if not clean_line:
+                continue
+            lowered = clean_line.lower()
+            if lowered.startswith("url da fonte:"):
+                continue
+            if "controle sua privacidade" in lowered:
+                continue
+            if "esse site utiliza cookies" in lowered:
+                continue
+            lines.append(clean_line)
+        if not lines:
+            return ""
+        return "\n".join(lines)[:max_len]
+
+    def _promote_supplier_source_payload(
+        self,
+        *,
+        aggregated_payload: Dict[str, Any],
+        supplier_domain: str,
+        supplier_url: str,
+        source_payload: Dict[str, Any],
+    ) -> None:
+        """Purge stale generic marketplace data once a supplier source is confirmed as primary."""
+        if not supplier_domain:
+            return
+
+        aggregated_payload["fonte_principal_url"] = supplier_url
+        aggregated_payload["fonte_principal_fornecedor"] = True
+
+        existing_sources = aggregated_payload.get("fontes_web_coletadas")
+        if isinstance(existing_sources, list):
+            aggregated_payload["fontes_web_coletadas"] = [
+                item
+                for item in existing_sources
+                if isinstance(item, dict)
+                and self._source_matches_supplier_domain(
+                    source_url=item.get("url"),
+                    supplier_domain=supplier_domain,
+                )
+            ]
+
+        for noisy_field in (
+            "preco",
+            "moeda_preco",
+            "disponibilidade",
+            "lista_caracteristicas_beneficios_bullets",
+            "palavras_chave_seo_relevantes_lista",
+            "descricao_detalhada_seo",
+            "nome_sugerido_seo",
+        ):
+            if not source_payload.get(noisy_field):
+                aggregated_payload.pop(noisy_field, None)
+
+        if not source_payload.get("marca"):
+            aggregated_payload.pop("marca", None)
+
     @classmethod
     def _split_sentences(cls, *, text: str, max_items: int, min_len: int = 24) -> List[str]:
         """Extract sentence-like chunks from arbitrary text payloads."""
@@ -363,6 +596,27 @@ class WebEnrichmentTaskWorkflow:
                 break
         return specs
 
+    def _is_weak_keyword_candidate(self, value: str) -> bool:
+        """Filter out truncated or commercial keyword hints before ranking them."""
+        token = " ".join(str(value or "").strip().split()).lower()
+        if not token:
+            return True
+        parts = re.findall(r"[a-z0-9]+", token)
+        if not parts:
+            return True
+        useful_parts = 0
+        for part in parts:
+            if len(part) < 4:
+                continue
+            if part in self._KEYWORD_STOPWORDS:
+                continue
+            if part in self._WEAK_KEYWORD_TERMS:
+                continue
+            if any(part.startswith(prefix) for prefix in self._WEAK_KEYWORD_PREFIXES):
+                continue
+            useful_parts += 1
+        return useful_parts == 0
+
     def _extract_keywords(self, *, source_texts: List[str], limit: int = 10) -> List[str]:
         """Generate SEO-like keyword hints from text and metadata snippets."""
         score_by_token: Dict[str, int] = {}
@@ -376,6 +630,8 @@ class WebEnrichmentTaskWorkflow:
                 if token.isdigit() and len(token) < 4:
                     continue
                 if token.startswith("http"):
+                    continue
+                if self._is_weak_keyword_candidate(token):
                     continue
                 score_by_token[token] = score_by_token.get(token, 0) + 1
 
@@ -613,18 +869,62 @@ class WebEnrichmentTaskWorkflow:
         session.commit()
         session.refresh(db_produto_obj)
 
-    async def _buscar_urls(self, *, query_candidates: List[str], busca_web_disponivel: bool, log_mensagens: List[str]) -> List[str]:
+    async def _buscar_urls(
+        self,
+        *,
+        query_candidates: List[str],
+        busca_web_disponivel: bool,
+        google_api_key: Optional[str],
+        google_search_engine_id: Optional[str],
+        log_mensagens: List[str],
+    ) -> List[str]:
         """Execute buscar urls as part of this module workflow."""
         if not busca_web_disponivel:
             log_mensagens.append("Busca web pulada: nenhum provedor de busca disponivel.")
             return []
 
+        google_configurado = bool(google_api_key and google_search_engine_id)
+
         for query in query_candidates[:4]:
             log_mensagens.append(f"Termo de busca web: '{query}'")
-            urls_tentativa = await self.web_extractor.buscar_urls_google(query=query, num_results=3)
-            log_mensagens.append(
-                f"Busca web retornou {len(urls_tentativa)} URL(s) para '{query}'."
-            )
+
+            urls_tentativa: List[str] = []
+            if google_configurado and hasattr(self.web_extractor, "buscar_urls_google"):
+                try:
+                    urls_tentativa = await self.web_extractor.buscar_urls_google(
+                        query=query,
+                        num_results=3,
+                        api_key=google_api_key,
+                        search_engine_id=google_search_engine_id,
+                    )
+                    log_mensagens.append(
+                        f"Google CSE retornou {len(urls_tentativa)} URL(s) para '{query}'."
+                    )
+                except Exception as exc:
+                    log_mensagens.append(
+                        "Google CSE falhou para "
+                        f"'{query}'. Usando busca publica. Motivo: {exc}"
+                    )
+            elif not google_configurado:
+                log_mensagens.append(
+                    "Google CSE nao configurado para esta execucao. "
+                    "Usando busca publica."
+                )
+
+            if not urls_tentativa and hasattr(self.web_extractor, "buscar_urls_publicas"):
+                try:
+                    urls_tentativa = await self.web_extractor.buscar_urls_publicas(
+                        query=query,
+                        num_results=3,
+                    )
+                    log_mensagens.append(
+                        f"Busca publica retornou {len(urls_tentativa)} URL(s) para '{query}'."
+                    )
+                except Exception as exc:
+                    log_mensagens.append(
+                        f"Busca publica falhou para '{query}'. Motivo: {exc}"
+                    )
+
             if urls_tentativa:
                 return urls_tentativa
 
@@ -655,6 +955,13 @@ class WebEnrichmentTaskWorkflow:
         elif not urls_a_processar and busca_web_disponivel:
             log_mensagens.append("Nenhuma URL encontrada ou selecionada para processar.")
 
+        supplier_domain = self.extrair_dominio_fornecedor(
+            db_produto_obj.fornecedor.site_url
+            if getattr(db_produto_obj, "fornecedor", None) and db_produto_obj.fornecedor.site_url
+            else ""
+        )
+        supplier_source_locked = False
+
         for i, url_processar in enumerate(urls_a_processar):
             log_mensagens.append(
                 f"Processando URL {i+1}/{len(urls_a_processar)}: {url_processar}"
@@ -666,6 +973,8 @@ class WebEnrichmentTaskWorkflow:
                 )
                 continue
 
+            page_image_data_urls = self._extract_embedded_page_image_data_urls(html_content)
+
             texto_principal = self.web_extractor.extrair_texto_principal_com_trafilatura(
                 html_content
             )
@@ -675,6 +984,14 @@ class WebEnrichmentTaskWorkflow:
             )
             metadados_normalizados_pagina = self.web_extractor.normalizar_dados_de_metadados(
                 metadados_extruct
+            )
+            texto_estruturado_produto = self._normalize_structured_product_text(
+                metadados_normalizados_pagina.get("texto_estruturado_produto"),
+                max_len=1800,
+            )
+            source_is_supplier = self._source_matches_supplier_domain(
+                source_url=url_processar,
+                supplier_domain=supplier_domain,
             )
 
             if texto_principal and not self.is_meaningful_extracted_text(texto_principal):
@@ -698,21 +1015,70 @@ class WebEnrichmentTaskWorkflow:
                 texto_principal,
                 max_len=14000,
             )
+            if texto_estruturado_produto:
+                if source_is_supplier:
+                    texto_principal = texto_estruturado_produto
+                else:
+                    texto_principal = self._merge_collected_text(
+                        existing_text=texto_estruturado_produto,
+                        new_text=texto_principal,
+                        max_len=14000,
+                    )
 
             nome_fonte = metadados_normalizados_pagina.get("nome")
             descricao_fonte = metadados_normalizados_pagina.get("descricao_curta") or (
                 texto_principal[:600] if texto_principal else ""
             )
-            if not self.is_source_relevant_for_product(
+            source_is_relevant = self.is_source_relevant_for_product(
                 db_produto_obj,
                 source_name=nome_fonte,
                 source_desc=descricao_fonte,
                 source_url=url_processar,
-            ):
+            )
+            allow_supplier_visual_fallback = bool(page_image_data_urls and source_is_supplier)
+            if not source_is_relevant and not allow_supplier_visual_fallback:
                 log_mensagens.append(
                     f"URL descartada por baixa relevancia para o produto: {url_processar}"
                 )
                 continue
+            if not source_is_relevant and allow_supplier_visual_fallback:
+                log_mensagens.append(
+                    "Fonte PDF do fornecedor mantida pela evidencia visual embutida, "
+                    f"mesmo sem texto suficiente: {url_processar}"
+                )
+
+            if page_image_data_urls and (
+                source_is_supplier
+                or not dados_extraidos_agregados.get(self._INTERNAL_LLM_PAGE_IMAGES_KEY)
+            ):
+                existing_page_images = dados_extraidos_agregados.get(self._INTERNAL_LLM_PAGE_IMAGES_KEY)
+                normalized_page_images = (
+                    [str(item or "").strip() for item in existing_page_images if str(item or "").strip()]
+                    if isinstance(existing_page_images, list)
+                    else []
+                )
+                for image_url in page_image_data_urls:
+                    if image_url not in normalized_page_images:
+                        normalized_page_images.append(image_url)
+                dados_extraidos_agregados[self._INTERNAL_LLM_PAGE_IMAGES_KEY] = normalized_page_images[:3]
+                log_mensagens.append(
+                    f"Imagens de paginas PDF capturadas para contexto LLM: {url_processar}"
+                )
+                fontes_web = dados_extraidos_agregados.get("fontes_web_coletadas")
+                if not isinstance(fontes_web, list):
+                    fontes_web = []
+                if url_processar not in {
+                    str(item.get("url", "")) for item in fontes_web if isinstance(item, dict)
+                }:
+                    fontes_web.append(
+                        {
+                            "url": url_processar,
+                            "nome": self._compact_text(nome_fonte, max_len=160),
+                            "descricao_curta": self._compact_text(descricao_fonte, max_len=220),
+                        }
+                    )
+                    dados_extraidos_agregados["fontes_web_coletadas"] = fontes_web[:8]
+                dados_coletados_de_fontes_web = True
 
             if metadados_normalizados_pagina:
                 log_mensagens.append(
@@ -720,7 +1086,22 @@ class WebEnrichmentTaskWorkflow:
                     f"{url_processar}: "
                     f"{self.json.dumps(metadados_normalizados_pagina, indent=2, ensure_ascii=False)}"
                 )
-                dados_extraidos_agregados.update(metadados_normalizados_pagina)
+                self._merge_source_metadata(
+                    aggregated_payload=dados_extraidos_agregados,
+                    source_payload=metadados_normalizados_pagina,
+                    allow_override_existing=(not supplier_source_locked) or source_is_supplier,
+                )
+                if source_is_supplier:
+                    supplier_source_locked = True
+                    self._promote_supplier_source_payload(
+                        aggregated_payload=dados_extraidos_agregados,
+                        supplier_domain=supplier_domain,
+                        supplier_url=url_processar,
+                        source_payload=metadados_normalizados_pagina,
+                    )
+                    log_mensagens.append(
+                        f"Fonte do fornecedor confirmada como principal para a URL: {url_processar}"
+                    )
                 dados_coletados_de_fontes_web = True
 
             if texto_principal:
@@ -756,6 +1137,16 @@ class WebEnrichmentTaskWorkflow:
             if metadados_normalizados_pagina.get("nome") and metadados_normalizados_pagina.get(
                 "descricao_curta"
             ):
+                if not source_is_supplier and self._remaining_supplier_url_exists(
+                    urls_a_processar=urls_a_processar,
+                    current_index=i,
+                    supplier_domain=supplier_domain,
+                ):
+                    log_mensagens.append(
+                        "Fonte generica com dados chave encontrada, mas o processamento continuara "
+                        "para tentar confirmar uma URL do fornecedor."
+                    )
+                    continue
                 log_mensagens.append(
                     f"Dados chave (nome, descricao) encontrados em {url_processar}. "
                     "Considerando suficiente desta URL."
@@ -768,6 +1159,7 @@ class WebEnrichmentTaskWorkflow:
         self,
         *,
         openai_api_configurada: bool,
+        usar_ia: Optional[bool] = None,
         db_produto_obj,
         user,
         dados_extraidos_agregados: Dict[str, Any],
@@ -777,6 +1169,11 @@ class WebEnrichmentTaskWorkflow:
     ) -> tuple[bool, Any]:
         """Execute executar llm as part of this module workflow."""
         self._sanitize_aggregated_payload(dados_extraidos_agregados)
+        if usar_ia is False:
+            log_mensagens.append(
+                "LLM desabilitado por escolha do usuario. Fluxo seguira em modo basico."
+            )
+            return dados_coletados_de_fontes_web, status_para_salvar_no_final
         if not openai_api_configurada:
             log_mensagens.append("LLM nao foi chamado pois a API OpenAI nao esta configurada.")
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
@@ -788,6 +1185,10 @@ class WebEnrichmentTaskWorkflow:
             "especificacoes_tecnicas_dict",
             "palavras_chave_seo_relevantes_lista",
         ]
+        page_image_data_urls = self._consume_internal_page_image_data_urls(
+            dados_extraidos_agregados
+        )
+        page_image_data_url = page_image_data_urls[0] if page_image_data_urls else None
         texto_para_llm = dados_extraidos_agregados.get("texto_relevante_coletado")
         if not texto_para_llm and isinstance(db_produto_obj.dados_brutos_web, dict):
             texto_para_llm = self.json.dumps(
@@ -804,7 +1205,7 @@ class WebEnrichmentTaskWorkflow:
             if k != "texto_relevante_coletado" and self._has_meaningful_llm_value(v)
         }
 
-        if not texto_para_llm and not metadados_para_llm:
+        if not texto_para_llm and not metadados_para_llm and not page_image_data_urls:
             log_mensagens.append("Nenhum texto ou metadado suficiente para enviar ao LLM.")
             return dados_coletados_de_fontes_web, status_para_salvar_no_final
 
@@ -815,6 +1216,8 @@ class WebEnrichmentTaskWorkflow:
             campos_desejados=campos_desejados_llm,
             produto_nome_base=db_produto_obj.nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
         if not dados_do_llm:
             log_mensagens.append(
@@ -844,6 +1247,7 @@ class WebEnrichmentTaskWorkflow:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ) -> None:
         """Execute run as part of this module workflow."""
         db: Optional[Session] = None
@@ -887,7 +1291,9 @@ class WebEnrichmentTaskWorkflow:
             status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.PENDENTE
 
         if isinstance(db_produto_obj.dados_brutos_web, dict):
-            dados_extraidos_agregados = db_produto_obj.dados_brutos_web.copy()
+            dados_extraidos_agregados = self._reset_previous_enrichment_fields(
+                db_produto_obj.dados_brutos_web.copy()
+            )
             self._sanitize_aggregated_payload(dados_extraidos_agregados)
 
         try:
@@ -898,18 +1304,55 @@ class WebEnrichmentTaskWorkflow:
                 status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.FALHOU
                 return
 
+            supplier_search_plan = self.query_planner.build_search_plan(
+                db_produto_obj=db_produto_obj,
+                termos_busca_override=termos_busca_override,
+            )
+            direct_supplier_urls = list(supplier_search_plan.direct_candidate_urls)
+            fornecedor_domain = self.extrair_dominio_fornecedor(
+                db_produto_obj.fornecedor.site_url
+                if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url
+                else supplier_search_plan.supplier_domain
+            ) or supplier_search_plan.supplier_domain
+
             config_snapshot = self.config_inspector.inspect(
                 user=user,
                 settings=self.settings,
                 web_extractor=self.web_extractor,
+                db=db,
             )
             openai_api_configurada = config_snapshot.openai_api_configurada
             google_api_configurada = config_snapshot.google_api_configurada
             busca_publica_fallback = config_snapshot.busca_publica_fallback
             busca_web_disponivel = config_snapshot.busca_web_disponivel
             log_mensagens.append(config_snapshot.as_log_line())
+            google_api_key = str(getattr(self.settings, "GOOGLE_CSE_API_KEY", "") or "").strip() or None
+            google_search_engine_id = str(
+                getattr(self.settings, "GOOGLE_CSE_ID", "") or ""
+            ).strip() or None
+            try:
+                credential_repo = ExternalCredentialRepository(db)
+                google_provider_enum = getattr(self.models, "ExternalCredentialProviderEnum", None)
+                google_provider = getattr(google_provider_enum, "GOOGLE_CSE", "GOOGLE_CSE")
+                google_effective = credential_repo.resolve_effective_source(
+                    provider=google_provider,
+                    current_user=user,
+                    settings=self.settings,
+                )
+                google_api_key = str(google_effective.get("secret_value") or "").strip() or None
+                google_search_engine_id = str(
+                    (google_effective.get("config_json") or {}).get("search_engine_id") or ""
+                ).strip() or None
+            except Exception as credential_exc:
+                log_mensagens.append(
+                    "Credenciais externas do cliente indisponiveis nesta sessao. "
+                    f"Usando configuracao do sistema. Motivo: {credential_exc}"
+                )
+            llm_requested = usar_ia is not False
+            modo_enriquecimento = "ia" if usar_ia is True else "basico" if usar_ia is False else "automatico"
+            log_mensagens.append(f"Modo de enriquecimento solicitado: {modo_enriquecimento}.")
 
-            if not openai_api_configurada and not busca_web_disponivel:
+            if not (llm_requested and openai_api_configurada) and not busca_web_disponivel and not direct_supplier_urls:
                 log_mensagens.append(
                     "AVISO CRITICO: Sem OpenAI e sem mecanismo de busca web disponivel. "
                     "Configure OPENAI_API_KEY (ou chave pessoal do usuario) e/ou Google CSE."
@@ -924,13 +1367,26 @@ class WebEnrichmentTaskWorkflow:
                     resposta="Falha: Configuracoes de API externas ausentes.",
                 )
                 return
+            if direct_supplier_urls:
+                log_mensagens.append(
+                    "Busca supplier-first habilitada com URL(s) direta(s) do fornecedor: "
+                    f"{', '.join(direct_supplier_urls[:4])}"
+                )
+            elif not busca_web_disponivel:
+                log_mensagens.append(
+                    "Busca web indisponivel e sem URLs diretas do fornecedor configuradas."
+                )
 
             if not google_api_configurada and busca_publica_fallback:
                 log_mensagens.append(
                     "Google CSE nao configurado. Usando fallback de busca publica sem API key."
                 )
 
-            if not openai_api_configurada:
+            if usar_ia is False:
+                log_mensagens.append(
+                    "Modo basico selecionado. A etapa de IA sera pulada mesmo se houver provedor configurado."
+                )
+            elif not openai_api_configurada:
                 log_mensagens.append(
                     "AVISO: Chave API OpenAI nao configurada. Enriquecimento via LLM sera pulado. "
                     "Outras coletas de dados (Google, metadados) tentarao prosseguir."
@@ -950,20 +1406,16 @@ class WebEnrichmentTaskWorkflow:
             )
             status_para_salvar_no_final = self.models.StatusEnriquecimentoEnum.FALHOU
 
-            query_candidates = self.query_planner.build_candidates(
-                db_produto_obj=db_produto_obj,
-                termos_busca_override=termos_busca_override,
-            )
+            query_candidates = supplier_search_plan.query_candidates
             urls_encontradas_brutas = await self._buscar_urls(
                 query_candidates=query_candidates,
                 busca_web_disponivel=busca_web_disponivel,
+                google_api_key=google_api_key,
+                google_search_engine_id=google_search_engine_id,
                 log_mensagens=log_mensagens,
             )
-
-            fornecedor_domain = self.extrair_dominio_fornecedor(
-                db_produto_obj.fornecedor.site_url
-                if db_produto_obj.fornecedor and db_produto_obj.fornecedor.site_url
-                else ""
+            urls_encontradas_brutas = list(
+                dict.fromkeys(direct_supplier_urls + urls_encontradas_brutas)
             )
             urls_a_processar, urls_scored = self.priorizar_urls_para_enriquecimento(
                 db_produto_obj=db_produto_obj,
@@ -998,6 +1450,7 @@ class WebEnrichmentTaskWorkflow:
                 status_para_salvar_no_final,
             ) = await self._executar_llm(
                 openai_api_configurada=openai_api_configurada,
+                usar_ia=usar_ia,
                 db_produto_obj=db_produto_obj,
                 user=user,
                 dados_extraidos_agregados=dados_extraidos_agregados,
@@ -1013,6 +1466,7 @@ class WebEnrichmentTaskWorkflow:
                 openai_api_configurada=openai_api_configurada,
                 busca_web_disponivel=busca_web_disponivel,
                 urls_a_processar=urls_a_processar,
+                usar_ia=usar_ia,
             )
             log_mensagens.append(
                 "Processamento principal concluido. "
@@ -1133,11 +1587,15 @@ class WebEnrichmentTaskService:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ):
         """Execute execute as part of this module workflow."""
         workflow = WebEnrichmentTaskWorkflow(**self._deps)
-        await workflow.run(
-            produto_id=produto_id,
-            user_id=user_id,
-            termos_busca_override=termos_busca_override,
-        )
+        run_kwargs = {
+            "produto_id": produto_id,
+            "user_id": user_id,
+            "termos_busca_override": termos_busca_override,
+        }
+        if usar_ia is not None:
+            run_kwargs["usar_ia"] = usar_ia
+        await workflow.run(**run_kwargs)

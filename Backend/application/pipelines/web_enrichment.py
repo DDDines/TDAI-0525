@@ -27,12 +27,14 @@ class OOPWebEnrichmentExecutor:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ) -> Any:
         """Execute call as part of this module workflow."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,
+            usar_ia=usar_ia,
         )
         return await self._use_case.execute_command(
             command=command,
@@ -51,6 +53,7 @@ class WebEnrichmentTaskBuilder:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str],
+        usar_ia: Optional[bool] = None,
     ) -> TaskExecutionPlan:
         """Build start plan from current inputs and configuration."""
         task_kwargs = {
@@ -58,6 +61,8 @@ class WebEnrichmentTaskBuilder:
             "user_id": user_id,
             "termos_busca_override": termos_busca_override,
         }
+        if usar_ia is not None:
+            task_kwargs["usar_ia"] = usar_ia
         return TaskExecutionPlan(
             name="web_enrichment.start",
             executor_name="oop_web_enrichment_task",

@@ -161,7 +161,7 @@ describe('AttributeTemplateModal', () => {
 
     await user.type(screen.getByLabelText(labelMatcher), 'Garantia');
     await user.type(screen.getByLabelText(/Chave do Atributo/i), 'garantia');
-    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByLabelText(/Campo obrigatorio/i));
     await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
 
     expect(onSave).toHaveBeenCalledWith(
@@ -181,5 +181,36 @@ describe('AttributeTemplateModal', () => {
 
     expect(screen.getByRole('button', { name: /Salvando/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Cancelar/i })).toBeDisabled();
+  });
+
+  test('keeps IA collection enabled by default for new attributes', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    expect(screen.getByLabelText(/Usar este atributo na IA/i)).toBeChecked();
+
+    await user.type(screen.getByLabelText(labelMatcher), 'Cor');
+    await user.type(screen.getByLabelText(/Chave do Atributo/i), 'cor');
+    await user.click(screen.getByRole('button', { name: /Salvar Atributo/i }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collect_in_ai: true,
+      })
+    );
+  });
+
+  test('loads and preserves collect_in_ai=false when editing an attribute', () => {
+    renderModal({
+      attribute: {
+        id: 11,
+        label: 'Aplicacao',
+        attribute_key: 'aplicacao',
+        field_type: 'TEXTAREA',
+        collect_in_ai: false,
+      },
+    });
+
+    expect(screen.getByLabelText(/Usar este atributo na IA/i)).not.toBeChecked();
   });
 });

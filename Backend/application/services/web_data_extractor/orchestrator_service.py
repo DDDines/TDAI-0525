@@ -58,11 +58,15 @@ class WebDataExtractorOrchestratorService:
         self,
         query: str,
         num_results: int = 3,
+        api_key: Optional[str] = None,
+        search_engine_id: Optional[str] = None,
     ) -> List[str]:
         """Execute buscar urls google as part of this module workflow."""
         return await self.search.buscar_urls_google(
             query=query,
             num_results=num_results,
+            api_key=api_key,
+            search_engine_id=search_engine_id,
         )
 
     async def coletar_conteudo_pagina_playwright(self, url: str) -> Optional[str]:
@@ -105,6 +109,8 @@ class WebDataExtractorOrchestratorService:
         campos_desejados: Optional[List[str]] = None,
         produto_nome_base: str = "Produto",
         user: Optional[models.User] = None,
+        page_image_data_url: Optional[str] = None,
+        page_image_data_urls: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extrair dados produto com llm."""
         return await self.llm.extrair_dados_produto_com_llm(
@@ -113,6 +119,8 @@ class WebDataExtractorOrchestratorService:
             campos_desejados=campos_desejados,
             produto_nome_base=produto_nome_base,
             user=user,
+            page_image_data_url=page_image_data_url,
+            page_image_data_urls=page_image_data_urls,
         )
 
     async def extract_relevant_data_from_url(

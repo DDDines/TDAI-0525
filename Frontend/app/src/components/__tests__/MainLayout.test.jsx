@@ -6,9 +6,10 @@ import MainLayout from '../MainLayout.jsx';
 
 jest.mock('../Sidebar', () => ({
   __esModule: true,
-  default: ({ isOpen, toggleSidebar }) => (
+  default: ({ isOpen, toggleSidebar, isMobileViewport }) => (
     <div data-testid="sidebar-state">
       <span>{isOpen ? 'open' : 'closed'}</span>
+      <span data-testid="sidebar-viewport">{isMobileViewport ? 'mobile' : 'desktop'}</span>
       <button onClick={toggleSidebar}>toggle-sidebar</button>
     </div>
   ),
@@ -30,6 +31,7 @@ function renderLayout(path) {
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<div>Dashboard screen</div>} />
+          <Route path="dashboard" element={<div>Dashboard screen</div>} />
           <Route path="historico" element={<div>Historico screen</div>} />
           <Route path="tipos-de-produto" element={<div>Tipos screen</div>} />
           <Route path="rota-customizada" element={<div>Custom screen</div>} />
@@ -40,6 +42,24 @@ function renderLayout(path) {
 }
 
 describe('MainLayout', () => {
+  const originalInnerWidth = window.innerWidth;
+
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: originalInnerWidth,
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: originalInnerWidth,
+    });
+  });
+
   test('maps route names to friendly view titles', () => {
     renderLayout('/historico');
 
@@ -71,5 +91,18 @@ describe('MainLayout', () => {
 
     expect(screen.getByTestId('topbar-title')).toHaveTextContent('Rota Customizada');
     expect(screen.getByText('Custom screen')).toBeInTheDocument();
+  });
+
+  test('starts with the sidebar closed on mobile widths and keeps the mobile flag', () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: 390,
+    });
+
+    renderLayout('/dashboard');
+
+    expect(screen.getByTestId('sidebar-state')).toHaveTextContent('closed');
+    expect(screen.getByTestId('sidebar-viewport')).toHaveTextContent('mobile');
   });
 });

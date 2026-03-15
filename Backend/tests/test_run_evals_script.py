@@ -71,3 +71,42 @@ def test_load_dataset_accepts_utf8_bom(tmp_path):
     loaded = MODULE.load_dataset(dataset_path)
 
     assert loaded[0]["id"] == "case-bom"
+
+
+def test_build_messages_supports_current_prompt_placeholders():
+    case = {
+        "type": "description",
+        "input": {
+            "nome_base": "Filtro de Ar Primario",
+            "descricao_original": "Elemento filtrante para retencao de particulas.",
+            "marca": "AirFlow",
+            "modelo": "FA-30",
+            "categoria_original": "Filtragem",
+            "segmento_produto": "automotivo",
+        },
+    }
+
+    messages = MODULE.build_messages(case)
+
+    assert len(messages) == 2
+    assert "Nome alternativo coletado:" in messages[1]["content"]
+    assert "Referencia tecnica:" in messages[1]["content"]
+    assert "Contexto tecnico confirmado:" in messages[1]["content"]
+    assert "Categoria:" in messages[1]["content"]
+    assert "Segmento do item:" in messages[1]["content"]
+    assert "Filtro de Ar Primario" in messages[0]["content"] or "Filtro de Ar Primario" in messages[1]["content"]
+
+
+def test_parse_args_supports_max_cases(monkeypatch):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "run_evals.py",
+            "--max-cases",
+            "7",
+        ],
+    )
+
+    args = MODULE.parse_args()
+
+    assert args.max_cases == 7

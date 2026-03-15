@@ -8,9 +8,27 @@ from typing import Any, Dict, Optional, Tuple
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from Backend.application.services.web_enrichment_normalization_service import (
+    WebEnrichmentNormalizationService,
+)
+
 
 class GenerationTaskService:
     """Servico OO para execucao de tarefas de geracao IA em background."""
+
+    _TEXT_NORMALIZER = WebEnrichmentNormalizationService()
+
+    @classmethod
+    def _normalize_multiline_human_text(cls, raw_text: Any) -> str:
+        """Decode human text while preserving structural line breaks."""
+        raw = str(raw_text or "").replace("\r\n", "\n").replace("\r", "\n")
+        normalized_lines: list[str] = []
+        for raw_line in raw.split("\n"):
+            normalized_line = cls._TEXT_NORMALIZER.normalize_human_text(raw_line)
+            normalized_lines.extend(
+                segment for segment in str(normalized_line or "").replace("\r", "\n").split("\n")
+            )
+        return "\n".join(normalized_lines).strip()
 
     def __init__(
         self,
@@ -101,7 +119,12 @@ class GenerationTaskService:
                 raw_data["titulos_sugeridos_gerados"] = titles
                 raw_data["titulos_sugeridos_ultima_atualizacao"] = now_iso
         elif tipo_geracao_principal == "descricao":
-            descricao = " ".join(str(resultado_ia or "").strip().split())
+            descricao = cls._normalize_multiline_human_text(resultado_ia)
+            descricao = "\n".join(
+                " ".join(line.strip().split())
+                for line in descricao.splitlines()
+                if line.strip()
+            )
             if descricao:
                 raw_data["descricao_gerada"] = descricao[:12000]
                 raw_data["descricao_gerada_ultima_atualizacao"] = now_iso

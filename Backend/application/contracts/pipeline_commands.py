@@ -25,3 +25,4 @@ class WebEnrichmentStartCommand:
     produto_id: int
     user_id: int
     termos_busca_override: Optional[str]
+    usar_ia: Optional[bool] = None

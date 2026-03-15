@@ -1,11 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from '../DashboardPage.jsx';
 import authService from '../../services/authService';
 import adminService from '../../services/adminService';
-import searchService from '../../services/searchService';
+import dashboardService from '../../services/dashboardService';
 import { showErrorToast } from '../../utils/notifications';
 
 const mockNavigate = jest.fn();
@@ -35,10 +34,10 @@ jest.mock('../../services/adminService', () => ({
   },
 }));
 
-jest.mock('../../services/searchService', () => ({
+jest.mock('../../services/dashboardService', () => ({
   __esModule: true,
   default: {
-    searchAll: jest.fn(),
+    getMyDashboard: jest.fn(),
   },
 }));
 
@@ -59,9 +58,7 @@ describe('DashboardPage', () => {
       total_geracoes_ia_mes: 1,
       total_enriquecimentos_mes: 0,
     });
-    adminService.getProductStatusCounts.mockResolvedValue([
-      { status: 'NAO_INICIADO', total: 6 },
-    ]);
+    adminService.getProductStatusCounts.mockResolvedValue([{ status: 'NAO_INICIADO', total: 6 }]);
     adminService.getRecentHistorico.mockResolvedValue([
       {
         id: 99,
@@ -71,11 +68,32 @@ describe('DashboardPage', () => {
         created_at: '2025-12-01T00:00:00Z',
       },
     ]);
-    searchService.searchAll.mockImplementation(async (term) => {
-      if (term === 'abc') {
-        return { results: [{ type: 'produto', id: 42, name: 'Produto 42' }] };
-      }
-      return { results: [] };
+    dashboardService.getMyDashboard.mockResolvedValue({
+      plano_nome: 'Gratuito',
+      product_experience_mode: 'basic',
+      limites: {
+        produtos: 10,
+        enriquecimento_web: 25,
+        geracao_ia: 0,
+      },
+      uso_mes_atual: {
+        geracao_ia: 0,
+        enriquecimento_web: 3,
+      },
+      totais: {
+        produtos: 7,
+        fornecedores: 2,
+      },
+      status_produtos: [{ status: 'CONCLUIDO', total: 4 }],
+      atividade_recente: [
+        {
+          id: 11,
+          entidade: 'produto',
+          tipo_acao: 'ATUALIZACAO',
+          created_at: '2025-12-01T00:00:00Z',
+        },
+      ],
+      atalhos: [{ label: 'Produtos', route: '/produtos' }],
     });
   });
 
@@ -83,7 +101,7 @@ describe('DashboardPage', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test('renders admin dashboard and allows search navigation', async () => {
+  test('renders admin dashboard shell without duplicating the internal title', async () => {
     render(
       <MemoryRouter>
         <DashboardPage />
@@ -91,21 +109,23 @@ describe('DashboardPage', () => {
     );
 
     expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(4);
+    expect(screen.getByText('Painel administrativo')).toBeInTheDocument();
+    expect(screen.queryByText('Visao geral')).not.toBeInTheDocument();
+    expect(screen.getByText('Prioridades do dia')).toBeInTheDocument();
+    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
     expect(adminService.getTotalCounts).toHaveBeenCalled();
     expect(adminService.getProductStatusCounts).toHaveBeenCalled();
     expect(adminService.getRecentHistorico).toHaveBeenCalledWith(5);
-
-    const searchInput = screen.getByPlaceholderText(/pesquisar/i);
-    await userEvent.type(searchInput, 'abc');
-
-    expect(await screen.findByText('Produto 42')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /ver detalhes/i }));
-
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos?id=42');
   });
 
-  test('shows fallback dashboard for non-admin users', async () => {
-    authService.getCurrentUser.mockResolvedValue({ id: 2, is_superuser: false });
+  test('renders the real dashboard for non-admin users', async () => {
+    authService.getCurrentUser.mockResolvedValue({
+      id: 2,
+      is_superuser: false,
+      plano: { nome: 'Gratuito' },
+      product_experience_mode: 'basic',
+    });
 
     render(
       <MemoryRouter>
@@ -113,7 +133,15 @@ describe('DashboardPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText(/bem-vindo ao catalogai/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Limites do plano/i)).toBeInTheDocument();
+    expect(screen.getByText('Painel do cliente')).toBeInTheDocument();
+    expect(screen.getByText(/Plano Gratuito/i)).toBeInTheDocument();
+    expect(screen.queryByText('Modo Basico')).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.dashboard-side-stat')).toHaveLength(0);
+    expect(screen.queryByText('Acoes rapidas')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(4);
+    expect(dashboardService.getMyDashboard).toHaveBeenCalled();
     expect(adminService.getTotalCounts).not.toHaveBeenCalled();
   });
 
@@ -177,23 +205,6 @@ describe('DashboardPage', () => {
     });
   });
 
-  test('logs search failures and keeps the screen usable', async () => {
-    searchService.searchAll.mockRejectedValueOnce(new Error('busca indisponivel'));
-
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
-    await userEvent.type(screen.getByPlaceholderText(/pesquisar/i), 'erro');
-
-    await waitFor(() => {
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Erro ao buscar:', expect.any(Error));
-    });
-  });
-
   test('renders zero fallbacks and empty-search feedback when admin metrics are sparse', async () => {
     adminService.getTotalCounts.mockResolvedValueOnce({
       total_produtos: null,
@@ -202,7 +213,6 @@ describe('DashboardPage', () => {
       total_geracoes_ia_mes: null,
       total_enriquecimentos_mes: undefined,
     });
-    searchService.searchAll.mockResolvedValueOnce({}).mockResolvedValueOnce({});
 
     render(
       <MemoryRouter>
@@ -212,13 +222,8 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);
-    expect(screen.getByText('Usuários: 0')).toBeInTheDocument();
-    expect(screen.getByText('Gerações IA (mês): 0')).toBeInTheDocument();
-    expect(screen.getByText('Enriquecimentos (mês): 0')).toBeInTheDocument();
-
-    const searchInput = screen.getByPlaceholderText(/pesquisar/i);
-    await userEvent.type(searchInput, 'sem resultado');
-
-    expect(await screen.findByText(/Nenhum resultado encontrado/i)).toBeInTheDocument();
+    expect(screen.getByText('Usuarios')).toBeInTheDocument();
+    expect(screen.getByText('Geracoes IA no mes')).toBeInTheDocument();
+    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
   });
 });

@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from Backend.infrastructure.repositories.prompt_template_repository import (  # noqa: E402
     DEFAULT_PROMPT_TEMPLATES,
     PromptTemplateName,
+    _SafePromptFormatDict,
 )
 from Backend.infrastructure.runtime_modules.ia_generation_module import (  # noqa: E402
     IAGenerationRuntime,
@@ -49,6 +50,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL, help="Model override. If omitted, uses /models discovery.")
     parser.add_argument("--min-pass-rate", type=float, default=0.90, help="Minimum pass rate required.")
     parser.add_argument("--max-failures", type=int, default=0, help="Maximum number of critical failures allowed.")
+    parser.add_argument(
+        "--max-cases",
+        type=int,
+        default=0,
+        help="Optional limit for the number of eval cases. Zero runs the full dataset.",
+    )
     return parser.parse_args()
 
 
@@ -82,34 +89,42 @@ def resolve_model(base_url: str, api_key: str, requested_model: str) -> str:
 def build_messages(case: Dict[str, Any]) -> List[Dict[str, str]]:
     """Build the chat-completions payload using the same prompt templates as the backend."""
     product = case["input"]
-    context = {
-        "nome_base": product.get("nome_base", ""),
-        "descricao": product.get("descricao_original", ""),
-        "marca": product.get("marca", ""),
-        "modelo": product.get("modelo", ""),
-        "num_titulos": 1,
-        "tamanho_palavras": 70,
-    }
+    context = _SafePromptFormatDict(
+        nome_base=product.get("nome_base", ""),
+        nome_secundario=product.get("nome_secundario", "") or product.get("nome_chat_api", ""),
+        descricao=product.get("descricao_original", ""),
+        marca=product.get("marca", ""),
+        modelo=product.get("modelo", ""),
+        categoria=product.get("categoria", "") or product.get("categoria_original", "") or product.get("categoria_mapeada", ""),
+        segmento_produto=product.get("segmento_produto", "") or product.get("segmento", ""),
+        referencia=product.get("referencia", "") or product.get("sku_original", ""),
+        aplicacao=product.get("aplicacao", ""),
+        material=product.get("material", ""),
+        conteudo=product.get("conteudo", "") or product.get("conteudo_embalagem", ""),
+        contexto_tecnico=product.get("contexto_tecnico", "") or product.get("descricao_original", ""),
+        num_titulos=1,
+        tamanho_palavras=70,
+    )
     if case["type"] == "title":
         return [
             {
                 "role": "system",
-                "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_TITLE_SYSTEM].format(**context),
+                "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_TITLE_SYSTEM].format_map(context),
             },
             {
                 "role": "user",
-                "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_TITLE_USER].format(**context),
+                "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_TITLE_USER].format_map(context),
             },
         ]
 
     return [
         {
             "role": "system",
-            "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM].format(**context),
+            "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_DESCRIPTION_SYSTEM].format_map(context),
         },
         {
             "role": "user",
-            "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_DESCRIPTION_USER].format(**context),
+            "content": DEFAULT_PROMPT_TEMPLATES[PromptTemplateName.IA_OPENAI_DESCRIPTION_USER].format_map(context),
         },
     ]
 
@@ -223,6 +238,8 @@ def main() -> int:
     args = parse_args()
     dataset_path = Path(args.dataset).resolve()
     cases = load_dataset(dataset_path)
+    if args.max_cases and args.max_cases > 0:
+        cases = cases[: args.max_cases]
     model_name = resolve_model(args.base_url.rstrip("/"), args.api_key, args.model)
 
     results = []

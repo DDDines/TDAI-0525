@@ -107,13 +107,17 @@ class WebEnrichmentRequestService:
         produto_id: int,
         user_id: int,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ):
         """Execute tarefa enriquecer produto web as part of this module workflow."""
-        await self._task_runner.execute(
-            produto_id=produto_id,
-            user_id=user_id,
-            termos_busca_override=termos_busca_override,
-        )
+        execute_kwargs = {
+            "produto_id": produto_id,
+            "user_id": user_id,
+            "termos_busca_override": termos_busca_override,
+        }
+        if usar_ia is not None:
+            execute_kwargs["usar_ia"] = usar_ia
+        await self._task_runner.execute(**execute_kwargs)
 
     def iniciar_enriquecimento_produto_web(
         self,
@@ -122,27 +126,31 @@ class WebEnrichmentRequestService:
         background_tasks: BackgroundTasks,
         current_user: models.User,
         termos_busca_override: Optional[str] = None,
+        usar_ia: Optional[bool] = None,
     ) -> Dict[str, str]:
         """Execute iniciar enriquecimento produto web as part of this module workflow."""
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,
+            usar_ia=usar_ia,
         )
 
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=current_user.id,
             termos_busca_override=termos_busca_override,
+            usar_ia=usar_ia,
         )
         self._start_service.dispatch_start(
             background_tasks=background_tasks,
             command=command,
             oop_executor=self.tarefa_enriquecer_produto_web,
         )
+        modo_label = "com IA" if usar_ia else "basico"
         return {
             "msg": (
                 f"Processo de enriquecimento web para o produto ID {produto_id} "
-                "iniciado em segundo plano."
+                f"iniciado em segundo plano ({modo_label})."
             )
         }
 
@@ -158,6 +166,10 @@ async def iniciar_enriquecimento_produto_web_endpoint(
         None,
         description="Opcional: termos de busca especificos para o Google Search.",
     ),
+    usar_ia: bool = Query(
+        False,
+        description="Quando verdadeiro, habilita a etapa de IA apos a busca/enriquecimento basico.",
+    ),
     request_service: WebEnrichmentRequestService = Depends(),
 ):
     """Iniciar enriquecimento produto web endpoint."""
@@ -166,6 +178,7 @@ async def iniciar_enriquecimento_produto_web_endpoint(
         background_tasks=background_tasks,
         current_user=current_user,
         termos_busca_override=termos_busca_override,
+        usar_ia=usar_ia,
     )
 
 

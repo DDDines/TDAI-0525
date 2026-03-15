@@ -43,6 +43,7 @@ class WebEnrichmentPipelineOrchestrator:
             produto_id=command.produto_id,
             user_id=command.user_id,
             termos_busca_override=command.termos_busca_override,
+            usar_ia=command.usar_ia,
         )
         return self._selector.select(
             oop_plan=oop_plan,

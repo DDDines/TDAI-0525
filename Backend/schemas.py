@@ -26,6 +26,8 @@ from Backend.models import (
     TipoAcaoEnum,
     TipoAcaoSistemaEnum,
     AttributeFieldTypeEnum,
+    ExternalCredentialProviderEnum,
+    ExternalCredentialScopeEnum,
 )
 
 
@@ -124,6 +126,7 @@ class UserResponse(UserBase):  # O que é retornado pela API
     limite_enriquecimento_web: Optional[int] = None
     limite_geracao_ia: Optional[int] = None
     data_expiracao_plano: Optional[datetime] = None
+    product_experience_mode: Literal["basic", "complete"] = "basic"
     # Adicionar informações do plano e role se desejado na resposta
     plano: Optional["PlanoResponse"] = None  # type: ignore  # Evitar dependência circular
     # role: Optional[RoleResponse] = None  # Evitar dependência circular
@@ -214,6 +217,7 @@ class FornecedorBase(BaseModel):
     telefone_contato: Optional[str] = Field(None, max_length=20)
     endereco: Optional[str] = None
     site_url: Optional[str] = None  # Usando str para flexibilidade
+    logo_url: Optional[str] = None
     termos_contratuais: Optional[str] = None
     contato_principal: Optional[str] = Field(None, max_length=100)
     observacoes: Optional[str] = None
@@ -251,6 +255,27 @@ class FornecedorPage(BaseModel):
     limit: int
 
 
+class FornecedorLogoResolveRequest(BaseModel):
+    """Payload para resolver logo a partir do site do fornecedor."""
+
+    site_url: str = Field(..., min_length=3, max_length=500)
+
+
+class FornecedorLogoResolveResponse(BaseModel):
+    """Resposta com o logo resolvido para o fornecedor."""
+
+    logo_url: Optional[str] = None
+    resolved_site_url: str
+    source: str
+
+
+class FilteredIdsResponse(BaseModel):
+    """Represent a lightweight ID listing for current filtered results."""
+
+    ids: List[int]
+    total_items: int
+
+
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
     """Represent Attribute Template Base and centralize its responsibilities inside this module."""
@@ -280,6 +305,10 @@ class AttributeTemplateBase(BaseModel):
     is_required: bool = Field(False, description="Indica se o atributo é obrigatório.")
     is_filterable: bool = Field(
         False, description="Indica se o atributo pode ser usado para filtros."
+    )
+    collect_in_ai: bool = Field(
+        True,
+        description="Indica se o atributo deve orientar coleta e sugestoes no modo IA.",
     )
     display_order: int = Field(0, description="Ordem de exibição do atributo.")
 
@@ -460,6 +489,7 @@ class ProdutoResponse(ProdutoBase):
     user_id: int
     created_at: datetime
     updated_at: datetime
+    titulos_sugeridos: Optional[List[str]] = None
     fornecedor: Optional[FornecedorResponse] = None
     product_type: Optional[ProductTypeResponse] = None
     log_enriquecimento_web: Optional[Any] = None
@@ -723,6 +753,78 @@ class RecentActivity(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DashboardShortcut(BaseModel):
+    """Represent one shortcut card in the authenticated user dashboard."""
+
+    label: str
+    description: Optional[str] = None
+    route: str
+
+
+class DashboardMeResponse(BaseModel):
+    """Represent the non-admin dashboard payload for the authenticated user."""
+
+    plano_nome: str
+    product_experience_mode: Literal["basic", "complete"]
+    limites: Dict[str, int]
+    uso_mes_atual: Dict[str, int]
+    totais: Dict[str, int]
+    status_produtos: List[ProductStatusCount]
+    atividade_recente: List[RegistroHistoricoResponse]
+    atalhos: List[DashboardShortcut]
+
+
+class ExternalCredentialConfigBase(BaseModel):
+    """Represent the editable payload for an external credential entry."""
+
+    provider: ExternalCredentialProviderEnum
+    secret_value: Optional[str] = None
+    config_json: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    is_active: bool = True
+
+
+class ExternalCredentialConfigUpsert(ExternalCredentialConfigBase):
+    """Represent an upsert request for company or personal credential config."""
+
+    scope_type: ExternalCredentialScopeEnum
+
+
+class ExternalCredentialConfigResponse(ExternalCredentialConfigBase):
+    """Represent a credential config returned by the API without exposing raw subject internals."""
+
+    id: int
+    scope_type: ExternalCredentialScopeEnum
+    source_label: str
+    secret_masked: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EffectiveCredentialSource(BaseModel):
+    """Represent the effective credential source for one provider."""
+
+    provider: ExternalCredentialProviderEnum
+    source: Literal["system", "company", "user", "none"]
+    source_label: str
+    configured: bool
+    description: Optional[str] = None
+    company_identifier: Optional[str] = None
+    has_secret: bool = False
+    config_json: Optional[Dict[str, Any]] = None
+
+
+class CredentialsOverviewResponse(BaseModel):
+    """Represent all credential settings visible to the authenticated user."""
+
+    company_identifier: Optional[str] = None
+    company_credentials: List[ExternalCredentialConfigResponse] = []
+    user_credentials: List[ExternalCredentialConfigResponse] = []
+    effective_sources: List[EffectiveCredentialSource] = []
 
 # ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):

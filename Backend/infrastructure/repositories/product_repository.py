@@ -19,6 +19,9 @@ from Backend.models import (
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
 )
+from Backend.infrastructure.repositories.runtime_compatibility_repository import (
+    ensure_attribute_templates_collect_in_ai,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +36,7 @@ class ProductRepository:
     def __init__(self, db: Session) -> None:
         """Initialize injected dependencies and runtime configuration for Product Repository."""
         self._db = db
+        ensure_attribute_templates_collect_in_ai(session=self._db)
 
     @staticmethod
     def _normalize_identifier_fields(produto_data: Dict[str, Any]) -> None:
@@ -80,6 +84,7 @@ class ProductRepository:
         status_enriquecimento_web: Optional[StatusEnriquecimentoEnum],
         status_titulo_ia: Optional[StatusGeracaoIAEnum],
         status_descricao_ia: Optional[StatusGeracaoIAEnum],
+        enrichment_scope: Optional[str] = None,
     ):
         """Execute apply optional filters as part of this module workflow."""
         if fornecedor_id is not None:
@@ -91,11 +96,62 @@ class ProductRepository:
                 func.lower(Produto.categoria_original).ilike(f"%{categoria.lower()}%")
             )
         if status_enriquecimento_web:
-            query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
+            if status_enriquecimento_web == StatusEnriquecimentoEnum.FALHA:
+                query = query.filter(
+                    Produto.status_enriquecimento_web.in_(
+                        ProductRepository._failed_enrichment_statuses()
+                    )
+                )
+            else:
+                query = query.filter(Produto.status_enriquecimento_web == status_enriquecimento_web)
         if status_titulo_ia:
             query = query.filter(Produto.status_titulo_ia == status_titulo_ia)
         if status_descricao_ia:
             query = query.filter(Produto.status_descricao_ia == status_descricao_ia)
+        query = ProductRepository._apply_enrichment_scope_filter(query, enrichment_scope)
+        return query
+
+    @staticmethod
+    def _failed_enrichment_statuses() -> List[StatusEnriquecimentoEnum]:
+        """Return the grouped failure states exposed as a single filter in the UI."""
+        return [
+            StatusEnriquecimentoEnum.FALHA,
+            StatusEnriquecimentoEnum.FALHOU,
+            StatusEnriquecimentoEnum.FALHA_API_EXTERNA,
+            StatusEnriquecimentoEnum.FALHA_CONFIGURACAO_API_EXTERNA,
+            StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA,
+        ]
+
+    @staticmethod
+    def _apply_enrichment_scope_filter(query, enrichment_scope: Optional[str]):
+        """Apply grouped enrichment scope filters used by list and bulk-selection screens."""
+        scope = str(enrichment_scope or "").strip().lower()
+        if not scope or scope == "all":
+            return query
+        if scope == "enriched":
+            return query.filter(
+                Produto.status_enriquecimento_web.in_(
+                    [
+                        StatusEnriquecimentoEnum.CONCLUIDO,
+                        StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO,
+                        StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS,
+                    ]
+                )
+            )
+        if scope == "pending":
+            return query.filter(
+                Produto.status_enriquecimento_web.in_(
+                    [
+                        StatusEnriquecimentoEnum.NAO_INICIADO,
+                        StatusEnriquecimentoEnum.PENDENTE,
+                        StatusEnriquecimentoEnum.EM_PROGRESSO,
+                    ]
+                )
+            )
+        if scope == "failed":
+            return query.filter(
+                Produto.status_enriquecimento_web.in_(ProductRepository._failed_enrichment_statuses())
+            )
         return query
 
     @staticmethod
@@ -290,6 +346,7 @@ class ProductRepository:
         status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+        enrichment_scope: Optional[str] = None,
     ) -> List[Produto]:
         """Retrieve produtos by user using the current service dependencies."""
         query = self._db.query(Produto).options(
@@ -311,6 +368,7 @@ class ProductRepository:
             status_enriquecimento_web=status_enriquecimento_web,
             status_titulo_ia=status_titulo_ia,
             status_descricao_ia=status_descricao_ia,
+            enrichment_scope=enrichment_scope,
         )
         query = self._apply_ordering(query, sort_by, sort_order)
         return query.offset(skip).limit(limit).all()
@@ -327,6 +385,7 @@ class ProductRepository:
         status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
         status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
         status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+        enrichment_scope: Optional[str] = None,
     ) -> int:
         """Execute count produtos by user as part of this module workflow."""
         query = self._db.query(func.count(Produto.id))
@@ -345,10 +404,45 @@ class ProductRepository:
             status_enriquecimento_web=status_enriquecimento_web,
             status_titulo_ia=status_titulo_ia,
             status_descricao_ia=status_descricao_ia,
+            enrichment_scope=enrichment_scope,
         )
 
         count = query.scalar()
         return count if count is not None else 0
+
+    def list_produto_ids_by_user(
+        self,
+        *,
+        user_id: Optional[int],
+        is_admin: bool,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+        enrichment_scope: Optional[str] = None,
+    ) -> List[int]:
+        """Return all product IDs for the current filtered result set."""
+        query = self._db.query(Produto.id)
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Produto.user_id == user_id)
+        query = self._apply_search_filter(query, search)
+        query = self._apply_optional_filters(
+            query=query,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            enrichment_scope=enrichment_scope,
+        )
+        query = self._apply_ordering(query, "id", "asc")
+        return [produto_id for (produto_id,) in query.all()]
 
     def search_produtos_for_index(
         self,

@@ -24,9 +24,36 @@ from Backend.database import (
 )  # Assume que database.py define Base = declarative_base()
 from datetime import datetime, timezone  # Corrigido para importar timezone
 import enum
+import re
+import unicodedata
+
+
+def normalize_company_identifier(value: str | None) -> str | None:
+    """Normalize company names into a stable identifier for shared credential lookup."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    folded = re.sub(r"[^a-zA-Z0-9]+", "-", folded.lower()).strip("-")
+    return folded or None
 
 
 # Definição dos Enums Python
+class ExternalCredentialScopeEnum(str, enum.Enum):
+    """Represent supported scopes for externally billed credentials."""
+
+    COMPANY = "company"
+    USER = "user"
+
+
+class ExternalCredentialProviderEnum(str, enum.Enum):
+    """Represent supported providers for client-managed credentials."""
+
+    OPENAI = "openai"
+    GOOGLE_GEMINI = "google_gemini"
+    GOOGLE_CSE = "google_cse"
+
+
 class StatusEnriquecimentoEnum(str, enum.Enum):
     """Represent Status Enriquecimento Enum and centralize its responsibilities inside this module."""
     NAO_INICIADO = "NAO_INICIADO"
@@ -160,6 +187,21 @@ class User(Base):
         UniqueConstraint("provider", "provider_user_id", name="uq_provider_user_id"),
     )
 
+    @property
+    def company_identifier(self) -> str | None:
+        """Return a normalized company identifier for shared configuration lookup."""
+        return normalize_company_identifier(self.nome_empresa)
+
+    @property
+    def product_experience_mode(self) -> str:
+        """Derive the product experience from plan and privileges."""
+        if self.is_superuser:
+            return "complete"
+        plano_nome = str(getattr(getattr(self, "plano", None), "nome", "") or "").strip().lower()
+        if plano_nome in {"pro", "enterprise", "empresarial"}:
+            return "complete"
+        return "basic"
+
 
 # Modelo de Role (Função/Papel do usuário)
 class Role(Base):
@@ -203,6 +245,45 @@ class Plano(Base):
     usuarios = relationship("User", back_populates="plano")
 
 
+class ExternalCredentialConfig(Base):
+    """Store client-provided API credentials by company or user override scope."""
+
+    __tablename__ = "external_credential_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope_type = Column(
+        SQLAlchemyEnum(ExternalCredentialScopeEnum),
+        nullable=False,
+        default=ExternalCredentialScopeEnum.COMPANY,
+    )
+    provider = Column(
+        SQLAlchemyEnum(ExternalCredentialProviderEnum),
+        nullable=False,
+    )
+    company_identifier = Column(String, nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    secret_value = Column(Text, nullable=True)
+    config_json = Column(MutableDict.as_mutable(JSON), nullable=True)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user = relationship("User", backref=backref("external_credentials", cascade="all, delete-orphan"))
+
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_type",
+            "provider",
+            "company_identifier",
+            "user_id",
+            name="uq_external_credential_scope_provider_subject",
+        ),
+    )
+
+
 # Modelo de Fornecedor
 class Fornecedor(Base):
     """Represent Fornecedor and centralize its responsibilities inside this module."""
@@ -216,6 +297,7 @@ class Fornecedor(Base):
     site_url = Column(
         String, nullable=True
     )  # Alterado de Text para String, se apropriado
+    logo_url = Column(String, nullable=True)
     termos_contratuais = Column(Text, nullable=True)
     contato_principal = Column(String, nullable=True)
     observacoes = Column(Text, nullable=True)
@@ -319,6 +401,12 @@ class AttributeTemplate(Base):
         comment="Lista de opções para select/multiselect, armazenada como JSON: ['Op1', 'Op2']",
     )  # Armazenar como JSON array
     is_required = Column(Boolean, default=False)
+    collect_in_ai = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Indica se este atributo deve orientar coleta e sugestoes no modo IA.",
+    )
     is_filterable = Column(
         Boolean, default=False
     )  # Se pode ser usado para filtros na loja
@@ -458,6 +546,26 @@ class Produto(Base):
         UniqueConstraint("user_id", "sku", name="uq_produtos_user_sku"),
         UniqueConstraint("user_id", "ean", name="uq_produtos_user_ean"),
     )
+
+    @property
+    def titulos_sugeridos(self):
+        """Expose generated title suggestions from raw web artifacts without requiring a schema migration."""
+        raw_data = self.dados_brutos_web if isinstance(self.dados_brutos_web, dict) else {}
+        titles = raw_data.get("titulos_sugeridos_gerados")
+        if not isinstance(titles, list):
+            return None
+        normalized = []
+        seen = set()
+        for item in titles:
+            text = " ".join(str(item or "").strip().split())
+            if not text:
+                continue
+            folded = text.lower()
+            if folded in seen:
+                continue
+            seen.add(folded)
+            normalized.append(text)
+        return normalized or None
 
 
 # Modelo para Registro de Uso de IA

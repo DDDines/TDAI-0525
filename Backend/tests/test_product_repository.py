@@ -339,6 +339,48 @@ def test_product_repository_listing_filters_search_status_and_admin_guards():
         Base.metadata.drop_all(bind=engine)
 
 
+def test_product_repository_groups_failed_web_statuses_when_filter_uses_falha():
+    engine, session = _build_session()
+    try:
+        user = _create_user(session, email="owner-failed@example.com")
+        repo = ProductRepository(session)
+
+        api_failure = _create_product(
+            session,
+            user_id=user.id,
+            nome_base="Produto API",
+            status_enriquecimento_web=models.StatusEnriquecimentoEnum.FALHA_API_EXTERNA,
+        )
+        no_source = _create_product(
+            session,
+            user_id=user.id,
+            nome_base="Produto Sem Fonte",
+            status_enriquecimento_web=models.StatusEnriquecimentoEnum.NENHUMA_FONTE_ENCONTRADA,
+        )
+        _create_product(
+            session,
+            user_id=user.id,
+            nome_base="Produto OK",
+            status_enriquecimento_web=models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO,
+        )
+
+        filtered = repo.get_produtos_by_user(
+            user_id=user.id,
+            is_admin=False,
+            status_enriquecimento_web=models.StatusEnriquecimentoEnum.FALHA,
+        )
+
+        assert {item.id for item in filtered} == {api_failure.id, no_source.id}
+        assert repo.count_produtos_by_user(
+            user_id=user.id,
+            is_admin=False,
+            status_enriquecimento_web=models.StatusEnriquecimentoEnum.FALHA,
+        ) == 2
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)
+
+
 def test_product_repository_update_delete_get_or_create_and_scalar_none():
     engine, session = _build_session()
     try:

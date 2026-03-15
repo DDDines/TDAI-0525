@@ -17,6 +17,8 @@ def test_suite_builds_expected_case_list():
     args = MODULE.parse_args.__globals__["argparse"].Namespace(
         base_url="http://127.0.0.1:8017",
         lm_model="google/gemma-3-12b",
+        eval_max_cases=0,
+        workflow_max_cases=0,
         report_path="report.json",
     )
 
@@ -29,6 +31,23 @@ def test_suite_builds_expected_case_list():
         "catalog_sharperbags_rejected",
     ]
     assert "--expect-no-products" in cases[-1]["command"]
+
+
+def test_suite_builds_case_list_with_local_smoke_limits():
+    args = MODULE.parse_args.__globals__["argparse"].Namespace(
+        base_url="http://127.0.0.1:8000",
+        lm_model="google/gemma-3-12b",
+        eval_max_cases=6,
+        workflow_max_cases=8,
+        report_path="report.json",
+    )
+
+    cases = MODULE._case_command(args)
+
+    assert "--max-cases" in cases[0]["command"]
+    assert "6" in cases[0]["command"]
+    assert "--max-cases" in cases[1]["command"]
+    assert "8" in cases[1]["command"]
 
 
 def test_run_case_reports_stdout_and_success(monkeypatch):

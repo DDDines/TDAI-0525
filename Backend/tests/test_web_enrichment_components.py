@@ -14,6 +14,7 @@ from Backend.application.services.web_enrichment_components import (
     WebEnrichmentConfigInspector,
     WebEnrichmentFinalizationService,
     WebEnrichmentQueryPlanner,
+    WebEnrichmentSearchPlan,
     WebEnrichmentStatusResolver,
 )
 
@@ -101,6 +102,24 @@ class _TopLevelFunctionSurface:
         assert snapshot.openai_api_configurada is False
         assert snapshot.busca_web_disponivel is True
 
+    def test_config_inspector_considers_lm_studio_as_system_llm():
+        """Treat LM Studio as a valid system-wide OpenAI-compatible provider."""
+        inspector = WebEnrichmentConfigInspector()
+        user = SimpleNamespace(chave_openai_pessoal=None)
+        settings = SimpleNamespace(
+            AI_PROVIDER="lm_studio",
+            OPENAI_API_KEY=None,
+            GOOGLE_CSE_API_KEY=None,
+            GOOGLE_CSE_ID=None,
+        )
+        extractor = SimpleNamespace(busca_publica_disponivel=lambda: False)
+
+        snapshot = inspector.inspect(user=user, settings=settings, web_extractor=extractor)
+        assert snapshot.openai_user_configurada is False
+        assert snapshot.openai_system_configurada is True
+        assert snapshot.openai_api_configurada is True
+        assert snapshot.busca_web_disponivel is False
+
     def test_query_planner_override_has_priority():
         """Run test query planner override has priority in this workflow."""
         planner = WebEnrichmentQueryPlanner()
@@ -181,6 +200,42 @@ class _TopLevelFunctionSurface:
         assert any("RochParts" in item for item in candidates)
         assert any("peca automotiva" in item for item in candidates)
 
+    def test_query_planner_builds_supplier_first_plan_and_direct_urls():
+        """Prioritize supplier-domain queries and render direct supplier search URLs when configured."""
+        planner = WebEnrichmentQueryPlanner()
+        produto = SimpleNamespace(
+            nome_base="Tela Central do Painel Superior",
+            sku="236331",
+            ean="7891234567890",
+            fornecedor=SimpleNamespace(
+                nome="Amalcaburio",
+                site_url="https://catalogo.amalcaburio.com.br",
+                link_busca_padrao="https://catalogo.amalcaburio.com.br/busca?q={query_encoded}",
+            ),
+            dados_brutos_web={"codigo_original": "1459134"},
+            dynamic_attributes={"aplicacao": "Scania Serie 5"},
+        )
+
+        plan = planner.build_search_plan(
+            db_produto_obj=produto,
+            termos_busca_override=None,
+        )
+
+        assert isinstance(plan, WebEnrichmentSearchPlan)
+        assert plan.supplier_domain == "catalogo.amalcaburio.com.br"
+        assert plan.query_candidates[0].startswith("site:catalogo.amalcaburio.com.br ")
+        assert any("Tela Central do Painel Superior 1459134" in item for item in plan.query_candidates[:8])
+        assert any("site:catalogo.amalcaburio.com.br \"Tela Central do Painel Superior\"" in item for item in plan.query_candidates[:8])
+        assert any(
+            item.startswith("site:catalogo.amalcaburio.com.br filetype:pdf ")
+            for item in plan.query_candidates
+        )
+        assert any(
+            item.startswith("https://catalogo.amalcaburio.com.br/busca?q=")
+            for item in plan.direct_candidate_urls
+        )
+        assert any("Tela+Central+do+Painel+Superior" in item for item in plan.direct_candidate_urls)
+
     def test_status_resolver_handles_partial_without_openai():
         """Run test status resolver handles partial without openai in this workflow."""
         resolver = WebEnrichmentStatusResolver()
@@ -193,6 +248,20 @@ class _TopLevelFunctionSurface:
             urls_a_processar=["https://example.com/item"],
         )
         assert status == _FakeStatus.CONCLUIDO_COM_DADOS_PARCIAIS
+
+    def test_status_resolver_treats_basic_mode_as_success_when_data_was_collected():
+        """Explicit basic mode should not be marked as partial when the user opted out of IA."""
+        resolver = WebEnrichmentStatusResolver()
+        status = resolver.resolve(
+            models=_FakeModels,
+            status_para_salvar_no_final=_FakeStatus.FALHOU,
+            dados_coletados_de_fontes_web=True,
+            openai_api_configurada=False,
+            busca_web_disponivel=True,
+            urls_a_processar=["https://example.com/item"],
+            usar_ia=False,
+        )
+        assert status == _FakeStatus.CONCLUIDO_SUCESSO
 
     def test_status_resolver_handles_no_sources():
         """Run test status resolver handles no sources in this workflow."""
@@ -306,6 +375,46 @@ class _TopLevelFunctionSurface:
             "Resumo de aplicação: 0 aplicado(s), 1 ignorado(s).",
         ]
 
+    def test_finalization_service_rebaixa_status_quando_validador_descarta_payload():
+        """Treat rejected payloads as no valid source found for visible enrichment."""
+        crud_produtos = _FakeCrudProdutos()
+        finalizer = WebEnrichmentFinalizationService(
+            normalize_human_text=lambda txt: txt.strip(),
+            build_payload_enriquecimento_visivel=lambda **kwargs: (
+                {},
+                [],
+                ["validacao_relevancia=conteudo sem a marca de referencia do produto"],
+            ),
+            schemas=_FakeSchemas,
+            product_repository_factory=lambda _session: crud_produtos,
+            models=_FakeModels,
+        )
+        produto = SimpleNamespace(
+            id=90,
+            status_enriquecimento_web=_FakeStatus.CONCLUIDO_SUCESSO,
+            dynamic_attributes={},
+        )
+
+        final_status = finalizer.apply(
+            db=object(),
+            db_produto_obj=produto,
+            status_para_salvar_no_final=_FakeStatus.CONCLUIDO_SUCESSO,
+            dados_extraidos_agregados={},
+            log_mensagens=[],
+        )
+
+        assert final_status == _FakeStatus.NENHUMA_FONTE_ENCONTRADA
+        _, produto_update = crud_produtos.calls[0]
+        assert (
+            produto_update.payload["status_enriquecimento_web"]
+            == _FakeStatus.NENHUMA_FONTE_ENCONTRADA.value
+        )
+        assert any(
+            "descartado pelo validador de relevancia" in message
+            for message in produto_update.payload["log_enriquecimento_web"]["historico_mensagens"]
+        )
+
+
 test_config_snapshot_as_log_line_formats_flags = _TopLevelFunctionSurface.test_config_snapshot_as_log_line_formats_flags
 test_config_inspector_reads_sources = _TopLevelFunctionSurface.test_config_inspector_reads_sources
 test_config_inspector_ignora_openai_malformada = _TopLevelFunctionSurface.test_config_inspector_ignora_openai_malformada
@@ -323,6 +432,9 @@ test_status_resolver_cobre_demais_ramos = _TopLevelFunctionSurface.test_status_r
 test_finalization_service_updates_payload_and_normalizes_logs = _TopLevelFunctionSurface.test_finalization_service_updates_payload_and_normalizes_logs
 test_finalization_service_cobre_sem_campos_visiveis_e_com_dynamic_attributes = (
     _TopLevelFunctionSurface.test_finalization_service_cobre_sem_campos_visiveis_e_com_dynamic_attributes
+)
+test_finalization_service_rebaixa_status_quando_validador_descarta_payload = (
+    _TopLevelFunctionSurface.test_finalization_service_rebaixa_status_quando_validador_descarta_payload
 )
 
 

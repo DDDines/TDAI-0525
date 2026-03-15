@@ -353,7 +353,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
         lambda row, mapping=None: row,
     )
 
-    async def llm_sem_identidade(text):
+    async def llm_sem_identidade(**kwargs):
         return {"descricao_original": "sem identidade"}
 
     runtime = file_processing.PdfIngestionRuntime(
@@ -369,7 +369,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     )
     assert any("payload sem identidade" in item.lower() for item in result[0]["log_pdf"])
 
-    async def llm_formato_invalido(text):
+    async def llm_formato_invalido(**kwargs):
         return "payload invalido"
 
     runtime = file_processing.PdfIngestionRuntime(
@@ -385,7 +385,7 @@ async def test_pdf_ingestion_runtime_covers_text_fallback_llm_and_non_llm_branch
     )
     assert any("formato inesperado" in item.lower() for item in result[0]["log_pdf"])
 
-    async def llm_com_erro(text):
+    async def llm_com_erro(**kwargs):
         raise RuntimeError("llm down")
 
     runtime = file_processing.PdfIngestionRuntime(

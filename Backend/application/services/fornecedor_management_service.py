@@ -144,6 +144,23 @@ class FornecedorManagementService:
             "limit": limit,
         }
 
+    def list_fornecedor_ids(
+        self,
+        *,
+        current_user: Any,
+        termo_busca: str | None,
+    ) -> dict[str, Any]:
+        """Return all filtered supplier IDs for cross-page bulk actions."""
+        ids = self._fornecedor_repo.list_fornecedor_ids_by_user(
+            user_id=current_user.id,
+            is_admin=current_user.is_superuser,
+            search=termo_busca,
+        )
+        return {
+            "ids": ids,
+            "total_items": len(ids),
+        }
+
     def update_fornecedor(
         self,
         *,

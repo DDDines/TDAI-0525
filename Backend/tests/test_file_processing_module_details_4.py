@@ -118,6 +118,35 @@ def test_pdf_text_and_confidence_helpers_cover_remaining_branches():
     assert runtime._is_weak_name_only_identity("___") is True
 
 
+def test_pdf_ingestion_runtime_builds_prioritized_multimodal_page_context(monkeypatch):
+    runtime = file_processing.PdfIngestionRuntime()
+    monkeypatch.setenv("PDF_LLM_MAX_PAGE_IMAGES", "2")
+    monkeypatch.setenv("PDF_LLM_PAGE_SCAN_LIMIT", "4")
+    monkeypatch.setattr(
+        file_processing.PdfIngestionRuntime,
+        "_render_pdf_page_image_data_url",
+        staticmethod(lambda page: f"img://{page._text.split()[0].lower()}"),
+    )
+
+    pdf = SimpleNamespace(
+        pages=[
+            _FakePdfPage(text="Catalogo geral sumario institucional pagina 1"),
+            _FakePdfPage(text="Produto Bosch referencia 0580454087B aplicacao motores flex"),
+            _FakePdfPage(text="Especificacoes tecnicas codigo SKU 12972WV87B conteudo embalagem"),
+            _FakePdfPage(text="Quem somos historia da empresa"),
+        ]
+    )
+
+    result = runtime._build_pdf_page_image_context_urls(
+        pdf=pdf,
+        page_numbers=[1, 2, 3, 4],
+        current_page_number=2,
+        current_page_bbox=None,
+    )
+
+    assert result == ["img://produto", "img://especificacoes"]
+
+
 @pytest.mark.asyncio
 async def test_processar_arquivo_pdf_covers_none_pdf_invalid_pages_and_outer_failure(monkeypatch):
     runtime = file_processing.PdfIngestionRuntime()
@@ -343,16 +372,48 @@ async def test_processar_arquivo_pdf_covers_structured_text_without_identity_and
     )
     assert "Nenhum dado de produto pode ser extraido" in result[0]["erro_processamento_pdf"]
 
-    async def fake_llm(page_text):
+    async def fake_llm(**kwargs):
+        assert kwargs["texto_pagina"]
+        assert kwargs["page_image_data_urls"]
         return {"nome_base": "Produto via LLM", "sku_original": "LLM-1"}
 
     runtime = file_processing.PdfIngestionRuntime(
         web_data_extractor_service=SimpleNamespace(extrair_dados_produto_com_llm=fake_llm)
     )
     monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
+    monkeypatch.setattr(runtime, "_render_pdf_page_image_data_url", lambda page: "data:image/png;base64,AAA")
+    monkeypatch.setattr(runtime, "_build_pdf_page_image_context_urls", lambda **kwargs: ["data:image/png;base64,AAA"])
     result_llm = await runtime.processar_arquivo_pdf(
         conteudo_arquivo=b"%PDF-1.4",
         usar_llm=True,
         extraction_mode="ia",
     )
     assert result_llm[0]["nome_base"] == "Produto via LLM"
+
+    captured = {}
+
+    async def fake_visual_llm(**kwargs):
+        captured.update(kwargs)
+        return {"nome_base": "Produto via Visao", "sku_original": "VIS-1"}
+
+    page_no_text = _FakePdfPage(text="", tables=[])
+    monkeypatch.setattr(
+        file_processing.pdfplumber,
+        "open",
+        lambda *args, **kwargs: _FakePdfContext(SimpleNamespace(pages=[page_no_text])),
+    )
+    runtime = file_processing.PdfIngestionRuntime(
+        web_data_extractor_service=SimpleNamespace(extrair_dados_produto_com_llm=fake_visual_llm)
+    )
+    monkeypatch.setattr(runtime, "_extract_structured_rows_from_text", lambda page_text: [])
+    monkeypatch.setattr(runtime, "_render_pdf_page_image_data_url", lambda page: "data:image/png;base64,AAA")
+    monkeypatch.setattr(runtime, "_build_pdf_page_image_context_urls", lambda **kwargs: ["data:image/png;base64,AAA"])
+    result_visual = await runtime.processar_arquivo_pdf(
+        conteudo_arquivo=b"%PDF-1.4",
+        usar_llm=True,
+        extraction_mode="ia",
+    )
+    assert result_visual[0]["nome_base"] == "Produto via Visao"
+    assert captured["texto_pagina"] is None
+    assert captured["page_image_data_url"] == "data:image/png;base64,AAA"
+    assert captured["page_image_data_urls"] == ["data:image/png;base64,AAA"]

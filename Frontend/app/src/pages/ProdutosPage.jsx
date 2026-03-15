@@ -7,16 +7,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  LuBox,
+  LuBoxes,
+  LuCircleAlert,
+  LuPlus,
+  LuSearch,
+} from 'react-icons/lu';
 import ProductTable from '../components/produtos/ProductTable';
 import Modal from '../components/common/Modal';
 import ProductEditModal from '../components/ProductEditModal';
 import { useAppExperience } from '../contexts/AppExperienceContext';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
-import { showErrorToast, showSuccessToast, showInfoToast } from '../utils/notifications';
+import { showErrorToast } from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
-import LoadingPopup from '../components/common/LoadingPopup.jsx';
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import OperationalStatChip from '../components/common/OperationalStatChip.jsx';
 import {
   normalizeProductListPayload,
   resolveGenerationHandler,
@@ -36,26 +44,61 @@ const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
 ]);
 const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
 const WEB_ENRICHMENT_MAX_POLLS = 120;
+const FAILURE_STATUSES = new Set([
+  'FALHA',
+  'FALHOU',
+  'FALHA_API_EXTERNA',
+  'FALHA_CONFIGURACAO_API_EXTERNA',
+  'NENHUMA_FONTE_ENCONTRADA',
+]);
+
+function formatProductSelectionSummary(count, scope) {
+  if (count <= 0) {
+    return '';
+  }
+  if (scope === 'all') {
+    return `${count} item(ns) selecionado(s) (todos os resultados)`;
+  }
+  if (scope === 'page') {
+    return `${count} item(ns) selecionado(s) (pagina atual)`;
+  }
+  return `${count} item(ns) selecionado(s) (selecao manual)`;
+}
+
+function hasFailureStatus(statusValue) {
+  return FAILURE_STATUSES.has(String(statusValue || '').toUpperCase());
+}
 
 function ProdutosPage() {
   const { effectiveMode } = useAppExperience();
   const showAiFeatures = effectiveMode === 'complete';
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const modalQueryId = searchParams.get('id');
+
+  const initialPage = Math.max(Number.parseInt(searchParams.get('page') || '1', 10) - 1, 0);
+  const initialLimit = Math.max(Number.parseInt(searchParams.get('limit') || '10', 10), 1);
+  const initialSortBy = searchParams.get('sort_by') || 'id';
+  const initialSortOrder = (searchParams.get('sort_order') || 'desc').toLowerCase();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [produtoParaEditar, setProdutoParaEditar] = useState(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [limitPerPage, setLimitPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'descending' });
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [limitPerPage, setLimitPerPage] = useState(initialLimit);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [sortConfig, setSortConfig] = useState({
+    key: initialSortBy,
+    direction: initialSortOrder === 'asc' ? 'ascending' : 'descending',
+  });
   const [selectedProdutos, setSelectedProdutos] = useState(new Set());
-  const [filtroStatusEnriquecimento, setFiltroStatusEnriquecimento] = useState('');
-  const [filtroStatusTituloIA, setFiltroStatusTituloIA] = useState('');
-  const [filtroStatusDescricaoIA, setFiltroStatusDescricaoIA] = useState('');
+  const [selectionScope, setSelectionScope] = useState('none');
+  const [filtroStatusEnriquecimento, setFiltroStatusEnriquecimento] = useState(searchParams.get('status_enriquecimento_web') || '');
+  const [filtroStatusTituloIA, setFiltroStatusTituloIA] = useState(searchParams.get('status_titulo_ia') || '');
+  const [filtroStatusDescricaoIA, setFiltroStatusDescricaoIA] = useState(searchParams.get('status_descricao_ia') || '');
   const [filtroFornecedor] = useState('');
-  const [filtroTipoProduto, setFiltroTipoProduto] = useState('');
+  const [filtroTipoProduto, setFiltroTipoProduto] = useState(searchParams.get('product_type_id') || '');
+  const [usarIAEnriquecimento, setUsarIAEnriquecimento] = useState(false);
   const pendingRefreshTimeoutsRef = React.useRef([]);
   const webStatusPollRunRef = React.useRef(0);
 
@@ -91,6 +134,19 @@ function ProdutosPage() {
     showAiFeatures,
   ]);
 
+  const buildReturnToUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set('page', String(currentPage + 1));
+    params.set('limit', String(limitPerPage));
+    const query = buildProductNavigationQuery();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.set(key, String(value));
+      }
+    });
+    return `/produtos?${params.toString()}`;
+  }, [buildProductNavigationQuery, currentPage, limitPerPage]);
+
   const productListParams = useMemo(
     () => ({
       ...buildProductNavigationQuery(),
@@ -119,6 +175,36 @@ function ProdutosPage() {
   const refreshProdutos = useCallback(async () => {
     await produtosQuery.refetch();
   }, [produtosQuery]);
+
+  const clearSelectionState = useCallback(() => {
+    setSelectedProdutos(new Set());
+    setSelectionScope('none');
+  }, []);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    nextParams.set('page', String(currentPage + 1));
+    nextParams.set('limit', String(limitPerPage));
+    if (modalQueryId) {
+      nextParams.set('id', modalQueryId);
+    }
+    const query = buildProductNavigationQuery();
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        nextParams.set(key, String(value));
+      }
+    });
+    if (nextParams.toString() !== searchParams.toString()) {
+      setSearchParams(nextParams, { replace: true });
+    }
+  }, [
+    buildProductNavigationQuery,
+    currentPage,
+    limitPerPage,
+    modalQueryId,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const updateCurrentProdutosData = useCallback((updater) => {
     queryClient.setQueryData(produtosQueryKey, (previous) => {
@@ -159,9 +245,8 @@ function ProdutosPage() {
     webStatusPollRunRef.current += 1;
   }, [clearPendingRefreshTimeouts]);
 
-  const scheduleProdutosRefresh = useCallback((message) => {
+  const scheduleProdutosRefresh = useCallback(() => {
     schedulePendingRefreshTimeout(() => {
-      showInfoToast(message);
       void refreshProdutos();
     }, 15000);
   }, [refreshProdutos, schedulePendingRefreshTimeout]);
@@ -194,6 +279,7 @@ function ProdutosPage() {
       state: {
         productIds: produtos.map((item) => item.id),
         productQuery: buildProductNavigationQuery(),
+        returnTo: buildReturnToUrl(),
       },
     });
   };
@@ -211,7 +297,9 @@ function ProdutosPage() {
           const prod = await productService.getProdutoById(productId);
           queryClient.setQueryData(queryKeys.produto(productId), prod);
           handleOpenModal(prod);
-          navigate('/produtos', { replace: true });
+          const nextParams = new URLSearchParams(searchParams);
+          nextParams.delete('id');
+          setSearchParams(nextParams, { replace: true });
         } catch (err) {
           const msg = err.response?.data?.detail || err.message || 'Falha ao carregar produto.';
           showErrorToast(msg);
@@ -219,7 +307,7 @@ function ProdutosPage() {
       };
       void openById();
     }
-  }, [navigate, queryClient, searchParams]);
+  }, [queryClient, searchParams, setSearchParams]);
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -228,6 +316,7 @@ function ProdutosPage() {
     }
     setSortConfig({ key, direction });
     setCurrentPage(0);
+    clearSelectionState();
   };
 
   const handleSelectProduto = (produtoId) => {
@@ -240,13 +329,30 @@ function ProdutosPage() {
       }
       return newSelected;
     });
+    setSelectionScope('custom');
   };
 
   const handleSelectAllProdutos = (isChecked) => {
     if (isChecked) {
       setSelectedProdutos(new Set(produtos.map((produto) => produto.id)));
+      setSelectionScope('page');
     } else {
-      setSelectedProdutos(new Set());
+      clearSelectionState();
+    }
+  };
+
+  const handleSelectAllResults = async (isChecked) => {
+    if (!isChecked) {
+      clearSelectionState();
+      return;
+    }
+    try {
+      const response = await productService.getProdutosIds(buildProductNavigationQuery());
+      const ids = Array.isArray(response?.ids) ? response.ids : [];
+      setSelectedProdutos(new Set(ids));
+      setSelectionScope('all');
+    } catch (error) {
+      showErrorToast(error.message || 'Falha ao selecionar todos os resultados.');
     }
   };
 
@@ -256,8 +362,7 @@ function ProdutosPage() {
     }
     try {
       await productService.batchDeleteProdutos(Array.from(selectedProdutos));
-      showSuccessToast(`${selectedProdutos.size} produto(s) deletado(s) com sucesso!`);
-      setSelectedProdutos(new Set());
+      clearSelectionState();
       await queryClient.invalidateQueries({ queryKey: ['produtos'] });
     } catch (err) {
       showErrorToast(err.response?.data?.detail || err.message || 'Falha ao deletar produtos.');
@@ -337,23 +442,24 @@ function ProdutosPage() {
       });
     }
 
-    showInfoToast(
-      'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
-    );
     await queryClient.invalidateQueries({ queryKey: ['produtos'] });
   }, [mergeProdutosById, queryClient, schedulePendingRefreshTimeout]);
 
   const handleEnrichSelectedWeb = async () => {
     const idsToProcess = Array.from(selectedProdutos);
-    setSelectedProdutos(new Set());
+    clearSelectionState();
     updateLocalProductStatus(new Set(idsToProcess), 'status_enriquecimento_web', 'PENDENTE');
-    showInfoToast(`Enriquecimento web iniciado para ${idsToProcess.length} produto(s).`);
-
     const failedIds = new Set();
     await Promise.all(
       idsToProcess.map(async (produtoId) => {
         try {
-          await productService.iniciarEnriquecimentoWebProduto(produtoId);
+          if (showAiFeatures && usarIAEnriquecimento) {
+            await productService.iniciarEnriquecimentoWebProduto(produtoId, {
+              usarIA: true,
+            });
+          } else {
+            await productService.iniciarEnriquecimentoWebProduto(produtoId);
+          }
         } catch (err) {
           failedIds.add(String(produtoId));
           showErrorToast(
@@ -375,13 +481,12 @@ function ProdutosPage() {
 
   const handleGenerateContentForSelected = async (contentType) => {
     const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
-    showInfoToast(`Geração de ${contentTypePlural} iniciada para ${selectedProdutos.size} produto(s).`);
 
     const statusField = `status_${contentType}_ia`;
     updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
 
     const idsToProcess = Array.from(selectedProdutos);
-    setSelectedProdutos(new Set());
+    clearSelectionState();
     const generationHandler = resolveGenerationHandler(contentType, showAiFeatures, productService);
 
     for (const produtoId of idsToProcess) {
@@ -397,13 +502,36 @@ function ProdutosPage() {
       }
     }
 
-    scheduleProdutosRefresh(
-      `Atualizando lista para verificar resultados da geração de ${contentTypePlural}...`
-    );
+    scheduleProdutosRefresh();
   };
 
   const totalPages = Math.ceil(totalProdutos / limitPerPage);
-
+  const produtosComFalhaNaPagina = produtos.filter((produto) =>
+    hasFailureStatus(produto.status_enriquecimento_web)
+    || hasFailureStatus(produto.status_titulo_ia)
+    || hasFailureStatus(produto.status_descricao_ia)
+  ).length;
+  const selectionSummary = formatProductSelectionSummary(selectedProdutos.size, selectionScope);
+  const productSelectionMenuItems = [
+    {
+      key: 'page',
+      label: 'Selecionar pagina atual',
+      onClick: () => handleSelectAllProdutos(true),
+      disabled: produtos.length === 0,
+    },
+    {
+      key: 'all',
+      label: 'Selecionar todos os resultados da pesquisa',
+      onClick: () => void handleSelectAllResults(true),
+      disabled: totalProdutos === 0,
+    },
+    {
+      key: 'clear',
+      label: 'Limpar selecao',
+      onClick: clearSelectionState,
+      disabled: selectedProdutos.size === 0,
+    },
+  ];
   if (error && !loadingInitial && (!produtos || produtos.length === 0)) {
     return (
       <div className="error-message">
@@ -414,34 +542,74 @@ function ProdutosPage() {
   }
 
   return (
-    <div className="app-page-shell produtos-page-shell">
-      <div className="app-page-header produtos-page-header">
-        <h2 className="app-page-heading">Meus Produtos</h2>
-        <button onClick={() => handleOpenModal(null)} className="btn-primary">
-          + Novo Produto
-        </button>
-      </div>
+    <div className="app-page-shell ops-page-shell produtos-page-shell">
+      <section className="ops-card ops-toolbar-card produtos-stats-card">
+        <div className="produtos-stats-header">
+          <div className="ops-metrics-row produtos-metrics-row">
+            <OperationalStatChip
+              icon={<LuBoxes />}
+              label="Na base"
+              value={totalProdutos}
+              tone="neutral"
+            />
+            <OperationalStatChip
+              icon={<LuBox />}
+              label="Na pagina"
+              value={produtos.length}
+              tone="info"
+            />
+            <OperationalStatChip
+              icon={<LuCircleAlert />}
+              label="Com falha"
+              value={produtosComFalhaNaPagina}
+              tone={produtosComFalhaNaPagina > 0 ? 'danger' : 'success'}
+            />
+            {selectedProdutos.size > 0 ? (
+              <OperationalStatChip
+                icon={<LuBox />}
+                label="Selecionados"
+                value={selectedProdutos.size}
+                tone="warn"
+              />
+            ) : null}
+          </div>
+          <button onClick={() => handleOpenModal(null)} className="ops-primary-btn">
+            <LuPlus />
+            Novo Produto
+          </button>
+        </div>
+      </section>
 
-      <div className="app-toolbar-card filtros-e-busca-container">
-        <input
-          type="text"
-          placeholder="Buscar por nome, SKU, EAN..."
-          value={searchTerm}
-          onChange={(event) => {
-            setSearchTerm(event.target.value);
-            setCurrentPage(0);
-          }}
-          className="search-input"
-        />
+      <section className="ops-card ops-table-card produtos-table-card">
+        <div className="produtos-list-toolbar">
+          <div className="ops-search-field produtos-search-field">
+            <div className="ops-search-input-wrap">
+              <LuSearch />
+              <input
+                id="produtos-search"
+                type="text"
+                aria-label="Buscar produtos"
+                placeholder="Buscar por nome, SKU, EAN..."
+                value={searchTerm}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setCurrentPage(0);
+                  clearSelectionState();
+                }}
+              />
+            </div>
+          </div>
 
-        <div className="filtros-dropdowns">
+          <div className="ops-filters-row produtos-filters-row">
           <select
+            id="produtos-status-filter"
             value={filtroStatusEnriquecimento}
             onChange={(event) => {
               setFiltroStatusEnriquecimento(event.target.value);
               setCurrentPage(0);
+              clearSelectionState();
             }}
-            className="filtro-select"
+            className="ops-select produtos-filter-select"
           >
             <option value="">Status</option>
             <option value="NAO_INICIADO">Não iniciado</option>
@@ -458,8 +626,9 @@ function ProdutosPage() {
                 onChange={(event) => {
                   setFiltroStatusTituloIA(event.target.value);
                   setCurrentPage(0);
+                  clearSelectionState();
                 }}
-                className="filtro-select"
+                className="ops-select produtos-filter-select"
               >
                 <option value="">Status Título IA</option>
                 <option value="NAO_INICIADO">Não iniciado</option>
@@ -474,8 +643,9 @@ function ProdutosPage() {
                 onChange={(event) => {
                   setFiltroStatusDescricaoIA(event.target.value);
                   setCurrentPage(0);
+                  clearSelectionState();
                 }}
-                className="filtro-select"
+                className="ops-select produtos-filter-select"
               >
                 <option value="">Status Descrição IA</option>
                 <option value="NAO_INICIADO">Não iniciado</option>
@@ -488,12 +658,14 @@ function ProdutosPage() {
           ) : null}
 
           <select
+            aria-label="Filtrar por tipo de produto"
             value={filtroTipoProduto}
             onChange={(event) => {
               setFiltroTipoProduto(event.target.value);
               setCurrentPage(0);
+              clearSelectionState();
             }}
-            className="filtro-select"
+            className="ops-select produtos-filter-select produtos-filter-select-wide"
             disabled={loadingProductTypes || (productTypes && productTypes.length === 0)}
           >
             <option value="">{loadingProductTypes ? 'Carregando tipos...' : 'Todos os tipos'}</option>
@@ -503,64 +675,75 @@ function ProdutosPage() {
               </option>
             ))}
           </select>
+          </div>
         </div>
 
-        <button
-          onClick={() => void refreshProdutos()}
-          className="btn btn-outline btn-sm"
-          disabled={loading}
-          title="Atualizar lista de produtos"
-        >
-          Atualizar Lista
-        </button>
-      </div>
+        {selectedProdutos.size > 0 ? (
+          <div className="ops-selection-bar produtos-selection-bar">
+            <div className="ops-selection-copy">
+              <p className="ops-selection-summary">{selectionSummary}</p>
+              {showAiFeatures ? (
+                <label className="ops-inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={usarIAEnriquecimento}
+                    onChange={(event) => setUsarIAEnriquecimento(event.target.checked)}
+                  />
+                  Usar IA no enriquecimento web
+                </label>
+              ) : null}
+            </div>
+            <div className="ops-selection-actions">
+              <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
+              <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">
+                {showAiFeatures && usarIAEnriquecimento ? 'Enriquecer Web + IA' : 'Enriquecer Web'}
+              </button>
+              <button onClick={() => void handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
+                {showAiFeatures ? 'Gerar Titulos IA' : 'Gerar Titulos'}
+              </button>
+              <button onClick={() => void handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
+                {showAiFeatures ? 'Gerar Descricoes IA' : 'Gerar Descricoes'}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-      {selectedProdutos.size > 0 ? (
-        <div className="acoes-em-lote-container">
-          <span>{selectedProdutos.size} produto(s) selecionado(s)</span>
-          <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
-          <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">Enriquecer Web</button>
-          <>
-            <button onClick={() => void handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
-              {showAiFeatures ? 'Gerar T?tulos IA' : 'Gerar T?tulos'}
-            </button>
-            <button onClick={() => void handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
-              {showAiFeatures ? 'Gerar Descri??es IA' : 'Gerar Descri??es'}
-            </button>
-          </>
-        </div>
-      ) : null}
+        {loadingInitial && (!produtos || produtos.length === 0) ? (
+          <LoadingOverlay isOpen={true} message="Carregando produtos..." />
+        ) : (
+          <ProductTable
+            produtos={produtos}
+            onEdit={handleOpenModal}
+            onViewContent={handleOpenContentView}
+            onSort={handleSort}
+            sortConfig={sortConfig}
+            onSelectProduto={handleSelectProduto}
+            selectedProdutos={selectedProdutos}
+            onSelectAllProdutos={handleSelectAllProdutos}
+            selectionMenuItems={productSelectionMenuItems}
+            showAiColumns={true}
+            loading={loading && produtos && produtos.length > 0}
+          />
+        )}
 
-      {loadingInitial && (!produtos || produtos.length === 0) ? (
-        <LoadingPopup isOpen={true} message="Carregando produtos..." />
-      ) : (
-        <ProductTable
-          produtos={produtos}
-          onEdit={handleOpenModal}
-          onViewContent={handleOpenContentView}
-          onSort={handleSort}
-          sortConfig={sortConfig}
-          onSelectProduto={handleSelectProduto}
-          selectedProdutos={selectedProdutos}
-          onSelectAllProdutos={handleSelectAllProdutos}
-          showAiColumns={true}
-          loading={loading && produtos && produtos.length > 0}
-        />
-      )}
-
-      {!loadingInitial && totalProdutos > 0 ? (
-        <PaginationControls
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => setCurrentPage(page)}
-          itemsPerPage={limitPerPage}
-          onItemsPerPageChange={(value) => {
-            setLimitPerPage(parseInt(value, 10));
-            setCurrentPage(0);
-          }}
-          totalItems={totalProdutos}
-        />
-      ) : null}
+        {!loadingInitial && totalProdutos > 0 ? (
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              clearSelectionState();
+            }}
+            itemsPerPage={limitPerPage}
+            onItemsPerPageChange={(value) => {
+              setLimitPerPage(parseInt(value, 10));
+              setCurrentPage(0);
+              clearSelectionState();
+            }}
+            totalItems={totalProdutos}
+          />
+        ) : null}
+      </section>
 
       {isModalOpen ? (
         <Modal
@@ -573,6 +756,7 @@ function ProdutosPage() {
             onClose={handleCloseModal}
             product={produtoParaEditar}
             showAiFeatures={showAiFeatures}
+            returnTo={buildReturnToUrl()}
             onOpenContentView={(produtoId) => {
               if (!produtoId) {
                 return;

@@ -66,4 +66,21 @@ describe('Sidebar', () => {
 
     expect(screen.getByText('Modo Básico')).toBeInTheDocument();
   });
+
+  test('renders a close button and supports closing when opened on mobile', () => {
+    const toggleSidebar = jest.fn();
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar
+          isOpen={true}
+          isMobileViewport={true}
+          toggleSidebar={toggleSidebar}
+        />
+      </MemoryRouter>
+    );
+
+    fireEvent.click(screen.getByLabelText(/Fechar menu/i));
+    expect(toggleSidebar).toHaveBeenCalled();
+  });
 });

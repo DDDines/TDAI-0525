@@ -11,6 +11,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from Backend import schemas
 from Backend.models import AttributeTemplate, ProductType, Produto
+from Backend.infrastructure.repositories.runtime_compatibility_repository import (
+    ensure_attribute_templates_collect_in_ai,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,7 @@ class ProductTypeRepository:
     def __init__(self, db: Session) -> None:
         """Initialize injected dependencies and runtime configuration for Product Type Repository."""
         self._db = db
+        ensure_attribute_templates_collect_in_ai(session=self._db)
 
     @staticmethod
     def _apply_product_type_search(query, search: Optional[str]):

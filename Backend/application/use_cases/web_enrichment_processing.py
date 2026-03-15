@@ -29,12 +29,17 @@ class WebEnrichmentProcessingUseCase:
         produto_id = self._require_positive_int(command.produto_id, "produto_id")
         user_id = self._require_positive_int(command.user_id, "user_id")
         termos_busca_override = self._normalize_search_terms(command.termos_busca_override)
+        usar_ia = self._normalize_use_ai(command.usar_ia)
 
-        return await self._processor(
-            produto_id=produto_id,
-            user_id=user_id,
-            termos_busca_override=termos_busca_override,
-        )
+        processor_kwargs = {
+            "produto_id": produto_id,
+            "user_id": user_id,
+            "termos_busca_override": termos_busca_override,
+        }
+        if usar_ia is not None:
+            processor_kwargs["usar_ia"] = usar_ia
+
+        return await self._processor(**processor_kwargs)
 
     async def execute(
         self,
@@ -42,12 +47,14 @@ class WebEnrichmentProcessingUseCase:
         produto_id: Any,
         user_id: Any,
         termos_busca_override: Any = None,
+        usar_ia: Any = None,
     ) -> Any:
         """Execute execute as part of this module workflow."""
         command = WebEnrichmentStartCommand(
             produto_id=produto_id,
             user_id=user_id,
             termos_busca_override=termos_busca_override,
+            usar_ia=usar_ia,
         )
         return await self.execute_command(
             command=command,
@@ -74,3 +81,17 @@ class WebEnrichmentProcessingUseCase:
             return None
         # Guarda para evitar payload enorme ou termos inviaveis.
         return text[:500]
+
+    @staticmethod
+    def _normalize_use_ai(raw_value: Any) -> Optional[bool]:
+        """Normalize explicit AI opt-in so UI and background callers behave consistently."""
+        if raw_value is None:
+            return None
+        if isinstance(raw_value, bool):
+            return raw_value
+        text = str(raw_value).strip().lower()
+        if text in {"1", "true", "sim", "yes", "on"}:
+            return True
+        if text in {"0", "false", "nao", "não", "no", "off"}:
+            return False
+        return bool(raw_value)

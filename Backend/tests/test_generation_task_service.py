@@ -334,10 +334,17 @@ def test_generation_task_service_helpers_cover_normalization_and_targets():
     merged_description = service._merge_raw_generation_data(
         current_raw={},
         tipo_geracao_principal="descricao",
-        resultado_ia="  Descricao   grande   ",
+        resultado_ia="Descricao grande\n\nResumo tecnico:\nLinha estruturada",
     )
-    assert merged_description["descricao_gerada"] == "Descricao grande"
+    assert merged_description["descricao_gerada"] == "Descricao grande\nResumo tecnico:\nLinha estruturada"
     assert "descricao_gerada_ultima_atualizacao" in merged_description
+
+    merged_encoded_description = service._merge_raw_generation_data(
+        current_raw={},
+        tipo_geracao_principal="descricao",
+        resultado_ia="Descricao%20grande\n\nResumo%20tecnico:\nLinha%20estruturada",
+    )
+    assert merged_encoded_description["descricao_gerada"] == "Descricao grande\nResumo tecnico:\nLinha estruturada"
 
     untouched = service._merge_raw_generation_data(
         current_raw="invalido",
