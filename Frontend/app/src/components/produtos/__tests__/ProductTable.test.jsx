@@ -148,7 +148,10 @@ describe('ProductTable', () => {
       screen.getByLabelText(/Enriquecimento web: Falha de API externa\. Tempo limite excedido ao consultar a fonte/i)
     ).toBeInTheDocument();
     expect(screen.getAllByText('--').length).toBeGreaterThan(1);
-    expect(screen.getByText(/Nome Base \^/)).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Nome Base' })).toHaveAttribute(
+      'data-sort-direction',
+      'ascending'
+    );
 
     expect(screen.getByLabelText(/Selecionar pagina atual/i)).not.toBeChecked();
     const rowCheckboxes = screen.getAllByRole('checkbox', { hidden: false }).filter((checkbox) =>
@@ -305,8 +308,9 @@ describe('ProductTable', () => {
       />
     );
 
-    expect(screen.getByText(/SKU v/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/SKU v/));
+    const skuHeader = screen.getByRole('columnheader', { name: 'SKU' });
+    expect(skuHeader).toHaveAttribute('data-sort-direction', 'descending');
+    fireEvent.click(skuHeader);
 
     rerender(
       <ProductTable
@@ -320,8 +324,9 @@ describe('ProductTable', () => {
       />
     );
 
-    expect(screen.getByText(/Status \^/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Status \^/));
+    const statusHeader = screen.getByRole('columnheader', { name: 'Status' });
+    expect(statusHeader).toHaveAttribute('data-sort-direction', 'ascending');
+    fireEvent.click(statusHeader);
 
     rerender(
       <ProductTable
@@ -335,8 +340,9 @@ describe('ProductTable', () => {
       />
     );
 
-    expect(screen.getByText(/Atualizado Em v/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Atualizado Em v/));
+    const updatedAtHeader = screen.getByRole('columnheader', { name: 'Atualizado Em' });
+    expect(updatedAtHeader).toHaveAttribute('data-sort-direction', 'descending');
+    fireEvent.click(updatedAtHeader);
     expect(onSort).toHaveBeenNthCalledWith(1, 'sku');
     expect(onSort).toHaveBeenNthCalledWith(2, 'status_enriquecimento_web');
     expect(onSort).toHaveBeenNthCalledWith(3, 'data_atualizacao');

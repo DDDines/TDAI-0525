@@ -34,6 +34,35 @@
   background: rgba(241, 245, 249, 0.92);
 }
 
+.sortable-header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sortable-header-icon {
+  width: 0.8rem;
+  height: 0.8rem;
+  color: rgba(100, 116, 139, 0.72);
+  opacity: 0.7;
+  transition: color 0.16s ease, opacity 0.16s ease;
+}
+
+.product-table thead th:hover .sortable-header-icon {
+  color: rgba(71, 85, 105, 0.88);
+  opacity: 0.9;
+}
+
+.sortable-header-icon.is-none {
+  opacity: 0.55;
+}
+
+.sortable-header-icon.is-ascending,
+.sortable-header-icon.is-descending {
+  color: #475569;
+  opacity: 0.9;
+}
+
 .product-table thead th.selection-column-header {
   cursor: default;
   width: 64px;
@@ -277,6 +306,19 @@ body.dark .product-table thead th {
   background: rgba(15, 23, 42, 0.72);
   border-bottom-color: rgba(51, 65, 85, 0.95);
   color: #e2e8f0;
+}
+
+body.dark .sortable-header-icon {
+  color: rgba(148, 163, 184, 0.74);
+}
+
+body.dark .product-table thead th:hover .sortable-header-icon {
+  color: rgba(226, 232, 240, 0.88);
+}
+
+body.dark .sortable-header-icon.is-ascending,
+body.dark .sortable-header-icon.is-descending {
+  color: rgba(241, 245, 249, 0.95);
 }
 
 body.dark .product-table tbody td {

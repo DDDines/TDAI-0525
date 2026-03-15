@@ -8,6 +8,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
+  LuArrowDown,
+  LuArrowUp,
+  LuArrowUpDown,
   LuCircleCheck,
   LuCircleMinus,
   LuCircleX,
@@ -249,9 +252,30 @@ function ProductTable({
 
   const getSortDirectionIcon = (key) => {
     if (sortConfig?.key === key) {
-      return sortConfig.direction === 'ascending' ? ' ^' : ' v';
+      return sortConfig.direction === 'ascending' ? LuArrowUp : LuArrowDown;
     }
-    return '';
+    return LuArrowUpDown;
+  };
+
+  const getSortDirectionState = (key) => {
+    if (sortConfig?.key !== key) {
+      return 'none';
+    }
+    return sortConfig.direction === 'ascending' ? 'ascending' : 'descending';
+  };
+
+  const renderSortableHeader = (key, label) => {
+    const SortIcon = getSortDirectionIcon(key);
+    const sortDirection = getSortDirectionState(key);
+
+    return (
+      <th onClick={() => onSort(key)} data-sort-direction={sortDirection}>
+        <span className="sortable-header-content">
+          <span>{label}</span>
+          <SortIcon className={`sortable-header-icon is-${sortDirection}`} aria-hidden="true" />
+        </span>
+      </th>
+    );
   };
 
   const safeProdutos = Array.isArray(produtos) ? produtos : [];
@@ -337,12 +361,12 @@ function ProductTable({
             )}
           </div>
         </th>
-        <th onClick={() => onSort('id')}>ID</th>
-        <th onClick={() => onSort('nome_base')}>Nome Base{getSortDirectionIcon('nome_base')}</th>
-        <th onClick={() => onSort('sku')}>SKU{getSortDirectionIcon('sku')}</th>
-        <th onClick={() => onSort('fornecedor_id')}>Fornecedor{getSortDirectionIcon('fornecedor_id')}</th>
-        <th onClick={() => onSort('status_enriquecimento_web')}>Status{getSortDirectionIcon('status_enriquecimento_web')}</th>
-        <th onClick={() => onSort('data_atualizacao')}>Atualizado Em{getSortDirectionIcon('data_atualizacao')}</th>
+        {renderSortableHeader('id', 'ID')}
+        {renderSortableHeader('nome_base', 'Nome Base')}
+        {renderSortableHeader('sku', 'SKU')}
+        {renderSortableHeader('fornecedor_id', 'Fornecedor')}
+        {renderSortableHeader('status_enriquecimento_web', 'Status')}
+        {renderSortableHeader('data_atualizacao', 'Atualizado Em')}
         <th>Acoes</th>
       </tr>
     </thead>
