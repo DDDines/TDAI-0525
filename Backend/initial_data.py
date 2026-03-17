@@ -52,7 +52,7 @@ class InitialDataRuntime:
     @staticmethod
     def _ensure_default_plans(*, user_repo: UserRepository) -> None:
         """Ensure default plans exists or is valid before continuing the flow."""
-        planos_padrao = [{'nome': 'Gratuito', 'descricao': 'Plano basico com limitacoes.', 'preco_mensal': 0.0, 'limite_produtos': settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, 'limite_enriquecimento_web': settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, 'limite_geracao_ia': settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, 'permite_api_externa': False, 'suporte_prioritario': False}, {'nome': 'Pro', 'descricao': 'Plano profissional com mais limites e funcionalidades.', 'preco_mensal': 99.9, 'limite_produtos': 1000, 'limite_enriquecimento_web': 500, 'limite_geracao_ia': 2000, 'permite_api_externa': True, 'suporte_prioritario': True}]
+        planos_padrao = [{'nome': 'Gratuito', 'descricao': 'Plano basico com limitacoes.', 'preco_mensal': 0.0, 'limite_produtos': settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, 'limite_enriquecimento_web': settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, 'limite_geracao_ia': settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, 'permite_api_externa': False, 'suporte_prioritario': False}, {'nome': 'Pro', 'descricao': 'Plano profissional com mais limites e funcionalidades.', 'preco_mensal': settings.PRO_PLAN_PRICE, 'limite_produtos': 1000, 'limite_enriquecimento_web': 500, 'limite_geracao_ia': 2000, 'permite_api_externa': True, 'suporte_prioritario': True}]
         for plano_data in planos_padrao:
             plano = user_repo.get_plano_by_name(nome=plano_data['nome'])
             if plano:

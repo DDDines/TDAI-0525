@@ -328,6 +328,19 @@ class AttributeTemplateBase(BaseModel):
                 raise ValueError("String para 'options' não é um JSON válido.")
         return value  # Se já for lista ou None, retorna como está
 
+    @model_validator(mode="after")
+    def validate_select_options(self) -> "AttributeTemplateBase":
+        """Ensure SELECT and MULTISELECT fields always have a non-empty options list."""
+        from Backend.models import AttributeFieldTypeEnum as _FT
+        select_types = {_FT.SELECT, _FT.MULTISELECT}
+        if self.field_type in select_types:
+            if not self.options:
+                raise ValueError(
+                    f"Atributos do tipo '{self.field_type.value}' precisam ter "
+                    "pelo menos uma opção definida no campo 'options'."
+                )
+        return self
+
 
 class AttributeTemplateCreate(AttributeTemplateBase):
     """Represent Attribute Template Create and centralize its responsibilities inside this module."""

@@ -23,7 +23,7 @@ class _CrudProdutosStub:
         self.produto = produto
         self.status_updates = []
 
-    def get_produto(self, *, produto_id: int):
+    def get_produto(self, *, produto_id: int, user_id=None):
         """Return produto for this workflow."""
         _ = produto_id
         return self.produto

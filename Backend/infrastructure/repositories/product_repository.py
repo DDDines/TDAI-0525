@@ -283,21 +283,33 @@ class ProductRepository:
 
         return created_produtos, updated_produtos, erros
 
-    def get_produto(self, *, produto_id: int) -> Optional[Produto]:
-        """Retrieve produto using the current service dependencies."""
-        return (
+    def get_produto(self, *, produto_id: int, user_id: Optional[int] = None) -> Optional[Produto]:
+        """Retrieve produto using the current service dependencies.
+
+        When *user_id* is provided the result is filtered to that owner,
+        preventing cross-user data access from public-facing endpoints.
+        Pass ``user_id=None`` only from internal/admin contexts.
+        """
+        query = (
             self._db.query(Produto)
             .options(
                 selectinload(Produto.fornecedor),
                 selectinload(Produto.product_type).selectinload(ProductType.attribute_templates),
             )
             .filter(Produto.id == produto_id)
-            .first()
         )
+        if user_id is not None:
+            query = query.filter(Produto.user_id == user_id)
+        return query.first()
 
-    def get_produto_for_update(self, *, produto_id: int) -> Optional[Produto]:
-        """Retrieve produto for update using the current service dependencies."""
+    def get_produto_for_update(self, *, produto_id: int, user_id: Optional[int] = None) -> Optional[Produto]:
+        """Retrieve produto for update using the current service dependencies.
+
+        When *user_id* is provided the result is filtered to that owner.
+        """
         query = self._db.query(Produto).filter(Produto.id == produto_id)
+        if user_id is not None:
+            query = query.filter(Produto.user_id == user_id)
         engine = self._db.get_bind()
         dialect_name = engine.dialect.name if engine and engine.dialect else None
         if dialect_name == "sqlite":

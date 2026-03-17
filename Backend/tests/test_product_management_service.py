@@ -40,7 +40,7 @@ class _CrudProdutosStub:
         self.created.append((produto, user_id))
         return created
 
-    def get_produto(self, *, produto_id):
+    def get_produto(self, *, produto_id, user_id=None):
         """Return produto for this workflow."""
         if isinstance(self.produto, dict):
             return self.produto.get(produto_id)
@@ -75,7 +75,7 @@ class _CrudFornecedoresStub:
         """Initialize collaborators and configuration required by this component."""
         self.fornecedor = fornecedor
 
-    def get_fornecedor(self, *, fornecedor_id):
+    def get_fornecedor(self, *, fornecedor_id, user_id=None):
         """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self.fornecedor

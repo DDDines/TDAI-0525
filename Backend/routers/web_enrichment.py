@@ -99,6 +99,7 @@ class WebEnrichmentRequestService:
         )
         self._start_service = WebEnrichmentStartService(
             product_repository=ProductRepository(self._session),
+            enrichment_counter=RegistroUsoIARepository(self._session),
             models=models,
         )
 

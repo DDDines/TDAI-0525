@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import HTTPException, status
 
@@ -42,9 +42,13 @@ class ProductManagementService:
         if not current_user.is_superuser and db_obj.user_id != current_user.id:
             raise HTTPException(status_code=403, detail=forbidden_detail)
 
-    def _get_produto_or_404(self, *, produto_id: int) -> Any:
-        """Retrieve produto or 404 using the current service dependencies."""
-        db_produto = self._produto_repo.get_produto(produto_id=produto_id)
+    def _get_produto_or_404(self, *, produto_id: int, user_id: Optional[int] = None) -> Any:
+        """Retrieve produto or 404 using the current service dependencies.
+
+        Pass *user_id* for public-facing calls so unauthorized access returns
+        404 instead of 403, preventing ID enumeration across users.
+        """
+        db_produto = self._produto_repo.get_produto(produto_id=produto_id, user_id=user_id)
         if db_produto is None:
             raise HTTPException(status_code=404, detail="Produto nao encontrado")
         return db_produto
@@ -153,6 +157,27 @@ class ProductManagementService:
             )
         return "\n".join(normalized_lines).strip()
 
+    def _check_produto_limit(self, *, current_user: Any) -> None:
+        """Raise 403 if the user has reached their product limit."""
+        from fastapi import HTTPException, status as http_status
+        limite = getattr(current_user, "limite_produtos", None)
+        if (limite is None or limite <= 0) and getattr(current_user, "plano", None):
+            limite = getattr(current_user.plano, "limite_produtos", None)
+        if limite is None or limite <= 0:
+            return  # ilimitado
+        total = self._produto_repo.count_produtos_by_user(
+            user_id=current_user.id, is_admin=False
+        )
+        if total >= limite:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Limite de {limite} produtos atingido. "
+                    f"Voce ja possui {total} produtos cadastrados. "
+                    "Faca upgrade do seu plano para adicionar mais."
+                ),
+            )
+
     def _ensure_fornecedor_exists(self, *, fornecedor_id: int) -> None:
         """Ensure fornecedor exists exists or is valid before continuing the flow."""
         fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
@@ -180,6 +205,8 @@ class ProductManagementService:
         current_user: Any,
     ) -> Any:
         """Create produto and return the resulting payload or entity."""
+        if not current_user.is_superuser:
+            self._check_produto_limit(current_user=current_user)
         if getattr(produto, "fornecedor_id", None):
             self._ensure_fornecedor_exists(fornecedor_id=produto.fornecedor_id)
         if getattr(produto, "product_type_id", None):
@@ -216,7 +243,8 @@ class ProductManagementService:
         current_user: Any,
     ) -> Any:
         """Execute read produto as part of this module workflow."""
-        db_produto = self._get_produto_or_404(produto_id=produto_id)
+        scoped_user_id = None if current_user.is_superuser else current_user.id
+        db_produto = self._get_produto_or_404(produto_id=produto_id, user_id=scoped_user_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
@@ -318,7 +346,8 @@ class ProductManagementService:
         current_user: Any,
     ) -> Any:
         """Update produto and persist the resulting state changes."""
-        db_produto = self._get_produto_or_404(produto_id=produto_id)
+        scoped_user_id = None if current_user.is_superuser else current_user.id
+        db_produto = self._get_produto_or_404(produto_id=produto_id, user_id=scoped_user_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
@@ -361,7 +390,8 @@ class ProductManagementService:
         current_user: Any,
     ) -> Any:
         """Execute delete produto as part of this module workflow."""
-        db_produto = self._get_produto_or_404(produto_id=produto_id)
+        scoped_user_id = None if current_user.is_superuser else current_user.id
+        db_produto = self._get_produto_or_404(produto_id=produto_id, user_id=scoped_user_id)
         self._ensure_owner_or_superuser(
             db_obj=db_produto,
             current_user=current_user,
@@ -389,8 +419,9 @@ class ProductManagementService:
         not_found_ids: list[int] = []
         not_authorized_ids: list[int] = []
 
+        scoped_user_id = None if current_user.is_superuser else current_user.id
         for produto_id in produto_ids:
-            db_produto = self._produto_repo.get_produto(produto_id=produto_id)
+            db_produto = self._produto_repo.get_produto(produto_id=produto_id, user_id=scoped_user_id)
             if db_produto is None:
                 not_found_ids.append(produto_id)
                 continue

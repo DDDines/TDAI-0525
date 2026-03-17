@@ -76,9 +76,17 @@ class FornecedorRepository:
         self._db.refresh(db_fornecedor)
         return db_fornecedor
 
-    def get_fornecedor(self, *, fornecedor_id: int) -> Optional[Fornecedor]:
-        """Retrieve fornecedor using the current service dependencies."""
-        return self._db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id).first()
+    def get_fornecedor(self, *, fornecedor_id: int, user_id: Optional[int] = None) -> Optional[Fornecedor]:
+        """Retrieve fornecedor using the current service dependencies.
+
+        When *user_id* is provided the result is filtered to that owner,
+        preventing cross-user data access from public-facing endpoints.
+        Pass ``user_id=None`` only from internal/admin contexts.
+        """
+        query = self._db.query(Fornecedor).filter(Fornecedor.id == fornecedor_id)
+        if user_id is not None:
+            query = query.filter(Fornecedor.user_id == user_id)
+        return query.first()
 
     def get_fornecedores_by_user(
         self,

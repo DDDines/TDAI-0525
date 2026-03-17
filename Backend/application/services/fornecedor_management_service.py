@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import HTTPException, status
 
@@ -41,9 +41,14 @@ class FornecedorManagementService:
         *,
         fornecedor_id: int,
         detail: str = "Fornecedor nao encontrado",
+        user_id: Optional[int] = None,
     ) -> Any:
-        """Retrieve fornecedor or 404 using the current service dependencies."""
-        fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id)
+        """Retrieve fornecedor or 404 using the current service dependencies.
+
+        Pass *user_id* for public-facing calls so unauthorized access returns
+        404 instead of 403, preventing ID enumeration across users.
+        """
+        fornecedor = self._fornecedor_repo.get_fornecedor(fornecedor_id=fornecedor_id, user_id=user_id)
         if not fornecedor:
             raise HTTPException(status_code=404, detail=detail)
         return fornecedor
@@ -63,9 +68,11 @@ class FornecedorManagementService:
         forbidden_detail: str,
     ) -> Any:
         """Resolve fornecedor for user from injected repositories or runtime context."""
+        scoped_user_id = None if current_user.is_superuser else current_user.id
         fornecedor = self.get_fornecedor_or_404(
             fornecedor_id=fornecedor_id,
             detail=not_found_detail,
+            user_id=scoped_user_id,
         )
         self.ensure_user_access(
             fornecedor=fornecedor,

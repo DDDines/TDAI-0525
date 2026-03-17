@@ -103,6 +103,7 @@ async def test_produtos_catalog_service_delegates_product_and_catalog_methods():
         status_titulo_ia=None,
         status_descricao_ia=None,
         product_type_id=None,
+        enrichment_scope=None,
         current_user=user,
     )[0] == "list"
     assert service.update_produto(

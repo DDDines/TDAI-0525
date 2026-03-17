@@ -58,7 +58,7 @@ class _TopLevelFunctionSurface:
 
         service = WebEnrichmentRequestService()
         service._start_service = FakeStartService()
-        user = SimpleNamespace(id=99)
+        user = SimpleNamespace(id=99, is_superuser=False)
         background_tasks = BackgroundTasks()
     
         response = service.iniciar_enriquecimento_produto_web(

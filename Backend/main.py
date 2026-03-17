@@ -200,7 +200,7 @@ class MainBootstrapRuntime:
     def _ensure_planos(*, user_repo: UserRepository) -> Tuple[Optional[models.Plano], Optional[models.Plano]]:
         """Ensure default plans exist and return references to Pro and Free plans."""
         plano_gratuito_data = schemas.PlanoCreate(nome='Gratuito', descricao='Plano basico gratuito com limitacoes.', preco_mensal=0.0, limite_produtos=settings.DEFAULT_LIMIT_PRODUTOS_SEM_PLANO, limite_enriquecimento_web=settings.DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO, limite_geracao_ia=settings.DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO, permite_api_externa=False, suporte_prioritario=False)
-        plano_pro_data = schemas.PlanoCreate(nome='Pro', descricao='Plano profissional com mais limites e funcionalidades.', preco_mensal=49.9, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=2000, permite_api_externa=True, suporte_prioritario=True)
+        plano_pro_data = schemas.PlanoCreate(nome='Pro', descricao='Plano profissional com mais limites e funcionalidades.', preco_mensal=settings.PRO_PLAN_PRICE, limite_produtos=1000, limite_enriquecimento_web=500, limite_geracao_ia=2000, permite_api_externa=True, suporte_prioritario=True)
         admin_plano_obj: Optional[models.Plano] = None
         plano_gratuito_obj: Optional[models.Plano] = None
         for plano_data in (plano_gratuito_data, plano_pro_data):

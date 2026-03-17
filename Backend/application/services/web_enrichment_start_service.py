@@ -22,12 +22,39 @@ class WebEnrichmentStartService:
         dispatcher_cls: Any = PipelineDispatcher,
         orchestrator_cls: Any = WebEnrichmentPipelineOrchestrator,
         product_repository: Any,
+        enrichment_counter: Any = None,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Web Enrichment Start Service."""
         self._product_repository = product_repository
+        self._enrichment_counter = enrichment_counter
         self._models = models
         self._dispatcher = dispatcher_cls
         self._orchestrator_cls = orchestrator_cls
+
+    def _check_enrichment_limit(self, *, current_user: Any) -> None:
+        """Bloqueia inicio de enriquecimento quando o limite mensal do plano e atingido."""
+        if getattr(current_user, "is_superuser", False):
+            return
+        if self._enrichment_counter is None:
+            return
+        limite = getattr(current_user, "limite_enriquecimento_web", None)
+        if (limite is None or limite <= 0) and getattr(current_user, "plano", None):
+            limite = getattr(current_user.plano, "limite_enriquecimento_web", None)
+        if limite is None or limite <= 0:
+            return
+        usos_no_mes = self._enrichment_counter.count_usos_ia_by_user_and_type_no_mes_corrente(
+            user_id=current_user.id,
+            tipo_geracao_prefix="enriquecimento",
+        )
+        if usos_no_mes >= limite:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Limite mensal de {limite} enriquecimentos web atingido. "
+                    f"Voce utilizou {usos_no_mes} neste ciclo. "
+                    "Aguarde o proximo ciclo ou faca upgrade do plano."
+                ),
+            )
 
     def validate_start_preconditions(
         self,
@@ -37,7 +64,11 @@ class WebEnrichmentStartService:
         usar_ia: bool | None = None,
     ) -> None:
         """Execute validate start preconditions as part of this module workflow."""
-        db_produto_check = self._product_repository.get_produto(produto_id=produto_id)
+        self._check_enrichment_limit(current_user=current_user)
+        scoped_user_id = None if current_user.is_superuser else current_user.id
+        db_produto_check = self._product_repository.get_produto(
+            produto_id=produto_id, user_id=scoped_user_id
+        )
         if not db_produto_check:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

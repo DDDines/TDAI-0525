@@ -57,3 +57,19 @@ class LimitService:
             user_id=user_id,
             creditos_necessarios=creditos_necessarios,
         )
+
+    def verificar_limite_produtos(
+        self,
+        session: Session,
+        user: models.User,
+    ) -> None:
+        """Bloqueia criacao de produtos quando o limite do plano e atingido."""
+        return self._port.verificar_limite_produtos(session=session, user=user)
+
+    def verificar_limite_enriquecimento(
+        self,
+        session: Session,
+        user: models.User,
+    ) -> None:
+        """Bloqueia inicio de enriquecimento web quando o limite mensal e atingido."""
+        return self._port.verificar_limite_enriquecimento(session=session, user=user)

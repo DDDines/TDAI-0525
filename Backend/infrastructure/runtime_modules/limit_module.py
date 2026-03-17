@@ -156,6 +156,75 @@ class LimitRuntime:
         )
 
 
+    def verificar_limite_produtos(
+        self,
+        db: Session,
+        user: models.User,
+    ) -> None:
+        """Bloqueia criacao de produtos quando o limite do plano e atingido.
+
+        Lanca ``HTTPException`` 403 se o usuario atingiu seu limite de produtos.
+        Nao faz nada se o limite for 0 ou negativo (ilimitado).
+        """
+        limite = user.limite_produtos
+        if (limite is None or limite <= 0) and user.plano:
+            limite = user.plano.limite_produtos
+
+        if limite is None or limite <= 0:
+            return  # ilimitado
+
+        from Backend.infrastructure.repositories.product_repository import ProductRepository
+        produto_repo = ProductRepository(db)
+        total = produto_repo.count_produtos_by_user(user_id=user.id, is_admin=False)
+        if total >= limite:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Limite de {limite} produtos atingido. "
+                    f"Voce ja possui {total} produtos cadastrados. "
+                    "Faca upgrade do seu plano para adicionar mais."
+                ),
+            )
+
+    def verificar_limite_enriquecimento(
+        self,
+        db: Session,
+        user: models.User,
+    ) -> None:
+        """Bloqueia inicio de enriquecimento web quando o limite mensal e atingido.
+
+        Lanca ``HTTPException`` 403 se o usuario atingiu seu limite mensal.
+        Nao faz nada se o limite for 0 ou negativo (ilimitado).
+        """
+        limite = user.limite_enriquecimento_web
+        if (limite is None or limite <= 0) and user.plano:
+            limite = user.plano.limite_enriquecimento_web
+
+        if limite is None or limite <= 0:
+            return  # ilimitado
+
+        uso_ia_repo = self._usage_repository(db)
+        usos_no_mes = uso_ia_repo.count_usos_ia_by_user_and_type_no_mes_corrente(
+            user_id=user.id,
+            tipo_geracao_prefix="enriquecimento",
+        )
+        if usos_no_mes >= limite:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"Limite mensal de {limite} enriquecimentos web atingido. "
+                    f"Voce utilizou {usos_no_mes} neste ciclo. "
+                    "Aguarde o proximo ciclo ou faca upgrade do plano."
+                ),
+            )
+        self._logger.info(
+            "Verificacao de limite de enriquecimento para usuario %s: %s/%s usos.",
+            user.id,
+            usos_no_mes,
+            limite,
+        )
+
+
 class LimitWorkflow:
     """Workflow OO para regras de limite e credito."""
 
@@ -205,3 +274,19 @@ class LimitWorkflow:
             user_id=user_id,
             creditos_necessarios=creditos_necessarios,
         )
+
+    def verificar_limite_produtos(
+        self,
+        db: Session,
+        user: models.User,
+    ) -> None:
+        """Execute verificar limite produtos as part of this module workflow."""
+        return self._runtime.verificar_limite_produtos(db=db, user=user)
+
+    def verificar_limite_enriquecimento(
+        self,
+        db: Session,
+        user: models.User,
+    ) -> None:
+        """Execute verificar limite enriquecimento as part of this module workflow."""
+        return self._runtime.verificar_limite_enriquecimento(db=db, user=user)

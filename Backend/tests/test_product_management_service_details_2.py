@@ -34,7 +34,7 @@ def test_read_produto_returns_owned_product():
     service = ProductManagementService(
         models=_ModelsStub,
         schemas=_SchemasStub,
-        produto_repo=SimpleNamespace(get_produto=lambda *, produto_id: produto),
+        produto_repo=SimpleNamespace(get_produto=lambda *, produto_id, user_id=None: produto),
         fornecedor_repo=SimpleNamespace(get_fornecedor=lambda **kwargs: True),
         product_type_repo=SimpleNamespace(get_product_type=lambda **kwargs: True),
         historico_repo=SimpleNamespace(create_registro_historico=lambda payload: payload),
@@ -117,7 +117,7 @@ def test_read_produto_sanitizes_dirty_encoded_descriptions_for_response():
     service = ProductManagementService(
         models=_ModelsStub,
         schemas=real_schemas,
-        produto_repo=SimpleNamespace(get_produto=lambda *, produto_id: dirty_product),
+        produto_repo=SimpleNamespace(get_produto=lambda *, produto_id, user_id=None: dirty_product),
         fornecedor_repo=SimpleNamespace(get_fornecedor=lambda **kwargs: True),
         product_type_repo=SimpleNamespace(get_product_type=lambda **kwargs: True),
         historico_repo=SimpleNamespace(create_registro_historico=lambda payload: payload),

@@ -97,6 +97,22 @@ class LimitPort(Protocol):
         """Validate and consume credits in a single transactional operation."""
         ...
 
+    def verificar_limite_produtos(
+        self,
+        session: Session,
+        user: models.User,
+    ) -> None:
+        """Block product creation when the plan limit is reached."""
+        ...
+
+    def verificar_limite_enriquecimento(
+        self,
+        session: Session,
+        user: models.User,
+    ) -> None:
+        """Block web enrichment when the monthly plan limit is reached."""
+        ...
+
 
 class ValidationPort(Protocol):
     """Represent Validation Port and centralize its responsibilities inside this module."""

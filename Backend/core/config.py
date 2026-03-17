@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     DEFAULT_LIMIT_PRODUTOS_SEM_PLANO: int = int(os.getenv('DEFAULT_LIMIT_PRODUTOS_SEM_PLANO', 50))
     DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO: int = int(os.getenv('DEFAULT_LIMIT_ENRIQUECIMENTO_SEM_PLANO', 10))
     DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO: int = int(os.getenv('DEFAULT_LIMIT_GERACAO_IA_SEM_PLANO', 20))
+    PRO_PLAN_PRICE: float = float(os.getenv('PRO_PLAN_PRICE', 49.9))
     MAIL_USERNAME: Optional[str] = os.getenv('MAIL_USERNAME')
     MAIL_PASSWORD: Optional[str] = os.getenv('MAIL_PASSWORD')
     MAIL_FROM: Optional[str] = os.getenv('MAIL_FROM')

@@ -28,7 +28,7 @@ class _FornecedorRepoStub:
         self.has_duplicate_name = False
         self.mapping_updates = []
 
-    def get_fornecedor(self, *, fornecedor_id):
+    def get_fornecedor(self, *, fornecedor_id, user_id=None):
         """Return fornecedor for this workflow."""
         _ = fornecedor_id
         return self._fornecedor
