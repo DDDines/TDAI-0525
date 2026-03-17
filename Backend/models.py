@@ -500,6 +500,9 @@ class Produto(Base):
     )
     # Adicionar mais status conforme necessário (ex: status_imagens_ia, status_seo_ia)
 
+    # Score de qualidade de importação (0–100), calculado automaticamente durante o import
+    import_quality_score = Column(Float, nullable=True)
+
     # Dados Brutos e Atributos
     dados_brutos_web = Column(
         MutableDict.as_mutable(JSON),

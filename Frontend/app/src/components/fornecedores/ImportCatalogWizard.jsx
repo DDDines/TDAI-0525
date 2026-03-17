@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Module import catalog wizard.
  *
  * Defines responsibilities and integration points for components fornecedores.
@@ -45,7 +45,17 @@ function timestamp() {return (
 
 function ImportCatalogWizard(
 
-  { fornecedor, productTypeId: initialProductTypeId, onClose, isOpen }) {
+  {
+    fornecedor,
+    productTypeId: initialProductTypeId,
+    onClose,
+    isOpen,
+    onShowInfo,
+    onShowFiles,
+    shellTitle,
+    shellSubtitle,
+    embedded = false,
+  }) {
     const defaultFornecedorMapping = useMemo(
       () => cloneFornecedorMapping(fornecedor?.default_column_mapping),
       [fornecedor?.default_column_mapping]
@@ -83,6 +93,7 @@ function ImportCatalogWizard(
     const [statusTimeline, setStatusTimeline] = useState([]);
     const [expectedPages, setExpectedPages] = useState(0);
     const [processingStartedAt, setProcessingStartedAt] = useState(null);
+    const fileInputRef = useRef(null);
     const pollRunRef = useRef(0);
     const pollLoopActiveRef = useRef(false);
     const timelineSeenRef = useRef(new Set());
@@ -201,6 +212,10 @@ function ImportCatalogWizard(
       setPreviewError('');
       setStep('upload');
       setStatusTimeline([]);
+    };
+
+    const handleOpenFilePicker = () => {
+      fileInputRef.current?.click();
     };
 
     const handlePreview = async () => {
@@ -470,7 +485,7 @@ function ImportCatalogWizard(
                     extractErrorMessage(err, 'Falha ao obter resultado final da importação.')
                   );
                   const waitingResult =
-                  /ainda n[ãa]o dispon[íi]vel|not available|still processing/i.test(detail);
+                  /ainda n[aã]o dispon[ií]vel|not available|still processing/i.test(detail);
                   if (waitingResult && !timeoutExceeded) {
                     appendTimeline('Resultado final ainda não disponível. Continuando monitoramento...');
                     keepPolling = true;
@@ -618,24 +633,34 @@ function ImportCatalogWizard(
       selectedFile,
     });
 
-    return (
-      <div className="wizard-container" aria-live="polite">
-      {showLoadingPopup &&
-        <LoadingPopup
-          title="Importação de catálogo em andamento"
-          message={loadingPopupMessage}
-          isOpen={showLoadingPopup}
-          progressPercent={progressPct}
-          progressLabel={`${pagesProcessed}/${pagesTotalLabel} páginas processadas`}
-          chips={[
-          { label: 'Status', value: statusData?.status || 'PROCESSING' },
-          { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
-          { label: 'Tempo', value: formatElapsed(elapsedSec) },
-          { label: 'ETA', value: etaLabel }]}
-          details={statusTimeline.slice(-5)} />
+    if (!isOpen) {
+      return null;
+    }
 
-        }
+    const fornecedorNome = String(fornecedor?.nome || 'Fornecedor').trim() || 'Fornecedor';
+    const fornecedorSite = normalizeDisplayText(fornecedor?.site_url || '');
+    const modalTitle = shellTitle || 'Importar Catálogo';
+    const modalSubtitle = shellSubtitle ||
+      (fornecedorSite
+        ? `${fornecedorNome} conectado em ${fornecedorSite}. Revise o preview, mapeie colunas e acompanhe o processamento sem sair do fluxo.`
+        : `${fornecedorNome}. Revise o preview, mapeie colunas e acompanhe o processamento sem sair do fluxo.`);
+    const showFornecedorTabs = Boolean(onShowInfo || onShowFiles);
 
+    const wizardBody = (
+      <div className={`wizard-container ${embedded ? 'wizard-container--embedded' : ''}`.trim()} aria-live="polite">
+      {showFornecedorTabs && !embedded ? (
+        <div className="tab-navigation fornecedor-modal-tabs wizard-provider-tabs">
+          <button type="button" onClick={onShowInfo}>
+            Info
+          </button>
+          <button type="button" className="active">
+            Importar Catálogo
+          </button>
+          <button type="button" onClick={onShowFiles}>
+            Arquivos
+          </button>
+        </div>
+      ) : null}
       <div className="wizard-stepper" role="list" aria-label="Etapas da importa\u00e7\u00e3o">
         {STEP_FLOW.map((stepKey, index) => {
             const isCurrent = step === stepKey;
@@ -669,13 +694,22 @@ function ImportCatalogWizard(
               Arquivo do catálogo (PDF, XLSX ou CSV)
             </label>
             <input
+              ref={fileInputRef}
               id="wizard-file-input"
               type="file"
               accept=".pdf,.xlsx,.xls,.csv"
               onChange={handleFileChange}
-              aria-label="Arquivo de catálogo" />
-            
-            {selectedFile && <p className="wizard-selected-file">Arquivo selecionado: {selectedFile.name}</p>}
+              aria-label="Arquivo de catálogo"
+              className="wizard-file-input-hidden"
+            />
+            <div className="wizard-file-picker">
+              <button type="button" className="wizard-file-trigger" onClick={handleOpenFilePicker}>
+                Escolher arquivo
+              </button>
+              <span className={`wizard-file-name ${selectedFile ? 'is-selected' : ''}`}>
+                {selectedFile ? selectedFile.name : 'Nenhum arquivo selecionado'}
+              </span>
+            </div>
             <div className="wizard-inline-fields">
               <label htmlFor="wizard-start-page">
                 Página inicial
@@ -836,7 +870,7 @@ function ImportCatalogWizard(
                 </label>
 
                 <label htmlFor="wizard-extraction-mode">
-                  Modo de Extracao
+                  Modo de extração
                   <select
                     id="wizard-extraction-mode"
                     value={extractionMode}
@@ -844,7 +878,8 @@ function ImportCatalogWizard(
                     className="wizard-inline-select">
                     <option value="table">Tabela</option>
                     <option value="ocr">OCR</option>
-                    <option value="ia">IA</option>
+                    <option value="ia">IA (LLM Local)</option>
+                    <option value="vision">Visão IA — GPT-4o (Em breve)</option>
                   </select>
                 </label>
               </div>
@@ -1077,11 +1112,68 @@ function ImportCatalogWizard(
         </div>
       </Modal>
 
-      <hr className="wizard-footer-divider" />
-      <button type="button" onClick={onClose}>
-        Fechar
-      </button>
-    </div>);
+    </div>
+    );
+
+    return (
+      <>
+      {showLoadingPopup &&
+        <LoadingPopup
+          title="Importação de catálogo em andamento"
+          message={loadingPopupMessage}
+          isOpen={showLoadingPopup}
+          progressPercent={progressPct}
+          progressLabel={`${pagesProcessed}/${pagesTotalLabel} páginas processadas`}
+          chips={[
+          { label: 'Status', value: statusData?.status || 'PROCESSING' },
+          { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
+          { label: 'Tempo', value: formatElapsed(elapsedSec) },
+          { label: 'ETA', value: etaLabel }]}
+          details={statusTimeline.slice(-5)} />
+
+        }
+      {embedded ? (
+        wizardBody
+      ) : (
+        <Modal
+          isOpen={isOpen}
+          onClose={onClose}
+          title={modalTitle}
+          subtitle={modalSubtitle}
+          size="xl"
+          className="wizard-modal-shell"
+          bodyClassName="wizard-modal-body"
+        >
+          {wizardBody}
+        </Modal>
+      )}
+    </>);
 
   }
-const BASE_FIELD_OPTIONS = [{ value: 'nome_base', label: 'Nome Base' }, { value: 'sku_original', label: 'SKU' }, { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' }, { value: 'ean_original', label: 'Código de Barras (EAN-13)' }, { value: 'preco_original', label: 'Preço' }, { value: 'descricao_original', label: 'Descrição' }, { value: 'marca', label: 'Marca' }, { value: 'categoria_original', label: 'Categoria' }, { value: 'attr:codigo_original', label: 'Atributo: Código Original' }, { value: 'attr:aplicacao', label: 'Atributo: Aplicação' }, { value: 'attr:material', label: 'Atributo: Material' }];const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];const STEP_FLOW = ['upload', 'preview', 'processing'];const POLL_INTERVAL_MS = 2000;const MAX_RESULT_WAIT_MS = 60000;const MAX_RESULT_ATTEMPTS = 30;const MAX_ABSOLUTE_POLL_MS = 5 * 60 * 1000;const STEP_LABELS = { upload: 'Upload', preview: 'Preview e Mapeamento', processing: 'Processamento' };export default ImportCatalogWizard;
+const BASE_FIELD_OPTIONS = [
+  { value: 'nome_base', label: 'Nome Base' },
+  { value: 'sku_original', label: 'SKU' },
+  { value: 'auto:sku_nome', label: 'SKU + Nome (Auto)' },
+  { value: 'ean_original', label: 'Código de Barras (EAN-13)' },
+  { value: 'preco_original', label: 'Preço' },
+  { value: 'descricao_original', label: 'Descrição' },
+  { value: 'marca', label: 'Marca' },
+  { value: 'categoria_original', label: 'Categoria' },
+  { value: 'attr:codigo_original', label: 'Atributo: Código Original' },
+  { value: 'attr:aplicacao', label: 'Atributo: Aplicação' },
+  { value: 'attr:material', label: 'Atributo: Material' },
+];
+
+const FALLBACK_HEADERS = ['col_0', 'col_1', 'col_2', 'col_3', 'col_4'];
+const STEP_FLOW = ['upload', 'preview', 'processing'];
+const POLL_INTERVAL_MS = 2000;
+const MAX_RESULT_WAIT_MS = 60000;
+const MAX_RESULT_ATTEMPTS = 30;
+const MAX_ABSOLUTE_POLL_MS = 5 * 60 * 1000;
+const STEP_LABELS = {
+  upload: 'Upload',
+  preview: 'Preview e Mapeamento',
+  processing: 'Processamento',
+};
+
+export default ImportCatalogWizard;

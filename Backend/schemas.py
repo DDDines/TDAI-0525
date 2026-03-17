@@ -485,6 +485,10 @@ class ProdutoBase(BaseModel):
         None, description="Log de eventos de processamento do produto."
     )
 
+    import_quality_score: Optional[float] = Field(
+        None, description="Score de qualidade calculado na importação (0–100)."
+    )
+
 
 class ProdutoCreate(ProdutoBase):
     """Represent Produto Create and centralize its responsibilities inside this module."""

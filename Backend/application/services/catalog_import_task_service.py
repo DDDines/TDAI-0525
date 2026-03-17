@@ -288,6 +288,7 @@ class CatalogImportTaskWorkflow:
             dynamic_attributes=cleaned_prod.get("dynamic_attributes"),
             fornecedor_id=self.catalog_file.fornecedor_id,
             product_type_id=self.product_type_id,
+            import_quality_score=cleaned_prod.get("import_quality_score"),
         )
 
     def _process_quality_and_schema(
@@ -342,7 +343,10 @@ class CatalogImportTaskWorkflow:
             )
             return
 
-        self.quality_scores.add_accepted(quality_eval.get("score"))
+        quality_score = quality_eval.get("score")
+        self.quality_scores.add_accepted(quality_score)
+        if quality_score is not None:
+            cleaned_prod["import_quality_score"] = quality_score
 
         try:
             produtos_create.append(self._build_produto_schema(cleaned_prod))
