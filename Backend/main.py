@@ -31,6 +31,8 @@ from Backend.routers.search import router as search_router
 from Backend.routers.social_auth import router as social_auth_router
 from Backend.routers.uso_ia import router as uso_ia_router
 from Backend.routers.web_enrichment import router as web_enrichment_router
+from Backend.routers.import_review import router as import_review_router
+from Backend.routers.import_rules import router as import_rules_router
 
 logger = get_logger(__name__)
 logger.info("Inicializando aplicacao. Certifique-se de rodar 'alembic upgrade head' antes de usar.")
@@ -392,4 +394,6 @@ app.include_router(uso_ia_router, prefix=settings.API_V1_STR, tags=['Registro de
 app.include_router(historico_router, prefix=settings.API_V1_STR, tags=['Historico'])
 app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=['Recuperacao de Senha'])
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + '/admin/analytics', tags=['Analytics (Admin)'])
+app.include_router(import_review_router, prefix=settings.API_V1_STR, tags=['Revisao de Importacao'])
+app.include_router(import_rules_router, prefix=settings.API_V1_STR, tags=['Regras de Validacao'])
 

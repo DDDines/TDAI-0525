@@ -558,6 +558,43 @@ class CatalogImportResultPending(BaseModel):
     detail: str
 
 
+class ImportValidationRuleResponse(BaseModel):
+    """Schema de resposta para regras de validacao aprendidas."""
+    id: int
+    user_id: int
+    fornecedor_id: Optional[int] = None
+    rule_type: str
+    action: str
+    min_quality_score: Optional[float] = None
+    times_applied: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ImportQuarantineItemResponse(BaseModel):
+    """Produto quarentenado aguardando revisao do usuario."""
+    index: int
+    nome_base: Optional[str] = None
+    sku: Optional[str] = None
+    quality_score: Optional[float] = None
+    reason: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+
+class ImportReviewApproveRequest(BaseModel):
+    """Payload para aprovar um item quarentenado."""
+    remember: bool = False
+    min_quality_score: Optional[float] = None
+
+
+class ImportReviewBatchApproveRequest(BaseModel):
+    """Payload para aprovacao em lote por threshold de score."""
+    min_quality_score: float = 45.0
+    remember: bool = False
+
+
 class RegionExtractionResponse(BaseModel):
     """Represent Region Extraction Response and centralize its responsibilities inside this module."""
     produtos: List[Dict[str, Any]]

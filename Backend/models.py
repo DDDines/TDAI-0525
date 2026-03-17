@@ -665,6 +665,24 @@ class CatalogImportFile(Base):
     fornecedor = relationship("Fornecedor")
 
 
+class ImportValidationRule(Base):
+    """Regra aprendida pelo validador de importacao para aplicacao automatica futura."""
+    __tablename__ = "import_validation_rules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    fornecedor_id = Column(Integer, ForeignKey("fornecedores.id", ondelete="CASCADE"), nullable=True)
+    rule_type = Column(String(50), nullable=False, default="quality_threshold")
+    action = Column(String(20), nullable=False)  # "accept" ou "reject"
+    min_quality_score = Column(Float, nullable=True)  # aceitar acima deste score
+    times_applied = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+    fornecedor = relationship("Fornecedor")
+
+
 class FornecedorImportJob(Base):
     """Represent Fornecedor Import Job and centralize its responsibilities inside this module."""
     __tablename__ = "fornecedor_import_jobs"

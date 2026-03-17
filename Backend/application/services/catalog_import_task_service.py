@@ -330,6 +330,35 @@ class CatalogImportTaskWorkflow:
             return
 
         if quality_eval.get("decision") == "quarantine":
+            # Check if a learned rule overrides the quarantine decision
+            if self.db is not None:
+                try:
+                    from Backend.application.services.import_validation_memory_service import (
+                        ImportValidationMemoryService,
+                    )
+                    from Backend import models as _models, schemas as _schemas
+                    mem_svc = ImportValidationMemoryService(db=self.db, models=_models, schemas=_schemas)
+                    if mem_svc.should_auto_accept(
+                        quality_score=quality_eval.get("score"),
+                        user_id=self.user_id,
+                        fornecedor_id=self.fornecedor_id or None,
+                    ):
+                        quality_score = quality_eval.get("score")
+                        self.quality_scores.add_accepted(quality_score)
+                        if quality_score is not None:
+                            cleaned_prod["import_quality_score"] = quality_score
+                        try:
+                            produtos_create.append(self._build_produto_schema(cleaned_prod))
+                        except Exception as e:
+                            self.issue_tracker.add_issue(
+                                {
+                                    "motivo_descarte": f"{conversion_error_prefix}: {e}",
+                                    "linha_original": prod,
+                                }
+                            )
+                        return
+                except Exception:
+                    pass
             self.quality_scores.add_quarantine(quality_eval.get("score"))
             self.issue_tracker.add_quarantine_issue(
                 {

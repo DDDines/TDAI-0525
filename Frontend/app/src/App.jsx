@@ -29,6 +29,7 @@ import ResetSenhaPage from './pages/ResetSenhaPage';
 import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
+import ImportReviewPage from './pages/ImportReviewPage';
 
 import './App.css';
 import logger from './utils/logger';
@@ -70,6 +71,7 @@ function AppContent()
         <Route path="produtos" element={<ProdutosPage />} />
         <Route path="produtos/:produtoId/conteudo" element={<ProdutoConteudoPage />} />
         <Route path="fornecedores" element={<FornecedoresPage />} />
+        <Route path="importacoes/:fileId/quarentena" element={<ImportReviewPage />} />
         <Route path="tipos-de-produto" element={<TiposProdutoPage />} />
         <Route path="enriquecimento" element={<EnriquecimentoPage />} />
         <Route path="historico" element={<HistoricoPage />} />
