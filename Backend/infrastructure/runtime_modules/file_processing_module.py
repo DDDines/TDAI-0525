@@ -1173,9 +1173,10 @@ class TabularIngestionEngineRuntime:
 class PdfIngestionRuntime:
     """Runtime OO para ingestao de PDF."""
 
-    def __init__(self, web_data_extractor_service: Optional[Any]=None) -> None:
+    def __init__(self, web_data_extractor_service: Optional[Any]=None, vision_service: Optional[Any]=None) -> None:
         """Initialize injected dependencies and runtime configuration for Pdf Ingestion Runtime."""
         self._web_data_extractor_service = web_data_extractor_service or WebDataExtractorServiceAdapter()
+        self._vision_service = vision_service
 
     @staticmethod
     def _is_discard_payload(produto_padronizado: Any) -> bool:
@@ -1560,11 +1561,12 @@ class PdfIngestionRuntime:
         temp_pdf_path: Optional[Path] = None
         page_list_to_process: List[int] = []
         mode = str(extraction_mode or 'ocr').strip().lower()
-        if mode not in {'table', 'ocr', 'ia'}:
+        if mode not in {'table', 'ocr', 'ia', 'vision'}:
             mode = 'ocr'
         allow_ocr_fallback = mode in {'ocr', 'ia'}
         allow_text_fallback = mode in {'ocr', 'ia'}
         allow_llm = bool(usar_llm) and mode == 'ia'
+        allow_vision = mode == 'vision'
         try:
             _FileProcessingImplementation._validate_file_payload(
                 content=conteudo_arquivo,
@@ -1693,7 +1695,7 @@ class PdfIngestionRuntime:
                         page_text = page_to_process.extract_text(x_tolerance=2, y_tolerance=2)
                         page_image_data_url = (
                             self._render_pdf_page_image_data_url(page_to_process)
-                            if allow_llm
+                            if (allow_llm or allow_vision)
                             else None
                         )
                         page_image_data_urls = (
@@ -1708,6 +1710,32 @@ class PdfIngestionRuntime:
                         )
                         if not page_image_data_url and page_image_data_urls:
                             page_image_data_url = page_image_data_urls[0]
+                        _effective_vision_service = self._vision_service
+                        if allow_vision and _effective_vision_service is None:
+                            from Backend.infrastructure.adapters.vision_extraction_adapter import VisionExtractionServiceAdapter
+                            _effective_vision_service = VisionExtractionServiceAdapter()
+                        if allow_vision and page_image_data_url and _effective_vision_service is not None:
+                            try:
+                                vision_results = await _effective_vision_service.extrair_pagina_com_gpt4_vision(
+                                    page_image_data_url=page_image_data_url,
+                                    page_text=page_text,
+                                )
+                                if vision_results and isinstance(vision_results, list):
+                                    before_count = len(produtos_extraidos)
+                                    for vp in vision_results:
+                                        if isinstance(vp, dict):
+                                            self._append_produto(
+                                                produtos_extraidos=produtos_extraidos,
+                                                produto_padronizado=vp,
+                                                product_type_id=product_type_id,
+                                            )
+                                    added = len(produtos_extraidos) - before_count
+                                    if added > 0:
+                                        log_pdf.append(f'Pagina {page_num}: Vision GPT-4o extraiu {added} produto(s).')
+                                        continue
+                                    log_pdf.append(f'Pagina {page_num}: Vision nao encontrou produtos; tentando extracao classica.')
+                            except Exception as vision_err:
+                                log_pdf.append(f'Pagina {page_num}: Erro no modo Vision: {str(vision_err)}')
                         if page_text and page_text.strip():
                             log_pdf.append(f'Pagina {page_num}: Texto extraido.')
                             texto_chave = f'texto_completo_pagina_{page_num}'
