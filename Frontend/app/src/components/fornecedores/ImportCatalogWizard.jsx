@@ -5,6 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as fornecedorService from '../../services/fornecedorService';
 import productTypeService from '../../services/productTypeService';
 import { normalizeDisplayText } from '../../utils/textNormalization';
@@ -100,6 +101,7 @@ function ImportCatalogWizard(
     const lastStatusSnapshotRef = useRef('');
     const terminalStatusAnnouncedRef = useRef(false);
     const openResetKeyRef = useRef(null);
+    const navigate = useNavigate();
 
     const appendTimeline = useCallback((message) => {
       setStatusTimeline((prev) => {
@@ -476,9 +478,13 @@ function ImportCatalogWizard(
                       keepPolling = true;
                     }
                   } else {
-                    setResultData(normalizePayloadStrings(res));
+                    const normalizedRes = normalizePayloadStrings(res);
+                    setResultData(normalizedRes);
                     appendTimeline('Resultado final carregado.');
                     keepPolling = false;
+                    if ((normalizedRes?.quarantine_non_critical?.length ?? 0) > 0) {
+                      navigate(`/importacoes/${id}/quarentena`);
+                    }
                   }
                 } catch (err) {
                   const detail = normalizeDisplayText(

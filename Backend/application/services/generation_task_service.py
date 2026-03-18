@@ -84,6 +84,13 @@ class GenerationTaskService:
         return log_obj
 
     @staticmethod
+    def _has_valid_generation_result(resultado_geracao: Any) -> bool:
+        """Check whether a generation result contains usable content."""
+        is_valid_str = isinstance(resultado_geracao, str) and bool(resultado_geracao.strip())
+        is_valid_list = isinstance(resultado_geracao, list) and bool(resultado_geracao)
+        return bool(resultado_geracao) and (is_valid_str or is_valid_list)
+
+    @staticmethod
     def _normalize_title_list(value: Any) -> list[str]:
         """Normalize title payloads into a clean list of strings."""
         if not isinstance(value, list):
@@ -131,6 +138,59 @@ class GenerationTaskService:
 
         return raw_data
 
+    async def _run_generation_with_optional_fallback(
+        self,
+        *,
+        produto_id: int,
+        log_entry_prefix: str,
+        llm_call_payload: Dict[str, Any],
+        funcao_geracao_ia_no_servico: Any,
+        funcao_geracao_fallback_no_servico: Any = None,
+    ) -> tuple[Any, bool, str | None]:
+        """Execute AI generation and transparently fallback to basic generation when needed."""
+
+        async def _run_fallback(reason: str) -> tuple[Any, bool, str | None]:
+            """Execute the basic generation fallback and return its result with a failure flag."""
+            if funcao_geracao_fallback_no_servico is None:
+                return None, False, reason
+
+            self._logger.warning(
+                "Tarefa Background %s: IA indisponivel para produto %s. Aplicando fallback basico. Motivo: %s",
+                log_entry_prefix,
+                produto_id,
+                reason,
+            )
+            try:
+                fallback_result = await funcao_geracao_fallback_no_servico(**llm_call_payload)
+            except HTTPException as fallback_http_exc:
+                return (
+                    None,
+                    True,
+                    (
+                        f"{reason}. Fallback basico falhou "
+                        f"({fallback_http_exc.status_code}) - {fallback_http_exc.detail}"
+                    ),
+                )
+            except Exception as fallback_exc:  # pragma: no cover - same path as HTTP failure semantics
+                return None, True, f"{reason}. Fallback basico falhou - {fallback_exc}"
+
+            if self._has_valid_generation_result(fallback_result):
+                return fallback_result, True, reason
+
+            return None, True, f"{reason}. Fallback basico retornou resultado vazio"
+
+        try:
+            resultado_ia = await funcao_geracao_ia_no_servico(**llm_call_payload)
+        except HTTPException as http_exc:
+            return await _run_fallback(f"IA indisponivel ({http_exc.status_code}) - {http_exc.detail}")
+        except Exception as exc:  # pragma: no cover - exercised in service tests
+            return await _run_fallback(f"IA indisponivel - {exc}")
+
+        if self._has_valid_generation_result(resultado_ia):
+            return resultado_ia, False, None
+
+        return await _run_fallback("IA retornou resultado vazio ou invalido")
+
     async def run_generation_task(
         self,
         *,
@@ -138,6 +198,7 @@ class GenerationTaskService:
         produto_id: int,
         tipo_geracao_principal: str,
         funcao_geracao_ia_no_servico: Any,
+        funcao_geracao_fallback_no_servico: Any = None,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
         template_titulo: str | None = None,
@@ -225,7 +286,13 @@ class GenerationTaskService:
             if template_descricao is not None:
                 llm_call_payload["template_descricao"] = template_descricao
 
-            resultado_ia = await funcao_geracao_ia_no_servico(**llm_call_payload)
+            resultado_ia, fallback_used, fallback_reason = await self._run_generation_with_optional_fallback(
+                produto_id=produto_id,
+                log_entry_prefix=log_entry_prefix,
+                llm_call_payload=llm_call_payload,
+                funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
+                funcao_geracao_fallback_no_servico=funcao_geracao_fallback_no_servico,
+            )
             self._logger.info(
                 "Tarefa Background %s: Resultado IA para produto %s (truncado): %s...",
                 log_entry_prefix,
@@ -234,10 +301,7 @@ class GenerationTaskService:
             )
 
             update_data_final_dict: Dict[str, Any] = {}
-            is_valid_str = isinstance(resultado_ia, str) and bool(resultado_ia.strip())
-            is_valid_list = isinstance(resultado_ia, list) and bool(resultado_ia)
-
-            if resultado_ia and (is_valid_str or is_valid_list):
+            if self._has_valid_generation_result(resultado_ia):
                 update_data_final_dict[campo_produto_para_atualizar_com_resultado] = resultado_ia
                 update_data_final_dict[status_field_to_update] = self._models.StatusGeracaoIAEnum.CONCLUIDO
                 update_data_final_dict["dados_brutos_web"] = self._merge_raw_generation_data(
@@ -245,23 +309,28 @@ class GenerationTaskService:
                     tipo_geracao_principal=tipo_geracao_principal,
                     resultado_ia=resultado_ia,
                 )
+                success_log = f"{log_entry_prefix}: Geracao concluida com sucesso."
+                if fallback_used:
+                    success_log = (
+                        f"{log_entry_prefix}: Geracao concluida com fallback basico"
+                        + (f" ({fallback_reason})." if fallback_reason else ".")
+                    )
                 update_data_final_dict["log_processamento"] = self._append_process_log(
                     db_produto.log_processamento,
-                    f"{log_entry_prefix}: Geracao concluida com sucesso.",
+                    success_log,
                 )
             else:
                 update_data_final_dict[status_field_to_update] = self._models.StatusGeracaoIAEnum.FALHA
+                failure_reason = fallback_reason or "resultado vazio ou IA nao pode gerar"
                 update_data_final_dict["log_processamento"] = self._append_process_log(
                     db_produto.log_processamento,
-                    (
-                        f"{log_entry_prefix}: Falha na geracao "
-                        "(resultado vazio ou IA nao pode gerar)."
-                    ),
+                    f"{log_entry_prefix}: Falha na geracao ({failure_reason}).",
                 )
                 self._logger.warning(
-                    "Tarefa Background %s: IA nao retornou resultado valido para produto %s.",
+                    "Tarefa Background %s: IA nao retornou resultado valido para produto %s. Motivo: %s",
                     log_entry_prefix,
                     produto_id,
+                    failure_reason,
                 )
 
             product_access.update_produto(

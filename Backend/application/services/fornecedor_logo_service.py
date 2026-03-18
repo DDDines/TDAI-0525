@@ -11,33 +11,47 @@ import httpx
 from bs4 import BeautifulSoup
 
 
-def _normalize_site_url(site_url: str) -> list[str]:
-    raw = str(site_url or "").strip()
-    if not raw:
-        raise ValueError("Site do fornecedor nao informado.")
+class _FornecedorLogoHelpers:
+    """Static helper utilities for URL and text validation in logo resolution."""
 
-    if raw.startswith(("http://", "https://")):
-        return [raw]
+    @staticmethod
+    def _normalize_site_url(site_url: str) -> list[str]:
+        """Normalize a supplier site URL into a list of candidate absolute URLs to try."""
+        raw = str(site_url or "").strip()
+        if not raw:
+            raise ValueError("Site do fornecedor nao informado.")
 
-    host = raw.lstrip("/")
-    return [f"https://{host}", f"http://{host}"]
+        if raw.startswith(("http://", "https://")):
+            return [raw]
+
+        host = raw.lstrip("/")
+        return [f"https://{host}", f"http://{host}"]
+
+    @staticmethod
+    def _valid_absolute_url(url: str) -> bool:
+        """Return True if the URL is an absolute HTTP/HTTPS URL with a netloc component."""
+        parsed = urlparse(str(url or "").strip())
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+    @staticmethod
+    def _looks_like_logo_text(value: Optional[str]) -> bool:
+        """Return True if the text contains common logo indicator keywords."""
+        if not value:
+            return False
+        normalized = value.strip().lower()
+        indicators = ("logo", "brand", "marca", "header-logo", "site-logo")
+        return any(token in normalized for token in indicators)
 
 
-def _valid_absolute_url(url: str) -> bool:
-    parsed = urlparse(str(url or "").strip())
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-
-
-def _looks_like_logo_text(value: Optional[str]) -> bool:
-    if not value:
-        return False
-    normalized = value.strip().lower()
-    indicators = ("logo", "brand", "marca", "header-logo", "site-logo")
-    return any(token in normalized for token in indicators)
+_normalize_site_url = _FornecedorLogoHelpers._normalize_site_url
+_valid_absolute_url = _FornecedorLogoHelpers._valid_absolute_url
+_looks_like_logo_text = _FornecedorLogoHelpers._looks_like_logo_text
 
 
 @dataclass(frozen=True)
 class _LogoCandidate:
+    """Represent a resolved logo URL candidate with its provenance and relevance score."""
+
     url: str
     source: str
     score: int
@@ -101,6 +115,7 @@ class FornecedorLogoService:
 
     @classmethod
     def _fetch_site(cls, *, client: httpx.Client, site_url: str) -> tuple[str, str]:
+        """Fetch the site HTML and return the resolved URL together with the response text."""
         response = client.get(site_url)
         response.raise_for_status()
         return str(response.url), response.text
@@ -113,6 +128,7 @@ class FornecedorLogoService:
         page_url: str,
         client: httpx.Client | None = None,
     ) -> Optional[_LogoCandidate]:
+        """Parse HTML and return the highest-scored logo candidate found, or None."""
         soup = BeautifulSoup(html or "", "html.parser")
         candidates = list(cls._iter_candidates(soup=soup, page_url=page_url, client=client))
         if not candidates:
@@ -131,9 +147,11 @@ class FornecedorLogoService:
         page_url: str,
         client: httpx.Client | None = None,
     ) -> Iterable[_LogoCandidate]:
+        """Yield deduplicated logo candidates from all supported HTML sources."""
         seen: set[str] = set()
 
         def push(url: Optional[str], source: str, score: int):
+            """Resolve and yield a deduplicated logo candidate if the URL is valid and unseen."""
             resolved = cls._resolve_candidate_url(page_url=page_url, raw_url=url)
             if not resolved or resolved in seen:
                 return
@@ -224,6 +242,7 @@ class FornecedorLogoService:
         page_url: str,
         client: httpx.Client,
     ) -> Iterable[_LogoCandidate]:
+        """Yield logo candidates found in same-host stylesheets via CSS background-image rules."""
         seen_stylesheets: set[str] = set()
         page_host = urlparse(page_url).netloc.lower()
         stylesheet_urls: list[str] = []
@@ -268,10 +287,12 @@ class FornecedorLogoService:
 
     @staticmethod
     def _clean_css_url(value: str) -> str:
+        """Strip quotes and whitespace from a CSS url() value."""
         return str(value or "").strip().strip("\"'")
 
     @staticmethod
     def _looks_like_logo_selector(selector: str) -> bool:
+        """Return True if the CSS selector string contains a logo-related keyword."""
         normalized = str(selector or "").strip().lower()
         if not normalized:
             return False
@@ -280,6 +301,7 @@ class FornecedorLogoService:
 
     @staticmethod
     def _candidate_tiebreak(candidate: _LogoCandidate) -> int:
+        """Return a secondary sort key preferring SVG/PNG and penalising favicon/ICO URLs."""
         lowered = candidate.url.lower()
         if lowered.endswith(".svg"):
             return 12
@@ -293,6 +315,7 @@ class FornecedorLogoService:
 
     @staticmethod
     def _resolve_candidate_url(*, page_url: str, raw_url: Optional[str]) -> Optional[str]:
+        """Resolve a potentially relative URL against page_url and validate the result."""
         if not raw_url:
             return None
         value = str(raw_url).strip()
@@ -303,5 +326,6 @@ class FornecedorLogoService:
 
     @staticmethod
     def _build_favicon_url(page_url: str) -> str:
+        """Build the conventional /favicon.ico URL for the given page origin."""
         parsed = urlparse(page_url)
         return f"{parsed.scheme}://{parsed.netloc}/favicon.ico"

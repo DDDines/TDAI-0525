@@ -28,14 +28,21 @@ import re
 import unicodedata
 
 
-def normalize_company_identifier(value: str | None) -> str | None:
-    """Normalize company names into a stable identifier for shared credential lookup."""
-    text = str(value or "").strip()
-    if not text:
-        return None
-    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
-    folded = re.sub(r"[^a-zA-Z0-9]+", "-", folded.lower()).strip("-")
-    return folded or None
+class _ModelsHelpers:
+    """Static utility helpers used by model validators and callers."""
+
+    @staticmethod
+    def normalize_company_identifier(value: str | None) -> str | None:
+        """Normalize company names into a stable identifier for shared credential lookup."""
+        text = str(value or "").strip()
+        if not text:
+            return None
+        folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+        folded = re.sub(r"[^a-zA-Z0-9]+", "-", folded.lower()).strip("-")
+        return folded or None
+
+
+normalize_company_identifier = _ModelsHelpers.normalize_company_identifier
 
 
 # Definição dos Enums Python

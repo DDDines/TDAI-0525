@@ -21,15 +21,22 @@ router = APIRouter(
 )
 
 
-def _ensure_company_scope_allowed(current_user: models.User) -> None:
-    """Restrict company-scoped credential changes to admins/owners."""
-    role_name = str(getattr(getattr(current_user, "role", None), "name", "") or "").strip().lower()
-    if current_user.is_superuser or role_name == "admin":
-        return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Somente administradores podem gerenciar credenciais da empresa.",
-    )
+class _CredentialEndpointHelpers:
+    """Static helpers shared across credential endpoints."""
+
+    @staticmethod
+    def _ensure_company_scope_allowed(current_user: models.User) -> None:
+        """Restrict company-scoped credential changes to admins/owners."""
+        role_name = str(getattr(getattr(current_user, "role", None), "name", "") or "").strip().lower()
+        if current_user.is_superuser or role_name == "admin":
+            return
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Somente administradores podem gerenciar credenciais da empresa.",
+        )
+
+
+_ensure_company_scope_allowed = _CredentialEndpointHelpers._ensure_company_scope_allowed
 
 
 @router.get("/overview", response_model=schemas.CredentialsOverviewResponse)

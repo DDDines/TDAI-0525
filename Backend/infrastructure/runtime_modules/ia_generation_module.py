@@ -1651,7 +1651,7 @@ class IAGenerationRuntime:
             return True
 
         generic_match = TITLE_GENERIC_SUFFIX_PATTERN.search(folded_candidate)
-        if generic_match and generic_match.group(0).strip() not in source_signal_tokens:
+        if generic_match and source_signal_tokens and generic_match.group(0).strip() not in source_signal_tokens:
             return True
         if re.search(r"\b(?:g/r|serie\s+\d|ate\s+\d{4}|até\s+\d{4})\b", folded_candidate):
             return True

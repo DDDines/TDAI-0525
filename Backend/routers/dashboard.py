@@ -24,14 +24,21 @@ router = APIRouter(
 )
 
 
-def _resolve_user_limit(current_user: models.User, field_name: str, fallback: int = 0) -> int:
-    """Resolve one limit preferring explicit user values and falling back to the plan."""
-    explicit_value = getattr(current_user, field_name, None)
-    if explicit_value is not None:
-        return int(explicit_value)
-    plano = getattr(current_user, "plano", None)
-    plano_value = getattr(plano, field_name, None) if plano is not None else None
-    return int(plano_value or fallback or 0)
+class _DashboardEndpointHelpers:
+    """Static helpers for dashboard endpoint computations."""
+
+    @staticmethod
+    def _resolve_user_limit(current_user: models.User, field_name: str, fallback: int = 0) -> int:
+        """Resolve one limit preferring explicit user values and falling back to the plan."""
+        explicit_value = getattr(current_user, field_name, None)
+        if explicit_value is not None:
+            return int(explicit_value)
+        plano = getattr(current_user, "plano", None)
+        plano_value = getattr(plano, field_name, None) if plano is not None else None
+        return int(plano_value or fallback or 0)
+
+
+_resolve_user_limit = _DashboardEndpointHelpers._resolve_user_limit
 
 
 @router.get("/me", response_model=schemas.DashboardMeResponse)

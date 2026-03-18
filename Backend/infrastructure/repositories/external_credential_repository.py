@@ -58,6 +58,7 @@ class ExternalCredentialRepository:
 
     @staticmethod
     def _provider_description(provider: models.ExternalCredentialProviderEnum) -> str:
+        """Return a human-readable display name for the given credential provider."""
         labels = {
             models.ExternalCredentialProviderEnum.OPENAI: "OpenAI",
             models.ExternalCredentialProviderEnum.GOOGLE_GEMINI: "Google Gemini",
@@ -72,6 +73,7 @@ class ExternalCredentialRepository:
         provider: models.ExternalCredentialProviderEnum,
         current_user: models.User,
     ) -> Dict[str, Any]:
+        """Build the filter dict for a user or company credential query."""
         if scope_type == models.ExternalCredentialScopeEnum.USER:
             return {
                 "scope_type": scope_type,
@@ -99,6 +101,7 @@ class ExternalCredentialRepository:
         provider: models.ExternalCredentialProviderEnum,
         current_user: models.User,
     ) -> Optional[models.ExternalCredentialConfig]:
+        """Fetch a single credential config matching scope, provider and user context."""
         filters = self._subject_filters(
             scope_type=scope_type,
             provider=provider,
@@ -111,6 +114,7 @@ class ExternalCredentialRepository:
         )
 
     def list_company_configs(self, *, current_user: models.User) -> List[models.ExternalCredentialConfig]:
+        """List all company-scoped credential configs for the current user's company."""
         company_identifier = current_user.company_identifier
         if not company_identifier:
             return []
@@ -125,6 +129,7 @@ class ExternalCredentialRepository:
         )
 
     def list_user_configs(self, *, current_user: models.User) -> List[models.ExternalCredentialConfig]:
+        """List all user-scoped credential configs for the current user."""
         return (
             self._db.query(models.ExternalCredentialConfig)
             .filter(
@@ -146,6 +151,7 @@ class ExternalCredentialRepository:
         description: Optional[str],
         is_active: bool,
     ) -> models.ExternalCredentialConfig:
+        """Create or update a credential config, persisting all provided field values."""
         filters = self._subject_filters(
             scope_type=scope_type,
             provider=provider,
@@ -175,6 +181,7 @@ class ExternalCredentialRepository:
         provider: models.ExternalCredentialProviderEnum,
         current_user: models.User,
     ) -> bool:
+        """Delete a stored credential config and return True if it existed."""
         config = self.get_config(
             scope_type=scope_type,
             provider=provider,
@@ -216,6 +223,7 @@ class ExternalCredentialRepository:
         provider: models.ExternalCredentialProviderEnum,
         settings: Any,
     ) -> Dict[str, Any]:
+        """Build the system-level credential source entry from application settings."""
         system_config = self._SYSTEM_CONFIG_MAP.get(provider, {})
         secret_attr = system_config.get("secret_attr")
         secret_value = str(getattr(settings, secret_attr, "") or "").strip() if secret_attr else ""

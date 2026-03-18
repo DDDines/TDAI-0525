@@ -468,7 +468,8 @@ class BasicContentGenerationService:
                 if len(part) >= 4
             )
 
-        for token in re.findall(r"[A-Za-z][A-Za-z0-9./-]{2,}", text):
+        folded_text_for_tokens = cls._fold_text(text)
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9./-]{2,}", folded_text_for_tokens):
             token_clean = cls._sanitize_title_fragment(
                 token,
                 cut_on_contact_marker=True,
@@ -2026,6 +2027,30 @@ class BasicContentGenerationService:
             tamanho_palavras=tamanho_palavras,
             template_descricao=safe_template,
         )
+
+    # ------------------------------------------------------------------
+    # Public facade — allows external services to call without accessing
+    # private symbols (architecture boundary compliance)
+    # ------------------------------------------------------------------
+
+    def build_basic_description(self, *, produto: Any, tamanho_palavras: int, template_descricao: str) -> str:
+        """Public facade for cross-service usage of build_basic_description."""
+        return self._build_basic_description(produto=produto, tamanho_palavras=tamanho_palavras, template_descricao=template_descricao)
+
+    @classmethod
+    def sanitize_description_context(cls, raw_text: Any) -> str:
+        """Public facade for cross-service usage of sanitize_description_context."""
+        return cls._sanitize_description_context(raw_text)
+
+    @classmethod
+    def fold_text(cls, value: Any) -> str:
+        """Public facade for cross-service usage of fold_text."""
+        return cls._fold_text(value)
+
+    @classmethod
+    def looks_like_english_source_fragment(cls, text: Any) -> bool:
+        """Public facade for cross-service usage of looks_like_english_source_fragment."""
+        return cls._looks_like_english_source_fragment(text)
 
 
 
