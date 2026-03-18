@@ -85,7 +85,7 @@ function ImportCatalogWizard(
     const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(null);
     const [productTypes, setProductTypes] = useState([]);
     const [productTypeId, setProductTypeId] = useState(initialProductTypeId || '');
-    const [extractionMode, setExtractionMode] = useState('ocr');
+    const [extractionMode, setExtractionMode] = useState('vision');
     const [fieldOptions, setFieldOptions] = useState(BASE_FIELD_OPTIONS);
     const [statusData, setStatusData] = useState(null);
     const [resultData, setResultData] = useState(null);
@@ -885,7 +885,7 @@ function ImportCatalogWizard(
                     <option value="table">Tabela</option>
                     <option value="ocr">OCR</option>
                     <option value="ia">IA (LLM Local)</option>
-                    <option value="vision">Visão IA — GPT-4o (Em breve)</option>
+                    <option value="vision">Visão IA — GPT-4o ✦ Recomendado</option>
                   </select>
                 </label>
               </div>
