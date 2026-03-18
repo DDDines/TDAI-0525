@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LuCheckCircle, LuXCircle, LuAlertTriangle, LuArrowLeft, LuThumbsUp } from 'react-icons/lu';
+import { LuCircleCheck, LuCircleX, LuTriangleAlert, LuArrowLeft, LuThumbsUp } from 'react-icons/lu';
 import apiClient from '../services/apiClient';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
@@ -91,7 +91,7 @@ export default function ImportReviewPage() {
   if (isError)
     return (
       <div className="ir-error">
-        <LuXCircle /> Erro ao carregar itens de quarentena.
+        <LuCircleX /> Erro ao carregar itens de quarentena.
       </div>
     );
 
@@ -153,7 +153,7 @@ export default function ImportReviewPage() {
 
       {items.length === 0 ? (
         <div className="ir-empty">
-          <LuCheckCircle className="ir-empty-icon" />
+          <LuCircleCheck className="ir-empty-icon" />
           <p>Nenhum produto na fila de quarentena.</p>
           <button className="ir-btn ir-btn--secondary" onClick={() => navigate('/fornecedores')}>
             Voltar aos Fornecedores
@@ -183,7 +183,7 @@ export default function ImportReviewPage() {
                 <ScoreBadge score={selected.quality_score} />
                 {selected.reason && (
                   <span className="ir-detail-reason">
-                    <LuAlertTriangle /> {selected.reason}
+                    <LuTriangleAlert /> {selected.reason}
                   </span>
                 )}
               </div>
@@ -216,7 +216,7 @@ export default function ImportReviewPage() {
                   onClick={() => approveMutation.mutate({ index: selectedIndex, rememberRule: remember })}
                   disabled={approveMutation.isPending}
                 >
-                  <LuCheckCircle /> Aprovar
+                  <LuCircleCheck /> Aprovar
                 </button>
               </div>
             </div>
