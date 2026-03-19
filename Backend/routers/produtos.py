@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pdfplumber
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from Backend import models
@@ -35,6 +36,7 @@ from Backend.infrastructure.repositories.catalog_import_file_repository import C
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 from Backend.infrastructure.repositories.historico_repository import HistoricoRepository
 from Backend.infrastructure.repositories.product_repository import ProductRepository
+from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 from Backend.infrastructure.repositories.registro_uso_ia_repository import RegistroUsoIARepository
 
 from . import auth_utils
@@ -417,14 +419,28 @@ class ProdutosCatalogCoordinator:
                 user_id=user_id,
             )
         )
+class _LimitEnforcer:
+    """Verifica limites do plano usando sessao request-scoped."""
+
+    def __init__(self, session: Session) -> None:
+        """Initialize injected dependencies and runtime configuration for Limit Enforcer."""
+        self._session = session
+        self._adapter = LimitServiceAdapter()
+
+    def check_produto_limit(self, user: models.User) -> None:
+        """Bloqueia criacao quando limite de produtos do plano foi atingido."""
+        self._adapter.verificar_limite_produtos(session=self._session, user=user)
+
+
 class _ProdutosRequestServices:
     """Componente OO principal '_ProdutosRequestServices' do modulo 'produtos'."""
 
-    def __init__(self, *, product_management_service: ProductManagementService, product_media_service: ProductMediaService) -> None:
+    def __init__(self, *, product_management_service: ProductManagementService, product_media_service: ProductMediaService, limit_enforcer: _LimitEnforcer) -> None:
         """Initialize injected dependencies and runtime configuration for Produtos Request Services."""
         self.product_management_service = product_management_service
         self.product_media_service = product_media_service
-_build_produtos_request_services = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestServices(product_management_service=DependencyContainer.get_product_management_service(session), product_media_service=DependencyContainer.get_product_media_service(session)))
+        self.limit_enforcer = limit_enforcer
+_build_produtos_request_services = ServiceContainerDependencySupport.build_request_scoped_dependency(lambda session: _ProdutosRequestServices(product_management_service=DependencyContainer.get_product_management_service(session), product_media_service=DependencyContainer.get_product_media_service(session), limit_enforcer=_LimitEnforcer(session)))
 
 class _ProdutosCatalogRequestScope:
     """Workflow/escopo request-scoped para o fluxo de 'produtos'."""
@@ -496,6 +512,7 @@ class _EndpointHandlers:
     @router.post('/', response_model=schemas.ProdutoResponse, status_code=status.HTTP_201_CREATED)
     def create_produto(produto: schemas.ProdutoCreate, current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (create_produto)."""
+        request_services.limit_enforcer.check_produto_limit(user=current_user)
         return request_services.product_management_service.create_produto(produto=produto, current_user=current_user)
 
     @router.get('/catalog-import-files/', response_model=schemas.CatalogImportFilePage)
@@ -517,6 +534,48 @@ class _EndpointHandlers:
     def read_produtos(skip: int=Query(0, ge=0, description='Numero de itens para pular'), limit: int=Query(10, ge=1, le=200, description='Numero maximo de itens por pagina'), sort_by: Optional[str]=Query(None, description='Campo para ordenacao'), sort_order: Optional[str]=Query('asc', description='Ordem da ordenacao (asc/desc)'), search: Optional[str]=Query(None, description='Termo de busca para nome, descricao, SKU, EAN'), fornecedor_id: Optional[int]=Query(None, description='ID do fornecedor para filtrar produtos'), categoria: Optional[str]=Query(None, description='Categoria para filtrar produtos'), status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum]=Query(None, description='Filtrar por status de enriquecimento web'), status_titulo_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de titulo por IA'), status_descricao_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de descricao por IA'), product_type_id: Optional[int]=Query(None, description='ID do tipo de produto'), enrichment_scope: Optional[str]=Query(None, description='Escopo agrupado do enriquecimento: all, enriched, pending, failed'), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produtos)."""
         return request_services.product_management_service.list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, enrichment_scope=enrichment_scope, current_user=current_user)
+
+    @router.get('/exportar/')
+    def exportar_produtos(
+        ids: Optional[str] = Query(None, description='IDs separados por vírgula para exportar apenas selecionados'),
+        search: Optional[str] = Query(None),
+        fornecedor_id: Optional[int] = Query(None),
+        categoria: Optional[str] = Query(None),
+        status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum] = Query(None),
+        status_titulo_ia: Optional[models.StatusGeracaoIAEnum] = Query(None),
+        status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(None),
+        product_type_id: Optional[int] = Query(None),
+        enrichment_scope: Optional[str] = Query(None),
+        current_user: models.User = Depends(_CURRENT_ACTIVE_USER_PROVIDER),
+        request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+    ):
+        """Gera e retorna planilha XLSX com os produtos filtrados ou selecionados."""
+        parsed_ids: Optional[List[int]] = None
+        if ids:
+            try:
+                parsed_ids = [int(i.strip()) for i in ids.split(',') if i.strip()]
+            except ValueError:
+                pass
+
+        xlsx_bytes = request_services.product_management_service.export_produtos(
+            current_user=current_user,
+            ids=parsed_ids,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            product_type_id=product_type_id,
+            enrichment_scope=enrichment_scope,
+        )
+        import io
+        filename = 'produtos_catalogai.xlsx'
+        return StreamingResponse(
+            io.BytesIO(xlsx_bytes),
+            media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+        )
 
     @router.get('/ids', response_model=schemas.FilteredIdsResponse)
     def read_produto_ids(search: Optional[str]=Query(None, description='Termo de busca para nome, descricao, SKU, EAN'), fornecedor_id: Optional[int]=Query(None, description='ID do fornecedor para filtrar produtos'), categoria: Optional[str]=Query(None, description='Categoria para filtrar produtos'), status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum]=Query(None, description='Filtrar por status de enriquecimento web'), status_titulo_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de titulo por IA'), status_descricao_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de descricao por IA'), product_type_id: Optional[int]=Query(None, description='ID do tipo de produto'), enrichment_scope: Optional[str]=Query(None, description='Escopo agrupado do enriquecimento: all, enriched, pending, failed'), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):

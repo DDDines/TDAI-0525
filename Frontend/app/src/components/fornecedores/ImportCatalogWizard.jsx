@@ -44,6 +44,8 @@ function timestamp() {return (
 
       new Date().toLocaleTimeString('pt-BR'));}
 
+const DEFAULT_EXTRACTION_MODE = 'vision';
+
 function ImportCatalogWizard(
 
   {
@@ -85,7 +87,7 @@ function ImportCatalogWizard(
     const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(null);
     const [productTypes, setProductTypes] = useState([]);
     const [productTypeId, setProductTypeId] = useState(initialProductTypeId || '');
-    const [extractionMode, setExtractionMode] = useState('vision');
+    const [extractionMode, setExtractionMode] = useState(DEFAULT_EXTRACTION_MODE);
     const [fieldOptions, setFieldOptions] = useState(BASE_FIELD_OPTIONS);
     const [statusData, setStatusData] = useState(null);
     const [resultData, setResultData] = useState(null);
@@ -141,7 +143,7 @@ function ImportCatalogWizard(
       setSelectedPreviewIndex(null);
       setMapping({ ...defaultFornecedorMapping });
       setProductTypeId(initialProductTypeId || '');
-      setExtractionMode('ocr');
+      setExtractionMode(DEFAULT_EXTRACTION_MODE);
       setStatusData(null);
       setResultData(null);
       setError('');
@@ -523,7 +525,43 @@ function ImportCatalogWizard(
       }
     };
 
-    const startImport = async () => {
+    const handleQuickStart = async () => {
+      setIsLoading(true);
+      setLoadingMessage('Carregando arquivo...');
+      setPreviewError('');
+      appendTimeline('Carregando arquivo para processamento direto.');
+      let uploadedFileId;
+      try {
+        const previewRaw = await fornecedorService.previewCatalogo(
+          selectedFile,
+          pageCount,
+          startPage,
+          fornecedor.id
+        );
+        const preview = normalizePreviewPayload(previewRaw);
+        if (preview.error) {
+          setPreviewError(preview.error);
+          appendTimeline(`Falha ao carregar arquivo: ${preview.error}`);
+          return;
+        }
+        uploadedFileId = preview.fileId;
+        setFileId(preview.fileId);
+        setPreviewData(preview);
+        appendTimeline(`Arquivo carregado. File ID ${preview.fileId}. Iniciando processamento...`);
+      } catch (err) {
+        const detail = extractErrorMessage(err, 'Falha ao carregar arquivo.');
+        setPreviewError(detail);
+        appendTimeline(`Erro ao carregar arquivo: ${detail}`);
+        return;
+      } finally {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
+      await startImport(uploadedFileId);
+    };
+
+    const startImport = async (fileIdOverride) => {
+      const effectiveFileId = fileIdOverride ?? fileId;
       setIsLoading(true);
       setLoadingMessage('Iniciando processamento...');
       setError('');
@@ -537,7 +575,7 @@ function ImportCatalogWizard(
       appendTimeline('Solicitação de processamento enviada para o backend.');
       try {
         const { estimatedTotal, payload } = buildImportStartPayload({
-          fileId,
+          fileId: effectiveFileId,
           productTypeId,
           fornecedorId: fornecedor.id,
           mapping,
@@ -692,7 +730,7 @@ function ImportCatalogWizard(
         <section className="wizard-panel">
           <header className="wizard-panel-header">
             <h3>Passo 1: Enviar catálogo</h3>
-            <p>Selecione o arquivo e defina um recorte inicial de páginas para gerar o preview.</p>
+            <p>Selecione o arquivo do catálogo para começar.</p>
           </header>
 
           <div className="wizard-upload-block">
@@ -716,36 +754,168 @@ function ImportCatalogWizard(
                 {selectedFile ? selectedFile.name : 'Nenhum arquivo selecionado'}
               </span>
             </div>
-            <div className="wizard-inline-fields">
-              <label htmlFor="wizard-start-page">
-                Página inicial
-                <input
-                  id="wizard-start-page"
-                  type="number"
-                  min="1"
-                  value={startPage}
-                  onChange={(e) => setStartPage(sanitizePositivePageInput(e.target.value))}
-                  className="wizard-small-number-input" />
-                
-              </label>
-              <label htmlFor="wizard-page-count">
-                Quantidade de páginas
-                <input
-                  id="wizard-page-count"
-                  type="number"
-                  min="1"
-                  value={pageCount}
-                  onChange={(e) => setPageCount(sanitizePositivePageInput(e.target.value))}
-                  className="wizard-small-number-input" />
-                
-              </label>
-            </div>
           </div>
-          <div className="wizard-actions-row">
-            <button onClick={handlePreview} disabled={!selectedFile || isLoading} type="button">
-              Gerar Preview
-            </button>
-          </div>
+
+          {selectedFile && (() => {
+            const isPdf = selectedFile.name.toLowerCase().endsWith('.pdf');
+            const isDirectMode = extractionMode === 'vision' || extractionMode === 'ia';
+            return (
+              <>
+                {isPdf ? (
+                  <>
+                    <div className="wizard-mode-selector">
+                      <p className="wizard-mode-selector-label">Como o sistema vai ler o PDF?</p>
+                      <p className="wizard-mode-selector-hint">
+                        Escolha o método de extração. O modo <strong>Visão IA</strong> funciona com qualquer PDF — catálogos com fotos, tabelas, texto ou documentos escaneados.
+                      </p>
+                      <div className="wizard-mode-cards">
+                        {[
+                          {
+                            value: 'vision',
+                            icon: '✦',
+                            title: 'Visão IA — GPT-4o',
+                            desc: 'Analisa cada página como imagem com IA avançada.',
+                            hint: 'Qualquer PDF — fotos, tabelas mistas, layouts visuais ou documentos escaneados.',
+                            recommended: true,
+                            costLabel: '~$0,01/pág',
+                            isFree: false,
+                          },
+                          {
+                            value: 'table',
+                            icon: '⊞',
+                            title: 'Tabela',
+                            desc: 'Extrai tabelas estruturadas diretamente do texto do PDF.',
+                            hint: 'PDFs gerados por software com tabelas bem definidas, como exportações de ERP.',
+                            recommended: false,
+                            costLabel: null,
+                            isFree: true,
+                          },
+                          {
+                            value: 'ocr',
+                            icon: '⊙',
+                            title: 'OCR',
+                            desc: 'Reconhece texto em PDFs sem camada de texto, sem enviar dados para a internet.',
+                            hint: 'Documentos físicos digitalizados (escaneados) onde o texto não é selecionável.',
+                            recommended: false,
+                            costLabel: null,
+                            isFree: true,
+                          },
+                          {
+                            value: 'ia',
+                            icon: '⚡',
+                            title: 'IA Local',
+                            desc: 'Usa modelo de linguagem local para interpretar o conteúdo.',
+                            hint: 'Quando prefere processar sem enviar dados para fora ou não há conexão.',
+                            recommended: false,
+                            costLabel: 'Consome créditos de IA',
+                            isFree: false,
+                          },
+                        ].map((mode) => (
+                          <button
+                            key={mode.value}
+                            type="button"
+                            className={[
+                              'wizard-mode-card',
+                              extractionMode === mode.value ? 'is-selected' : '',
+                            ].filter(Boolean).join(' ')}
+                            onClick={() => setExtractionMode(mode.value)}
+                            aria-pressed={extractionMode === mode.value}
+                          >
+                            <div className="wizard-mode-card-head">
+                              <span className="wizard-mode-card-icon" aria-hidden="true">{mode.icon}</span>
+                              <span className="wizard-mode-card-title">{mode.title}</span>
+                              {mode.recommended ? (
+                                <span className="wizard-mode-badge">Recomendado</span>
+                              ) : null}
+                              {mode.isFree ? (
+                                <span className="wizard-mode-badge wizard-mode-badge--free">Gratuito</span>
+                              ) : null}
+                            </div>
+                            <p className="wizard-mode-card-desc">{mode.desc}</p>
+                            <p className="wizard-mode-card-hint">Ideal para: {mode.hint}</p>
+                            {mode.costLabel ? (
+                              <p className="wizard-mode-card-cost">{mode.costLabel}</p>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {isDirectMode ? (
+                      <div className="wizard-inline-fields wizard-quick-type-row">
+                        <label htmlFor="wizard-upload-product-type">
+                          Tipo de Produto
+                          <select
+                            id="wizard-upload-product-type"
+                            value={productTypeId}
+                            onChange={(e) => handleProductTypeChange(e.target.value)}
+                            className="wizard-inline-select">
+                            <option value="">Selecione...</option>
+                            {productTypes.map((pt) => {
+                              const value = pt.id;
+                              if (value === null || value === undefined) return null;
+                              return (
+                                <option key={value} value={value}>
+                                  {getProductTypeOptionLabel(pt)}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="wizard-inline-fields">
+                        <label htmlFor="wizard-start-page">
+                          Página inicial
+                          <input
+                            id="wizard-start-page"
+                            type="number"
+                            min="1"
+                            value={startPage}
+                            onChange={(e) => setStartPage(sanitizePositivePageInput(e.target.value))}
+                            className="wizard-small-number-input" />
+                        </label>
+                        <label htmlFor="wizard-page-count">
+                          Quantidade de páginas para o preview
+                          <input
+                            id="wizard-page-count"
+                            type="number"
+                            min="1"
+                            value={pageCount}
+                            onChange={(e) => setPageCount(sanitizePositivePageInput(e.target.value))}
+                            className="wizard-small-number-input" />
+                        </label>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="wizard-file-type-hint">
+                    Planilha detectada — o sistema vai gerar uma prévia das colunas para você confirmar o mapeamento antes de importar.
+                  </p>
+                )}
+
+                <div className="wizard-actions-row">
+                  {isPdf && isDirectMode ? (
+                    <button
+                      onClick={handleQuickStart}
+                      disabled={!productTypeId || isLoading}
+                      type="button"
+                    >
+                      Iniciar Importação
+                    </button>
+                  ) : (
+                    <button onClick={handlePreview} disabled={isLoading} type="button">
+                      Gerar Preview
+                    </button>
+                  )}
+                </div>
+                {isPdf && isDirectMode && !productTypeId && (
+                  <p className="wizard-warning-text">Selecione o tipo de produto para iniciar a importação.</p>
+                )}
+              </>
+            );
+          })()}
+
           {previewError && <p className="wizard-error-text">{previewError}</p>}
         </section>
         }
@@ -753,198 +923,186 @@ function ImportCatalogWizard(
       {step === 'preview' && previewData &&
         <section className="wizard-panel">
           <header className="wizard-panel-header">
-            <h3>Passo 2: Revisar e mapear dados</h3>
-            <p>
-              File ID {previewFileIdLabel} | páginas no arquivo: {previewData.numPages}
-            </p>
+            <div className="wp2-header-row">
+              <div>
+                <h3>Revisar e mapear dados</h3>
+                <p>Arquivo #{previewFileIdLabel} &middot; {previewData.numPages} página(s)</p>
+              </div>
+              <span className="wp2-scope-badge">Escopo atual: {selectedScopeLabel}</span>
+            </div>
           </header>
 
           {!previewData.headers && !previewImages.length &&
-          <p className="wizard-warning-text">
-              Nenhum preview disponível. Verifique se o arquivo é suportado.
-            </p>
+            <p className="wizard-warning-text">Nenhum preview disponível. Verifique se o arquivo é suportado.</p>
           }
 
-          {previewData.headers && sampleRows.length > 0 &&
-          <div className="wizard-table-block">
-              <p>Prévia das colunas detectadas:</p>
-              <div className="wizard-table-wrap">
-                <table className="preview-table">
-                  <thead>
-                    <tr>
-                      {previewData.headers.map((h) =>
-                    <th key={h}>{h}</th>
-                    )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sampleRows.slice(0, 5).map((row, idx) =>
-                  <tr key={idx}>
-                        {previewData.headers.map((h) =>
-                    <td key={h}>{formatCellValue(row?.[h])}</td>
-                    )}
-                      </tr>
-                  )}
-                  </tbody>
-                </table>
+          <div className="wp2-body">
+
+            {/* ── Full-width: columns table ── */}
+            {previewData.headers && sampleRows.length > 0 &&
+              <div className="wp2-preview-section">
+                <p className="wp2-section-label">Colunas detectadas</p>
+                <div className="wizard-table-wrap">
+                  <table className="preview-table">
+                    <thead>
+                      <tr>{previewData.headers.map((h) => <th key={h}>{h}</th>)}</tr>
+                    </thead>
+                    <tbody>
+                      {sampleRows.slice(0, 5).map((row, idx) =>
+                        <tr key={idx}>{previewData.headers.map((h) => <td key={h}>{formatCellValue(row?.[h])}</td>)}</tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          }
+            }
 
-          {previewImages.length > 0 &&
-          <div className="wizard-preview-images-block">
-              <p>
-                Prévia de páginas (PDF): mostrando{' '}
-                {selectedPreviewIndex != null ? 1 : previewImages.length} página(s)
-              </p>
-              <div className="wizard-preview-images-grid">
-                {(selectedPreviewIndex != null ? [previewImages[selectedPreviewIndex]] : previewImages).map((img, idx) => {
-                const absoluteIdx = selectedPreviewIndex != null ? selectedPreviewIndex : idx;
-                const pageNumber = startPage + absoluteIdx;
-                const src = getPreviewImageSrc(img);
-                if (!src) return null;
-                return (
-                  <figure key={`${pageNumber}-${idx}`} className="wizard-preview-figure">
-                      <img
-                      src={src}
-                      alt={`Página ${pageNumber}`}
-                      className="wizard-preview-image" />
-                    
-                      <figcaption>Página {pageNumber}</figcaption>
-                    </figure>);
+            {/* ── Image + config side by side ── */}
+            <div className="wp2-img-config-row">
 
-              })}
-              </div>
-            </div>
-          }
-
-          <div className="wizard-action-grid">
-            <section className="wizard-action-card">
-              <h4>1) Definir extração e mapeamento</h4>
-              <p>Ajuste a região da tabela e confira o mapeamento de colunas antes de importar.</p>
-              <div className="wizard-actions-row">
-                <button type="button" onClick={() => setShowMappingModal(true)}>
-                  Definir mapeamento
-                </button>
-                <button type="button" onClick={handleOpenRegionSelector} disabled={!fileId}>
-                  Selecionar região
-                </button>
-                <button type="button" onClick={openManualMapping}>
-                  Mapear manualmente
-                </button>
-              </div>
-            </section>
-
-            <section className="wizard-action-card">
-              <h4>2) Definir escopo e tipo de produto</h4>
-              <div className="wizard-inline-fields">
-                <label htmlFor="wizard-page-select">
-                  Página para seleção
-                  <input
-                    id="wizard-page-select"
-                    type="number"
-                    min="1"
-                    value={regionSelectionPage}
-                    onChange={(e) => {
-                      const val = sanitizePositivePageInput(e.target.value);
-                      setSelectedPageForRegion(val);
-                    }}
-                    className="wizard-small-number-input" />
-                  
-                </label>
-
-                <label htmlFor="wizard-product-type">
-                  Tipo de Produto
-                  <select
-                    id="wizard-product-type"
-                    value={productTypeId}
-                    onChange={(e) => handleProductTypeChange(e.target.value)}
-                    className="wizard-inline-select">
-                    
-                    <option value="">Selecione...</option>
-                    {productTypes.map((pt) => {
-                      const value = pt.id;
-                      if (value === null || value === undefined) return null;
-                      const label = getProductTypeOptionLabel(pt);
+              {previewImages.length > 0 &&
+                <div className="wp2-img-col">
+                  <p className="wp2-section-label">
+                    Prévia de páginas
+                    <span className="wp2-count-pill">
+                      {selectedPreviewIndex != null ? 1 : previewImages.length} pág.
+                    </span>
+                  </p>
+                  <div className="wp2-doc-grid">
+                    {(selectedPreviewIndex != null ? [previewImages[selectedPreviewIndex]] : previewImages).map((img, idx) => {
+                      const absoluteIdx = selectedPreviewIndex != null ? selectedPreviewIndex : idx;
+                      const pageNumber = startPage + absoluteIdx;
+                      const src = getPreviewImageSrc(img);
+                      if (!src) return null;
                       return (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>);
-
+                        <div key={`${pageNumber}-${idx}`} className="wp2-doc-card">
+                          <div className="wp2-doc-img-wrap">
+                            <img src={src} alt={`Página ${pageNumber}`} className="wp2-doc-img" />
+                            <span className="wp2-doc-page-badge">pág. {pageNumber}</span>
+                          </div>
+                        </div>
+                      );
                     })}
-                  </select>
-                </label>
+                  </div>
+                </div>
+              }
 
-                <label htmlFor="wizard-extraction-mode">
-                  Modo de extração
-                  <select
-                    id="wizard-extraction-mode"
-                    value={extractionMode}
-                    onChange={(e) => setExtractionMode(e.target.value)}
-                    className="wizard-inline-select">
-                    <option value="table">Tabela</option>
-                    <option value="ocr">OCR</option>
-                    <option value="ia">IA (LLM Local)</option>
-                    <option value="vision">Visão IA — GPT-4o ✦ Recomendado</option>
-                  </select>
-                </label>
+              {/* ── Config column ── */}
+              <div className="wp2-config-col">
+
+              <div className="wp2-config-card">
+                <p className="wp2-card-title">Extração e Mapeamento</p>
+                <p className="wp2-card-desc">Ajuste a região da tabela e o mapeamento de colunas.</p>
+                <div className="wp2-btn-stack">
+                  <button type="button" className="wp2-tool-btn" onClick={() => setShowMappingModal(true)}>
+                    <svg className="wp2-btn-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M3 5h14M3 10h10M3 15h6" strokeLinecap="round"/>
+                      <path d="M15 13l2 2 2-2M17 11v4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Definir mapeamento
+                  </button>
+                  <button type="button" className="wp2-tool-btn" onClick={handleOpenRegionSelector} disabled={!fileId}>
+                    <svg className="wp2-btn-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <rect x="3" y="3" width="14" height="14" rx="2"/>
+                      <path d="M7 7h6v6H7z" fill="currentColor" opacity="0.25"/>
+                      <path d="M7 7h6v6H7z" strokeLinecap="round"/>
+                    </svg>
+                    Selecionar região
+                  </button>
+                  <button type="button" className="wp2-tool-btn wp2-tool-btn--ghost" onClick={openManualMapping}>
+                    <svg className="wp2-btn-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M4 13.5V16h2.5l7-7L11 6.5l-7 7z" strokeLinejoin="round"/>
+                      <path d="M13.5 4l2.5 2.5" strokeLinecap="round"/>
+                    </svg>
+                    Mapear manualmente
+                  </button>
+                </div>
               </div>
-              <label className="wizard-checkbox-label" htmlFor="wizard-apply-all">
-                <input
-                  id="wizard-apply-all"
-                  type="checkbox"
-                  checked={applyAllPages}
-                  onChange={(e) => setApplyAllPages(e.target.checked)}
-                  className="wizard-inline-checkbox" />
-                
-                Aplicar região em todas as páginas
-              </label>
-              <button type="button" onClick={startImport} disabled={!canStartWithMapping}>
-                Iniciar Processamento
-              </button>
-              {!productTypeId &&
-              <p className="wizard-warning-text">
-                  Selecione o tipo de produto para habilitar a importação final.
-                </p>
-              }
-              {productTypeId && !hasPrimaryMapping &&
-              <p className="wizard-warning-text">
-                  Defina ao menos uma coluna como <strong>SKU + Nome (Auto)</strong>, <strong>Nome Base</strong> ou <strong>SKU</strong>.
-                </p>
-              }
-            </section>
-          </div>
 
-          <p className="wizard-scope-hint">
-            Escopo atual: {selectedScopeLabel}
-          </p>
+              <div className="wp2-config-card wp2-config-card--primary">
+                <p className="wp2-card-title">Configuração da Importação</p>
 
+                <div className="wp2-inline-row">
+                  <div className="wp2-field wp2-field--small">
+                    <label className="wp2-field-label" htmlFor="wizard-page-select">Página para seleção</label>
+                    <input
+                      id="wizard-page-select"
+                      type="number"
+                      min="1"
+                      value={regionSelectionPage}
+                      onChange={(e) => {
+                        const val = sanitizePositivePageInput(e.target.value);
+                        setSelectedPageForRegion(val);
+                      }}
+                      className="wp2-num-input" />
+                  </div>
+                  <div className="wp2-field wp2-field--grow">
+                    <label className="wp2-field-label" htmlFor="wizard-product-type">Tipo de Produto</label>
+                    <select
+                      id="wizard-product-type"
+                      value={productTypeId}
+                      onChange={(e) => handleProductTypeChange(e.target.value)}
+                      className="wp2-select">
+                      <option value="">Selecione...</option>
+                      {productTypes.map((pt) => {
+                        const value = pt.id;
+                        if (value === null || value === undefined) return null;
+                        const label = getProductTypeOptionLabel(pt);
+                        return <option key={value} value={value}>{label}</option>;
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                <label className="wp2-checkbox-row" htmlFor="wizard-apply-all">
+                  <input
+                    id="wizard-apply-all"
+                    type="checkbox"
+                    checked={applyAllPages}
+                    onChange={(e) => setApplyAllPages(e.target.checked)}
+                    className="wizard-inline-checkbox" />
+                  Aplicar região em todas as páginas
+                </label>
+
+                <button type="button" className="wp2-start-btn" onClick={() => startImport()} disabled={!canStartWithMapping}>
+                  Iniciar Processamento
+                </button>
+
+                {!productTypeId &&
+                  <p className="wizard-warning-text">Selecione o tipo de produto para habilitar a importação.</p>
+                }
+                {productTypeId && !hasPrimaryMapping &&
+                  <p className="wizard-warning-text">
+                    Defina ao menos uma coluna como <strong>SKU + Nome (Auto)</strong>, <strong>Nome Base</strong> ou <strong>SKU</strong>.
+                  </p>
+                }
+              </div>
+
+            </div>{/* end wp2-config-col */}
+          </div>{/* end wp2-img-config-row */}
+
+          {/* ── Full-width: region preview ── */}
           {regionPreview?.headers &&
-          <div className="wizard-region-preview-block wizard-table-block">
-              <p>Prévia da região selecionada:</p>
+            <div className="wp2-preview-section">
+              <p className="wp2-section-label">Prévia da região selecionada</p>
               <div className="wizard-table-wrap">
                 <table className="preview-table">
                   <thead>
-                    <tr>
-                      {regionPreview.headers.map((h) =>
-                    <th key={h}>{h}</th>
-                    )}
-                    </tr>
+                    <tr>{regionPreview.headers.map((h) => <th key={h}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {regionPreview.rows.map((row, idx) =>
-                  <tr key={idx}>
-                        {regionPreview.headers.map((h) =>
-                    <td key={h}>{formatCellValue(row?.[h])}</td>
+                      <tr key={idx}>{regionPreview.headers.map((h) => <td key={h}>{formatCellValue(row?.[h])}</td>)}</tr>
                     )}
-                      </tr>
-                  )}
                   </tbody>
                 </table>
               </div>
             </div>
           }
+
           {regionError && <p className="wizard-error-text">{regionError}</p>}
+
+          </div>{/* end wp2-body */}
 
           <ColumnMappingModal
             isOpen={showMappingModal}
@@ -957,7 +1115,7 @@ function ImportCatalogWizard(
             onProductTypeChange={handleProductTypeChange}
             initialMapping={mapping}
             onConfirm={handleConfirmMapping} />
-          
+
         </section>
         }
 
@@ -1088,7 +1246,8 @@ function ImportCatalogWizard(
       <Modal
           isOpen={showPagePicker}
           onClose={() => setShowPagePicker(false)}
-          title="Escolha a página para selecionar a região">
+          title="Escolha a página para selecionar a região"
+          size="xl">
           
         <div className="wizard-page-picker-grid">
           {previewImages.map((img, idx) => {

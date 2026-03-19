@@ -10,6 +10,7 @@ import {
   LuBadgeCheck,
   LuBox,
   LuCable,
+  LuChevronDown,
   LuHeadphones,
   LuLayers,
   LuSearch,
@@ -19,7 +20,8 @@ import {
 } from 'react-icons/lu';
 import authService from '../services/authService';
 import dashboardService from '../services/dashboardService';
-import { showErrorToast, showInfoToast } from '../utils/notifications';
+import planosService from '../services/planosService';
+import { showErrorToast, showInfoToast, showSuccessToast } from '../utils/notifications';
 import './PlanoPage.css';
 
 const UNLIMITED_THRESHOLD = 999999;
@@ -291,21 +293,26 @@ function PlanoPage() {
   const [userDashboard, setUserDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [planos, setPlanos] = useState([]);
+  const [upgradingPlanoId, setUpgradingPlanoId] = useState(null);
+  const [showPlanChooser, setShowPlanChooser] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [user, dashboardPayload] = await Promise.allSettled([
+        const [user, dashboardPayload, planosPayload] = await Promise.allSettled([
           authService.getCurrentUser(),
           dashboardService.getMyDashboard(),
+          planosService.listarPlanos(),
         ]);
         if (user.status !== 'fulfilled') {
           throw user.reason;
         }
         setCurrentUser(user.value);
         setUserDashboard(dashboardPayload.status === 'fulfilled' ? dashboardPayload.value : null);
+        setPlanos(planosPayload.status === 'fulfilled' && Array.isArray(planosPayload.value) ? planosPayload.value : []);
       } catch (err) {
         const errorMsg = err && err.message ? err.message : 'Falha ao carregar dados do usuario e plano.';
         setError(errorMsg);
@@ -317,6 +324,21 @@ function PlanoPage() {
 
     void fetchUserData();
   }, []);
+
+  const handleMudarPlano = async (planoId) => {
+    if (upgradingPlanoId) return;
+    setUpgradingPlanoId(planoId);
+    try {
+      const novoPlano = await planosService.mudarPlano(planoId);
+      setCurrentUser((prev) => prev ? { ...prev, plano: novoPlano, plano_id: novoPlano.id } : prev);
+      showSuccessToast(`Plano alterado para ${novoPlano.nome} com sucesso.`);
+      setShowPlanChooser(false);
+    } catch (err) {
+      showErrorToast(err?.response?.data?.detail || err?.message || 'Falha ao alterar plano.');
+    } finally {
+      setUpgradingPlanoId(null);
+    }
+  };
 
   const resolvedPlan = useMemo(
     () => buildResolvedPlan(currentUser, userDashboard),
@@ -375,10 +397,6 @@ function PlanoPage() {
   const totalProducts = Number(userDashboard?.totais?.produtos ?? 0);
   const totalFornecedores = Number(userDashboard?.totais?.fornecedores ?? 0);
   const allowsAi = Number(resolvedPlan?.limite_geracao_ia ?? 0) > 0 || normalizeMode(resolvedPlan.mode) === 'complete';
-
-  const handleUpgradeClick = () => {
-    showInfoToast('Fluxo de upgrade ainda nao foi habilitado para esta conta.');
-  };
 
   const handleSupportClick = () => {
     showInfoToast('Suporte comercial ainda nao foi conectado nesta tela.');
@@ -490,12 +508,12 @@ function PlanoPage() {
               <LuArrowUpRight />
             </a>
 
-            <button type="button" className="plano-action-button" onClick={handleUpgradeClick}>
+            <button type="button" className="plano-action-button" onClick={() => setShowPlanChooser((v) => !v)}>
               <div>
-                <strong>Conhecer upgrade</strong>
-                <span>Solicite ampliacao de limites e recursos do modo completo.</span>
+                <strong>Mudar de plano</strong>
+                <span>Visualize e selecione um plano diferente para esta conta.</span>
               </div>
-              <LuArrowUpRight />
+              {showPlanChooser ? <LuChevronDown style={{ transform: 'rotate(180deg)' }} /> : <LuArrowUpRight />}
             </button>
 
             <button type="button" className="plano-action-button" onClick={handleSupportClick}>
@@ -508,6 +526,57 @@ function PlanoPage() {
           </div>
         </section>
       </div>
+
+      {showPlanChooser && planos.length > 0 && (
+        <section className="plano-section-card plano-chooser-card">
+          <div className="plano-section-head">
+            <div>
+              <h2>Selecionar plano</h2>
+              <p>Escolha o plano que melhor se adapta ao seu uso atual.</p>
+            </div>
+          </div>
+          <div className="plano-chooser-grid">
+            {planos.map((plano) => {
+              const isCurrent = currentUser?.plano?.id === plano.id || currentUser?.plano_id === plano.id;
+              const isUpgrading = upgradingPlanoId === plano.id;
+              return (
+                <article key={plano.id} className={`plano-chooser-plan${isCurrent ? ' is-current' : ''}`}>
+                  <div className="plano-chooser-plan-header">
+                    <span className="plano-chooser-plan-name">{plano.nome}</span>
+                    {isCurrent && <span className="plano-chooser-plan-badge">Atual</span>}
+                    <span className="plano-chooser-plan-price">
+                      {plano.preco_mensal > 0
+                        ? `R$ ${plano.preco_mensal.toFixed(2).replace('.', ',')}/mês`
+                        : 'Grátis'}
+                    </span>
+                  </div>
+                  <ul className="plano-chooser-plan-limits">
+                    <li><span>Produtos</span><strong>{formatLimit(plano.limite_produtos)}</strong></li>
+                    <li><span>Enriquecimento web/mês</span><strong>{formatLimit(plano.limite_enriquecimento_web)}</strong></li>
+                    <li><span>Gerações IA/mês</span><strong>{formatLimit(plano.limite_geracao_ia)}</strong></li>
+                    {plano.permite_api_externa && <li><span>API externa</span><strong>Sim</strong></li>}
+                    {plano.suporte_prioritario && <li><span>Suporte prioritário</span><strong>Sim</strong></li>}
+                  </ul>
+                  {!isCurrent && (
+                    <button
+                      type="button"
+                      className={`plano-chooser-select-btn${plano.preco_mensal > (currentUser?.plano?.preco_mensal ?? 0) ? ' is-upgrade' : ''}`}
+                      disabled={!!upgradingPlanoId}
+                      onClick={() => handleMudarPlano(plano.id)}
+                    >
+                      {isUpgrading
+                        ? 'Alterando...'
+                        : plano.preco_mensal > (currentUser?.plano?.preco_mensal ?? 0)
+                          ? 'Fazer upgrade'
+                          : 'Mudar para este plano'}
+                    </button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

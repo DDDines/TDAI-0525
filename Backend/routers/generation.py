@@ -8,6 +8,11 @@ from Backend import models, schemas
 from Backend.application.services.basic_content_generation_service import (
     BasicContentGenerationService,
 )
+from Backend.application.services.channel_content_service import (
+    ChannelContentService,
+    CANAL_LABELS,
+    VALID_CANAIS,
+)
 from Backend.application.services.generation_scheduling_service import GenerationSchedulingService
 from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.ia_generation_service import IAGenerationService
@@ -71,6 +76,7 @@ class GenerationRequestService:
         produto_id: int,
         tipo_geracao_principal: str,
         funcao_geracao_ia_no_servico,
+        funcao_geracao_fallback_no_servico=None,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
         template_titulo: str | None = None,
@@ -82,6 +88,7 @@ class GenerationRequestService:
             produto_id=produto_id,
             tipo_geracao_principal=tipo_geracao_principal,
             funcao_geracao_ia_no_servico=funcao_geracao_ia_no_servico,
+            funcao_geracao_fallback_no_servico=funcao_geracao_fallback_no_servico,
             num_titulos=num_titulos,
             tamanho_palavras=tamanho_palavras,
             template_titulo=template_titulo,
@@ -106,6 +113,8 @@ class GenerationRequestService:
             generation_type="titulo",
             generation_func=self._ia_generation_service.gerar_titulos_com_openai,
             generation_provider_key="openai_title",
+            fallback_generation_func=self._basic_generation_service.gerar_titulos_basicos,
+            fallback_generation_provider_key="basic_title",
             num_titulos=num_titulos,
         )
         return {"msg": f"Geracao de titulos (OpenAI) para o produto ID {produto_id} agendada."}
@@ -128,6 +137,8 @@ class GenerationRequestService:
             generation_type="descricao",
             generation_func=self._ia_generation_service.gerar_descricao_com_openai,
             generation_provider_key="openai_description",
+            fallback_generation_func=self._basic_generation_service.gerar_descricao_basica,
+            fallback_generation_provider_key="basic_description",
             tamanho_palavras=tamanho_palavras,
         )
         return {"msg": f"Geracao de descricao (OpenAI) para o produto ID {produto_id} agendada."}
@@ -220,6 +231,8 @@ class GenerationRequestService:
             generation_type="titulo",
             generation_func=self._ia_generation_service.gerar_titulos_com_gemini,
             generation_provider_key="gemini_title",
+            fallback_generation_func=self._basic_generation_service.gerar_titulos_basicos,
+            fallback_generation_provider_key="basic_title",
             num_titulos=num_titulos,
         )
         return {"msg": f"Geracao de titulos com Gemini para o produto ID {produto_id} foi agendada."}
@@ -246,6 +259,8 @@ class GenerationRequestService:
             generation_type="descricao",
             generation_func=self._ia_generation_service.gerar_descricao_com_gemini,
             generation_provider_key="gemini_description",
+            fallback_generation_func=self._basic_generation_service.gerar_descricao_basica,
+            fallback_generation_provider_key="basic_description",
             tamanho_palavras=tamanho_palavras,
         )
         return {"msg": f"Geracao de descricao com Gemini para o produto ID {produto_id} foi agendada."}
@@ -275,7 +290,6 @@ class GenerationRequestService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Ocorreu um erro interno ao processar a solicitacao.",
             ) from exc
-
 
 @router.post(
     "/titulos/openai/{produto_id}",
@@ -439,6 +453,42 @@ async def sugerir_atributos_para_produto_com_gemini(
     )
 
 
+@router.post("/canal/{canal}/{produto_id}/", response_model=schemas.ConteudoCanaisResponse)
+async def gerar_conteudo_canal(
+    canal: str,
+    produto_id: int,
+    gerar_titulo: bool = Query(True),
+    gerar_descricao: bool = Query(True),
+    request_service: GenerationRequestService = Depends(),
+    current_user: models.User = Depends(
+        auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
+    ),
+):
+    """Generate channel-specific title and description for a product."""
+    channel_service = ChannelContentService(db=request_service._session, models=models)
+    try:
+        result = await channel_service.generate_canal_content(
+            produto_id=produto_id,
+            canal=canal,
+            user=current_user,
+            gerar_titulo=gerar_titulo,
+            gerar_descricao=gerar_descricao,
+        )
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/canal/config/")
+def get_canal_config():
+    """Return available publication channels."""
+    return {
+        "canais": [
+            {"value": k, "label": v} for k, v in CANAL_LABELS.items()
+        ]
+    }
+
+
 # Compatibilidade de rota para clientes com barra final.
 router.add_api_route(
     "/titulos/openai/{produto_id}/",
@@ -495,5 +545,19 @@ router.add_api_route(
     sugerir_atributos_para_produto_com_gemini,
     methods=["POST"],
     response_model=schemas.SugestoesAtributosResponse,
+    include_in_schema=False,
+)
+# Non-trailing-slash compat for channel routes (primary routes registered with trailing slash above)
+router.add_api_route(
+    "/canal/config",
+    get_canal_config,
+    methods=["GET"],
+    include_in_schema=False,
+)
+router.add_api_route(
+    "/canal/{canal}/{produto_id}",
+    gerar_conteudo_canal,
+    methods=["POST"],
+    status_code=status.HTTP_200_OK,
     include_in_schema=False,
 )

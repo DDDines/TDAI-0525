@@ -26,6 +26,7 @@ import PlanoPage from './pages/PlanoPage';
 import ConfiguracoesPage from './pages/ConfiguracoesPage';
 import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
 import ResetSenhaPage from './pages/ResetSenhaPage';
+import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
@@ -56,6 +57,7 @@ function AppContent()
       <Route path="/login" element={<LoginPage />} />
       <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
       <Route path="/resetar-senha" element={<ResetSenhaPage />} />
+      <Route path="/auth/oauth-callback" element={<OAuthCallbackPage />} />
       
       {/* Rotas Protegidas */}
       <Route

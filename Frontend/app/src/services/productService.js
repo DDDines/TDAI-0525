@@ -112,7 +112,7 @@ async function gerarDescricaoGemini(produtoId) {
 
 async function gerarTitulosProdutoModoBasico(produtoId, options = {}) {
   try {
-    const customTemplate = basicTemplateService.resolveCustomTemplateForRequest(
+    const customTemplate = await basicTemplateService.resolveCustomTemplateForRequest(
       'title',
       options?.template
     );
@@ -141,7 +141,7 @@ async function gerarTitulosProdutoModoBasico(produtoId, options = {}) {
 
 async function gerarDescricaoProdutoModoBasico(produtoId, options = {}) {
   try {
-    const customTemplate = basicTemplateService.resolveCustomTemplateForRequest(
+    const customTemplate = await basicTemplateService.resolveCustomTemplateForRequest(
       'description',
       options?.template
     );
@@ -259,6 +259,37 @@ async function registrarFeedbackConteudoGerado(produtoId, feedbackPayload = {}) 
   return updateProduto(produtoId, { dados_brutos_web: dadosBrutos });
 }
 
+async function exportarProdutos({ ids, search, fornecedor_id, categoria, status_enriquecimento_web, status_titulo_ia, status_descricao_ia, product_type_id, enrichment_scope } = {}) {
+  const params = new URLSearchParams();
+  if (ids && ids.length > 0) params.set('ids', ids.join(','));
+  if (search) params.set('search', search);
+  if (fornecedor_id) params.set('fornecedor_id', fornecedor_id);
+  if (categoria) params.set('categoria', categoria);
+  if (status_enriquecimento_web) params.set('status_enriquecimento_web', status_enriquecimento_web);
+  if (status_titulo_ia) params.set('status_titulo_ia', status_titulo_ia);
+  if (status_descricao_ia) params.set('status_descricao_ia', status_descricao_ia);
+  if (product_type_id) params.set('product_type_id', product_type_id);
+  if (enrichment_scope) params.set('enrichment_scope', enrichment_scope);
+
+  const response = await apiClient.get(`/produtos/exportar/?${params.toString()}`, {
+    responseType: 'blob',
+  });
+
+  const url = URL.createObjectURL(new Blob([response.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'produtos_catalogai.xlsx';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function gerarConteudoCanal(produtoId, canal) {
+  const response = await apiClient.post(`/geracao/canal/${canal}/${produtoId}/`);
+  return response.data;
+}
+
 export {
   getProdutos,
   getProdutosIds,
@@ -277,6 +308,8 @@ export {
   getAtributoSuggestions,
   sugerirAtributosGemini,
   registrarFeedbackConteudoGerado,
+  exportarProdutos,
+  gerarConteudoCanal,
 };
 
 export default {
@@ -297,4 +330,6 @@ export default {
   getAtributoSuggestions,
   sugerirAtributosGemini,
   registrarFeedbackConteudoGerado,
+  exportarProdutos,
+  gerarConteudoCanal,
 };

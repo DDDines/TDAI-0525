@@ -61,6 +61,22 @@ class ExternalCredentialProviderEnum(str, enum.Enum):
     GOOGLE_CSE = "google_cse"
 
 
+class AIPolicyScopeEnum(str, enum.Enum):
+    """Represent the supported precedence layers for AI policy resolution."""
+
+    SYSTEM = "system"
+    PLAN = "plan"
+    COMPANY = "company"
+    USER = "user"
+
+
+class AIPolicyModeEnum(str, enum.Enum):
+    """Represent the effective UX/execution mode allowed by policy."""
+
+    BASIC = "basic"
+    COMPLETE = "complete"
+
+
 class StatusEnriquecimentoEnum(str, enum.Enum):
     """Represent Status Enriquecimento Enum and centralize its responsibilities inside this module."""
     NAO_INICIADO = "NAO_INICIADO"
@@ -111,6 +127,15 @@ class TipoAcaoSistemaEnum(str, enum.Enum):
     CRIACAO = "CRIACAO"
     ATUALIZACAO = "ATUALIZACAO"
     DELECAO = "DELECAO"
+
+
+class CanalPublicacaoEnum(str, enum.Enum):
+    """Represent the supported publication channels for multi-channel content generation."""
+
+    MERCADO_LIVRE = "mercado_livre"
+    GOOGLE_SHOPPING = "google_shopping"
+    B2B = "b2b"
+    ECOMMERCE = "ecommerce"
 
 
 class AttributeFieldTypeEnum(str, enum.Enum):
@@ -287,6 +312,104 @@ class ExternalCredentialConfig(Base):
             "company_identifier",
             "user_id",
             name="uq_external_credential_scope_provider_subject",
+        ),
+    )
+
+
+class BasicGenerationTemplateConfig(Base):
+    """Store reusable basic-mode title and description templates by scope."""
+
+    __tablename__ = "basic_generation_template_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope_type = Column(
+        SQLAlchemyEnum(ExternalCredentialScopeEnum),
+        nullable=False,
+        default=ExternalCredentialScopeEnum.USER,
+    )
+    company_identifier = Column(String, nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    title_template = Column(Text, nullable=True)
+    description_template = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user = relationship(
+        "User",
+        backref=backref("basic_generation_templates", cascade="all, delete-orphan"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_type",
+            "company_identifier",
+            "user_id",
+            name="uq_basic_generation_template_scope_subject",
+        ),
+    )
+
+
+class AIPolicyConfig(Base):
+    """Persist AI policy overrides using system -> plan -> company -> user precedence."""
+
+    __tablename__ = "ai_policy_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope_type = Column(
+        SQLAlchemyEnum(AIPolicyScopeEnum),
+        nullable=False,
+        default=AIPolicyScopeEnum.USER,
+    )
+    plan_id = Column(Integer, ForeignKey("planos.id"), nullable=True, index=True)
+    company_identifier = Column(String, nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    generation_default_mode = Column(
+        SQLAlchemyEnum(AIPolicyModeEnum),
+        nullable=False,
+        default=AIPolicyModeEnum.BASIC,
+    )
+    enrichment_default_mode = Column(
+        SQLAlchemyEnum(AIPolicyModeEnum),
+        nullable=False,
+        default=AIPolicyModeEnum.BASIC,
+    )
+    allow_user_override = Column(Boolean, default=True, nullable=False)
+    allow_openai = Column(Boolean, default=True, nullable=False)
+    allow_gemini = Column(Boolean, default=True, nullable=False)
+    allow_attribute_ai = Column(Boolean, default=True, nullable=False)
+    allow_web_llm = Column(Boolean, default=True, nullable=False)
+    allow_provider_fallback = Column(Boolean, default=True, nullable=False)
+    allow_global_learning = Column(Boolean, default=True, nullable=False)
+    max_recovery_attempts = Column(Integer, default=1, nullable=False)
+    default_provider_preference = Column(
+        SQLAlchemyEnum(ExternalCredentialProviderEnum),
+        nullable=True,
+    )
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user = relationship(
+        "User",
+        backref=backref("ai_policy_configs", cascade="all, delete-orphan"),
+    )
+    plano = relationship(
+        "Plano",
+        backref=backref("ai_policy_configs", cascade="all, delete-orphan"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "scope_type",
+            "plan_id",
+            "company_identifier",
+            "user_id",
+            name="uq_ai_policy_scope_subject",
         ),
     )
 
@@ -510,12 +633,17 @@ class Produto(Base):
     # Score de qualidade de importação (0–100), calculado automaticamente durante o import
     import_quality_score = Column(Float, nullable=True)
 
+    # Exclusao logica para manter historico sem expor o item nas listagens ativas
+    is_deleted = Column(Boolean, nullable=False, default=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
     # Dados Brutos e Atributos
     dados_brutos_web = Column(
         MutableDict.as_mutable(JSON),
         nullable=True,
         comment="JSON com dados extraídos da web (textos, metadados)",
     )
+    conteudo_canais = Column(JSON, nullable=True)
     dynamic_attributes = Column(
         MutableDict.as_mutable(JSON),
         nullable=True,
@@ -667,6 +795,7 @@ class CatalogImportFile(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     result_summary = Column(MutableDict.as_mutable(JSON), nullable=True)
     resultado_json = Column(JSON, nullable=True)
+    extraction_mode = Column(String, nullable=True)
 
     user = relationship("User")
     fornecedor = relationship("Fornecedor")

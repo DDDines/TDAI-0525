@@ -3,6 +3,7 @@
 
 
 from typing import List, Optional, Dict, Any, Union, Literal
+from enum import Enum
 from pydantic import (
     BaseModel,
     EmailStr,
@@ -21,6 +22,8 @@ import json  # Para validação de JSON string
 # relativo ou absoluto dependendo de como o projeto é executado.
 # Assumindo que 'models.py' está no mesmo diretório (Backend) e é acessível:
 from Backend.models import (
+    AIPolicyModeEnum,
+    AIPolicyScopeEnum,
     StatusEnriquecimentoEnum,
     StatusGeracaoIAEnum,
     TipoAcaoEnum,
@@ -510,6 +513,7 @@ class ProdutoResponse(ProdutoBase):
     fornecedor: Optional[FornecedorResponse] = None
     product_type: Optional[ProductTypeResponse] = None
     log_enriquecimento_web: Optional[Any] = None
+    conteudo_canais: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -880,6 +884,146 @@ class CredentialsOverviewResponse(BaseModel):
     user_credentials: List[ExternalCredentialConfigResponse] = []
     effective_sources: List[EffectiveCredentialSource] = []
 
+
+class BasicGenerationTemplateConfigBase(BaseModel):
+    """Represent the editable basic-mode templates for one scope."""
+
+    title_template: Optional[str] = Field(None, max_length=2000)
+    description_template: Optional[str] = Field(None, max_length=2000)
+    is_active: bool = True
+
+
+class BasicGenerationTemplateConfigUpsert(BasicGenerationTemplateConfigBase):
+    """Represent one upsert request for basic-mode templates."""
+
+    scope_type: ExternalCredentialScopeEnum
+
+
+class BasicGenerationTemplateConfigResponse(BasicGenerationTemplateConfigBase):
+    """Represent a persisted basic-mode template config."""
+
+    id: int
+    scope_type: ExternalCredentialScopeEnum
+    source_label: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EffectiveBasicGenerationTemplate(BaseModel):
+    """Represent the effective basic-mode template source and content."""
+
+    source: Literal["system", "company", "user"]
+    source_label: str
+    title_template: str
+    description_template: str
+    is_custom: bool
+
+
+class BasicGenerationTemplateDefaults(BaseModel):
+    """Represent the built-in system defaults for basic-mode templates."""
+
+    title_template: str
+    description_template: str
+
+
+class BasicGenerationTemplateOverviewResponse(BaseModel):
+    """Represent all basic-mode template settings visible to the authenticated user."""
+
+    company_identifier: Optional[str] = None
+    company_config: Optional[BasicGenerationTemplateConfigResponse] = None
+    user_config: Optional[BasicGenerationTemplateConfigResponse] = None
+    effective_config: EffectiveBasicGenerationTemplate
+    system_defaults: BasicGenerationTemplateDefaults
+
+
+class AIPolicyConfigBase(BaseModel):
+    """Represent one editable AI policy layer."""
+
+    generation_default_mode: AIPolicyModeEnum = AIPolicyModeEnum.BASIC
+    enrichment_default_mode: AIPolicyModeEnum = AIPolicyModeEnum.BASIC
+    allow_user_override: bool = True
+    allow_openai: bool = True
+    allow_gemini: bool = True
+    allow_attribute_ai: bool = True
+    allow_web_llm: bool = True
+    allow_provider_fallback: bool = True
+    allow_global_learning: bool = True
+    max_recovery_attempts: int = Field(1, ge=0, le=10)
+    default_provider_preference: Optional[ExternalCredentialProviderEnum] = None
+    is_active: bool = True
+
+
+class AIPolicyConfigUpsert(AIPolicyConfigBase):
+    """Represent an upsert request for one AI policy scope."""
+
+    scope_type: AIPolicyScopeEnum
+    plan_id: Optional[int] = None
+
+
+class AIPolicyConfigResponse(AIPolicyConfigBase):
+    """Represent one persisted or derived AI policy layer."""
+
+    id: Optional[int] = None
+    scope_type: AIPolicyScopeEnum
+    source_label: str
+    company_identifier: Optional[str] = None
+    plan_id: Optional[int] = None
+    plan_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class EffectiveAIPolicyConfig(AIPolicyConfigBase):
+    """Represent the resolved effective AI policy for the current user."""
+
+    source: Literal["system", "plan", "company", "user"]
+    source_label: str
+
+
+class AIPolicyOverviewResponse(BaseModel):
+    """Represent all AI policy layers visible to the authenticated user."""
+
+    company_identifier: Optional[str] = None
+    plan_id: Optional[int] = None
+    plan_name: Optional[str] = None
+    system_config: AIPolicyConfigResponse
+    plan_config: Optional[AIPolicyConfigResponse] = None
+    company_config: Optional[AIPolicyConfigResponse] = None
+    user_config: Optional[AIPolicyConfigResponse] = None
+    effective_config: EffectiveAIPolicyConfig
+
+# ----- SCHEMAS PARA GERACAO DE CONTEUDO POR CANAL -----
+class CanalPublicacaoEnum(str, Enum):
+    """Represent the supported publication channels for multi-channel content generation."""
+
+    MERCADO_LIVRE = "mercado_livre"
+    GOOGLE_SHOPPING = "google_shopping"
+    B2B = "b2b"
+    ECOMMERCE = "ecommerce"
+
+
+class CanalConteudo(BaseModel):
+    """Represent content stored for a single publication channel."""
+
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    gerado_em: Optional[str] = None
+
+
+class ConteudoCanaisResponse(BaseModel):
+    """Represent the API response for channel-specific content generation."""
+
+    produto_id: int
+    canal: str
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    gerado_em: Optional[str] = None
+
+
 # ----- NOVOS SCHEMAS PARA SUGESTAO DE ATRIBUTOS GEMINI -----
 class SugestaoAtributoItem(BaseModel):
     """Represent Sugestao Atributo Item and centralize its responsibilities inside this module."""
@@ -993,4 +1137,13 @@ SocialLoginConfig.model_rebuild()
 PdfPreviewResponse.model_rebuild()
 CatalogPreview.model_rebuild()
 PdfRegionBulkRequest.model_rebuild()
+BasicGenerationTemplateConfigResponse.model_rebuild()
+EffectiveBasicGenerationTemplate.model_rebuild()
+BasicGenerationTemplateDefaults.model_rebuild()
+BasicGenerationTemplateOverviewResponse.model_rebuild()
+AIPolicyConfigResponse.model_rebuild()
+EffectiveAIPolicyConfig.model_rebuild()
+AIPolicyOverviewResponse.model_rebuild()
+ConteudoCanaisResponse.model_rebuild()
+CanalConteudo.model_rebuild()
 

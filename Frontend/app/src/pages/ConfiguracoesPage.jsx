@@ -6,30 +6,37 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
 import basicTemplateService from '../services/basicTemplateService';
 import credentialsService from '../services/credentialsService';
+import importRulesService from '../services/importRulesService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
+import { extractErrorMessage } from '../utils/errorDetails';
 import ChangePasswordModal from '../components/user/ChangePasswordModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppExperience } from '../contexts/AppExperienceContext';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import './ConfiguracoesPage.css';
 
+const FALLBACK_BASIC_TEMPLATE_STATE = {
+  titleTemplate: '{titulo_base}',
+  descriptionTemplate: '{nome_base}',
+};
+
 const PROVIDER_DEFINITIONS = [
   {
     provider: 'openai',
     label: 'OpenAI',
-    description: 'API key para geracao e operacoes LLM remotas.',
+    description: 'API key para geração e operações LLM remotas.',
     fields: [{ key: 'secret_value', label: 'API key', placeholder: 'sk-...' }],
   },
   {
     provider: 'google_gemini',
     label: 'Google Gemini',
-    description: 'API key para Gemini e sugestoes assistidas.',
+    description: 'API key para Gemini e sugestões assistidas.',
     fields: [{ key: 'secret_value', label: 'API key', placeholder: 'AIza...' }],
   },
   {
     provider: 'google_cse',
     label: 'Google CSE',
-    description: 'Credenciais para busca web do cliente com faturamento proprio.',
+    description: 'Credenciais para busca web do cliente com faturamento próprio.',
     fields: [
       { key: 'secret_value', label: 'API key', placeholder: 'AIza...' },
       { key: 'search_engine_id', label: 'Search Engine ID', placeholder: '5684ee...' },
@@ -74,11 +81,29 @@ function formatEffectiveSourceLabel(source) {
   const normalized = String(source || '').trim().toLowerCase();
   const labels = {
     company: 'Empresa',
-    none: 'Nao configurado',
+    none: 'Não configurado',
     system: 'Sistema',
     user: 'Pessoal',
   };
   return labels[normalized] || 'Desconhecido';
+}
+
+function normalizeTemplateScope(scope) {
+  return String(scope || '').trim().toLowerCase() === 'company' ? 'company' : 'user';
+}
+
+function buildTemplatesFromScope(overview, scope = 'user') {
+  const normalizedScope = normalizeTemplateScope(scope);
+  const fallback =
+    overview?.systemDefaults
+    || basicTemplateService.DEFAULT_BASIC_GENERATION_TEMPLATES
+    || FALLBACK_BASIC_TEMPLATE_STATE;
+  const sourceConfig = normalizedScope === 'company' ? overview?.companyConfig : overview?.userConfig;
+
+  return {
+    titleTemplate: sourceConfig?.titleTemplate || fallback.titleTemplate,
+    descriptionTemplate: sourceConfig?.descriptionTemplate || fallback.descriptionTemplate,
+  };
 }
 
 function ConfiguracoesPage() {
@@ -104,18 +129,54 @@ function ConfiguracoesPage() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [initialUserDataLoaded, setInitialUserDataLoaded] = useState(false);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [basicTemplates, setBasicTemplates] = useState(() =>
-    basicTemplateService.getBasicGenerationTemplates()
+  const [basicTemplates, setBasicTemplates] = useState(
+    basicTemplateService.DEFAULT_BASIC_GENERATION_TEMPLATES || FALLBACK_BASIC_TEMPLATE_STATE
   );
+  const [basicTemplateOverview, setBasicTemplateOverview] = useState(null);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templatesLoadError, setTemplatesLoadError] = useState('');
+  const [templateScope, setTemplateScope] = useState('user');
   const [savingTemplates, setSavingTemplates] = useState(false);
   const [credentialsOverview, setCredentialsOverview] = useState(null);
   const [credentialDrafts, setCredentialDrafts] = useState(buildInitialDrafts);
   const [loadingCredentials, setLoadingCredentials] = useState(false);
+  const [credentialsLoadError, setCredentialsLoadError] = useState('');
   const [savingCredentialKey, setSavingCredentialKey] = useState('');
+
   const [validatingCredentialKey, setValidatingCredentialKey] = useState('');
+  const [importRules, setImportRules] = useState([]);
+  const [loadingImportRules, setLoadingImportRules] = useState(false);
+  const [deletingRuleId, setDeletingRuleId] = useState(null);
+
+  const loadImportRules = useCallback(async () => {
+    setLoadingImportRules(true);
+    try {
+      const rules = await importRulesService.listarRegras();
+      setImportRules(Array.isArray(rules) ? rules : []);
+    } catch {
+      // silently degrade
+    } finally {
+      setLoadingImportRules(false);
+    }
+  }, []);
+
+  const handleDeleteImportRule = async (ruleId) => {
+    if (deletingRuleId) return;
+    setDeletingRuleId(ruleId);
+    try {
+      await importRulesService.deletarRegra(ruleId);
+      setImportRules((prev) => prev.filter((r) => r.id !== ruleId));
+      showSuccessToast('Regra removida com sucesso.');
+    } catch (error) {
+      showErrorToast(extractErrorMessage(error, 'Falha ao remover regra.'));
+    } finally {
+      setDeletingRuleId(null);
+    }
+  };
 
   const loadCredentialsOverview = useCallback(async () => {
     setLoadingCredentials(true);
+    setCredentialsLoadError('');
     try {
       const overview = await credentialsService.getOverview();
       setCredentialsOverview(overview);
@@ -137,9 +198,28 @@ function ConfiguracoesPage() {
         return { ...prev, ...nextDrafts };
       });
     } catch (error) {
-      showErrorToast(error.message || error.detail || 'Falha ao carregar credenciais.');
+      const errorMessage = extractErrorMessage(error, 'Falha ao carregar credenciais.');
+      setCredentialsLoadError(errorMessage);
+      showErrorToast(errorMessage);
     } finally {
       setLoadingCredentials(false);
+    }
+  }, []);
+
+  const loadBasicTemplateOverview = useCallback(async () => {
+    setLoadingTemplates(true);
+    setTemplatesLoadError('');
+    try {
+      const overview = await basicTemplateService.getBasicGenerationTemplateOverview({
+        preferFresh: true,
+      });
+      setBasicTemplateOverview(overview);
+    } catch (error) {
+      const errorMessage = extractErrorMessage(error, 'Falha ao carregar templates do modo básico.');
+      setTemplatesLoadError(errorMessage);
+      showErrorToast(errorMessage);
+    } finally {
+      setLoadingTemplates(false);
     }
   }, []);
 
@@ -159,7 +239,7 @@ function ConfiguracoesPage() {
         }
         setInitialUserDataLoaded(true);
       } catch (error) {
-        showErrorToast(error.message || error.detail || 'Falha ao carregar dados do usuario.');
+        showErrorToast(extractErrorMessage(error, 'Falha ao carregar dados do usuário.'));
       } finally {
         setLoadingProfile(false);
       }
@@ -167,7 +247,16 @@ function ConfiguracoesPage() {
 
     void fetchCurrentUser();
     void loadCredentialsOverview();
-  }, [loadCredentialsOverview]);
+    void loadBasicTemplateOverview();
+    void loadImportRules();
+  }, [loadBasicTemplateOverview, loadCredentialsOverview, loadImportRules]);
+
+  useEffect(() => {
+    if (!basicTemplateOverview) {
+      return;
+    }
+    setBasicTemplates(buildTemplatesFromScope(basicTemplateOverview, templateScope));
+  }, [basicTemplateOverview, templateScope]);
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
@@ -190,7 +279,7 @@ function ConfiguracoesPage() {
       }
       await loadCredentialsOverview();
     } catch (error) {
-      const errorMsg = error.message || error.detail || 'Falha ao atualizar perfil.';
+      const errorMsg = extractErrorMessage(error, 'Falha ao atualizar perfil.');
       showErrorToast(Array.isArray(errorMsg) ? errorMsg.join('; ') : errorMsg);
     } finally {
       setLoadingProfile(false);
@@ -206,33 +295,61 @@ function ConfiguracoesPage() {
     event.preventDefault();
     setSavingTemplates(true);
     try {
-      const savedTemplates = await basicTemplateService.saveBasicGenerationTemplates({
-        titleTemplate: basicTemplates.titleTemplate,
-        descriptionTemplate: basicTemplates.descriptionTemplate,
+      const savedTemplates = await basicTemplateService.saveBasicGenerationTemplates(
+        {
+          titleTemplate: basicTemplates.titleTemplate,
+          descriptionTemplate: basicTemplates.descriptionTemplate,
+        },
+        {
+          scope: templateScope,
+        }
+      );
+      setBasicTemplateOverview(savedTemplates.overview);
+      setBasicTemplates({
+        titleTemplate: savedTemplates.titleTemplate,
+        descriptionTemplate: savedTemplates.descriptionTemplate,
       });
-      setBasicTemplates(savedTemplates);
-      showSuccessToast('Templates do modo basico salvos com sucesso.');
+      showSuccessToast('Templates do modo básico salvos com sucesso.');
     } catch (error) {
-      showErrorToast(error.message || 'Falha ao salvar templates do modo basico.');
+      showErrorToast(extractErrorMessage(error, 'Falha ao salvar templates do modo básico.'));
     } finally {
       setSavingTemplates(false);
     }
   };
 
   const handleResetBasicTemplates = () => {
-    const resetTemplates = basicTemplateService.resetBasicGenerationTemplates();
-    setBasicTemplates(resetTemplates);
-    showSuccessToast('Templates do modo basico restaurados para o padrao.');
+    void handleResetBasicTemplatesAction();
+  };
+
+  const handleResetBasicTemplatesAction = async () => {
+    setSavingTemplates(true);
+    try {
+      const resetTemplates = await basicTemplateService.resetBasicGenerationTemplates({
+        scope: templateScope,
+      });
+      setBasicTemplateOverview(resetTemplates.overview);
+      setBasicTemplates({
+        titleTemplate: resetTemplates.titleTemplate,
+        descriptionTemplate: resetTemplates.descriptionTemplate,
+      });
+      showSuccessToast('Templates do modo basico restaurados para o padrao.');
+    } catch (error) {
+      showErrorToast(extractErrorMessage(error, 'Falha ao restaurar templates do modo basico.'));
+    } finally {
+      setSavingTemplates(false);
+    }
   };
 
   const handleSelectExperienceMode = (mode) => {
     setAdminPreviewMode(mode);
-    showSuccessToast(`Modo de visualizacao alterado para ${mode === 'complete' ? 'Completo' : 'Basico'}.`);
+    showSuccessToast(
+      `Modo de visualização alterado para ${mode === 'complete' ? 'Completo' : 'Básico'}.`
+    );
   };
 
   const handleResetExperienceMode = () => {
     clearAdminPreviewMode();
-    showSuccessToast('Visualizacao voltou ao modo padrao da plataforma.');
+    showSuccessToast('Visualização voltou ao modo padrão da plataforma.');
   };
 
   const handleCredentialDraftChange = (scope, provider, field, value) => {
@@ -262,7 +379,7 @@ function ConfiguracoesPage() {
       await loadCredentialsOverview();
       handleCredentialDraftChange(scope, provider, 'secret_value', '');
     } catch (error) {
-      showErrorToast(error.message || error.detail || 'Falha ao salvar credencial.');
+      showErrorToast(extractErrorMessage(error, 'Falha ao salvar credencial.'));
     } finally {
       setSavingCredentialKey('');
     }
@@ -280,7 +397,7 @@ function ConfiguracoesPage() {
       }
       showSuccessToast(`${providerLabel} validado com sucesso.`);
     } catch (error) {
-      showErrorToast(error.message || error.detail || `Falha ao validar ${providerLabel}.`);
+      showErrorToast(extractErrorMessage(error, `Falha ao validar ${providerLabel}.`));
     } finally {
       setValidatingCredentialKey('');
     }
@@ -300,7 +417,7 @@ function ConfiguracoesPage() {
         },
       }));
     } catch (error) {
-      showErrorToast(error.message || error.detail || 'Falha ao remover credencial.');
+      showErrorToast(extractErrorMessage(error, 'Falha ao remover credencial.'));
     } finally {
       setSavingCredentialKey('');
     }
@@ -330,6 +447,11 @@ function ConfiguracoesPage() {
     return map;
   }, [credentialsOverview]);
 
+  const effectiveTemplateSourceLabel = basicTemplateOverview?.effectiveConfig?.sourceLabel || 'Sistema';
+  const hasCompanyTemplateConfig = Boolean(basicTemplateOverview?.companyConfig);
+  const hasUserTemplateConfig = Boolean(basicTemplateOverview?.userConfig);
+  const templateScopeLabel = templateScope === 'company' ? 'Empresa' : 'Pessoal';
+
   const formatMembershipDate = (value) => {
     if (!value) return '-';
     const parsedDate = new Date(value);
@@ -337,21 +459,21 @@ function ConfiguracoesPage() {
     return parsedDate.toLocaleDateString('pt-BR');
   };
 
-  const userRoleDisplay = user?.is_superuser ? 'Administrador' : 'Usuario';
+  const userRoleDisplay = user?.is_superuser ? 'Administrador' : 'Usuário';
   const userPlanDisplay = user?.plano?.nome || 'Sem plano';
   const userCreatedAtDisplay = formatMembershipDate(user?.created_at);
   const profileAvatarFallback = (profileData.nome_completo || profileData.email || 'U')
     .slice(0, 1)
     .toUpperCase();
 
-  if (!initialUserDataLoaded && loadingProfile) {
-    return <LoadingOverlay isOpen={true} message="Carregando configuracoes..." />;
+  if ((!initialUserDataLoaded && loadingProfile) || loadingTemplates) {
+    return <LoadingOverlay isOpen={true} message="Carregando configurações..." />;
   }
 
   return (
     <div className="settings-page-shell">
       <section className="settings-section-card">
-        <h2>Perfil do Usuario</h2>
+        <h2>Perfil do Usuário</h2>
         <div className="settings-profile-layout">
           <form className="settings-form settings-form-main" onSubmit={handleProfileSubmit}>
             <div className="settings-field">
@@ -367,18 +489,18 @@ function ConfiguracoesPage() {
               <input type="text" id="nome_empresa" name="nome_empresa" value={profileData.nome_empresa} onChange={handleProfileChange} className="settings-input" disabled={loadingProfile} />
             </div>
             <div className="settings-field">
-              <label htmlFor="avatar_url">Imagem do usuario (URL)</label>
+              <label htmlFor="avatar_url">Imagem do usuário (URL)</label>
               <input type="url" id="avatar_url" name="avatar_url" value={profileData.avatar_url} onChange={handleProfileChange} className="settings-input" placeholder="https://..." autoComplete="off" disabled={loadingProfile} />
             </div>
             <div className="settings-field">
               <label htmlFor="idioma_preferido">Idioma preferido</label>
               <select id="idioma_preferido" name="idioma_preferido" value={profileData.idioma_preferido} onChange={handleProfileChange} className="settings-input" disabled={loadingProfile}>
-                <option value="pt_BR">Portugues (pt-BR)</option>
-                <option value="en">Ingles (en)</option>
+                <option value="pt_BR">Português (pt-BR)</option>
+                <option value="en">Inglês (en)</option>
               </select>
             </div>
             <button type="submit" className="settings-primary-btn" disabled={loadingProfile}>
-              {loadingProfile ? 'Salvando perfil...' : 'Salvar alteracoes do perfil'}
+              {loadingProfile ? 'Salvando perfil...' : 'Salvar alterações do perfil'}
             </button>
           </form>
 
@@ -388,8 +510,8 @@ function ConfiguracoesPage() {
                 {profileData.avatar_url ? <img src={profileData.avatar_url} alt="" referrerPolicy="no-referrer" /> : <span>{profileAvatarFallback}</span>}
               </div>
               <div className="settings-profile-heading">
-                <h3>{profileData.nome_completo || 'Usuario sem nome'}</h3>
-                <p>{profileData.nome_empresa || 'Empresa nao informada'}</p>
+                <h3>{profileData.nome_completo || 'Usuário sem nome'}</h3>
+                <p>{profileData.nome_empresa || 'Empresa não informada'}</p>
               </div>
             </div>
             <div className="settings-profile-divider" />
@@ -397,7 +519,7 @@ function ConfiguracoesPage() {
               <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Email</span><span className="settings-profile-detail-value">{profileData.email || '-'}</span></div>
               <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Perfil</span><span className="settings-profile-detail-value">{userRoleDisplay}</span></div>
               <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Plano</span><span className="settings-profile-detail-value">{userPlanDisplay}</span></div>
-              <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Modo do produto</span><span className="settings-profile-detail-value">{isCompleteMode ? 'Completo' : 'Basico'}</span></div>
+              <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Modo do produto</span><span className="settings-profile-detail-value">{isCompleteMode ? 'Completo' : 'Básico'}</span></div>
               <div className="settings-profile-detail-row"><span className="settings-profile-detail-label">Membro desde</span><span className="settings-profile-detail-value">{userCreatedAtDisplay}</span></div>
             </div>
           </aside>
@@ -407,7 +529,7 @@ function ConfiguracoesPage() {
       <div className="settings-secondary-grid">
         <section className="settings-section-card settings-compact-card settings-security-card">
           <div className="settings-card-header">
-            <h2>Seguranca</h2>
+            <h2>Segurança</h2>
             <p className="settings-help-text">
               Proteja seu acesso e atualize sua senha quando precisar.
             </p>
@@ -422,36 +544,36 @@ function ConfiguracoesPage() {
 
         <section className="settings-section-card settings-compact-card settings-experience-card">
           <div className="settings-card-header">
-            <h2>Experiencia do Produto</h2>
+            <h2>Experiência do Produto</h2>
             <p className="settings-help-text">
-              Veja qual modo esta guiando esta sessao e como a plataforma se comporta para o seu perfil.
+              Veja qual modo está guiando esta sessão e como a plataforma se comporta para o seu perfil.
             </p>
           </div>
           <div className="settings-experience-summary">
             <div className="settings-experience-row">
-              <span className="settings-field-label">Modo ativo para esta sessao:</span>
+              <span className="settings-field-label">Modo ativo para esta sessão:</span>
               <span className={`settings-mode-badge ${isCompleteMode ? 'complete' : 'basic'}`}>
-                {isCompleteMode ? 'Completo (com IA)' : 'Basico (sem IA)'}
+                {isCompleteMode ? 'Completo (com IA)' : 'Básico (sem IA)'}
               </span>
             </div>
             <div className="settings-experience-row">
-              <span className="settings-field-label">Modo padrao da plataforma:</span>
+              <span className="settings-field-label">Modo padrão da plataforma:</span>
               <strong className="settings-experience-value">
-                {defaultMode === 'complete' ? 'Completo' : 'Basico'}
+                {defaultMode === 'complete' ? 'Completo' : 'Básico'}
               </strong>
             </div>
           </div>
           {isAdmin && canAdminPreview ? (
             <div className="settings-experience-controls">
               <button type="button" className={`settings-mode-btn ${effectiveMode === 'basic' ? 'active' : ''}`} onClick={() => handleSelectExperienceMode('basic')}>
-                Visualizar Basico
+                Visualizar Básico
               </button>
               <button type="button" className={`settings-mode-btn ${effectiveMode === 'complete' ? 'active' : ''}`} onClick={() => handleSelectExperienceMode('complete')}>
                 Visualizar Completo
               </button>
               {adminPreviewMode ? (
                 <button type="button" className="settings-mode-reset-btn" onClick={handleResetExperienceMode}>
-                  Voltar ao padrao
+                  Voltar ao padrão
                 </button>
               ) : null}
             </div>
@@ -462,29 +584,88 @@ function ConfiguracoesPage() {
 
         <section className="settings-section-card settings-templates-card">
           <div className="settings-card-header">
-            <h2>Templates do Modo Basico</h2>
+            <h2>Templates do Modo Básico</h2>
             <p className="settings-help-text">
-              Ajuste o formato padrao de titulo e descricao para o fluxo sem IA.
+              Ajuste o formato padrão de título e descrição para o fluxo sem IA.
             </p>
           </div>
+          <div className="settings-experience-summary">
+            <div className="settings-experience-row">
+              <span className="settings-field-label">Origem efetiva em uso:</span>
+              <strong className="settings-experience-value">{effectiveTemplateSourceLabel}</strong>
+            </div>
+            <div className="settings-experience-row">
+              <span className="settings-field-label">Escopo em edição:</span>
+              <strong className="settings-experience-value">{templateScopeLabel}</strong>
+            </div>
+          </div>
+          {isAdmin ? (
+            <div className="settings-experience-controls settings-template-scope-controls">
+              <button
+                type="button"
+                className={`settings-mode-btn ${templateScope === 'user' ? 'active' : ''}`}
+                onClick={() => setTemplateScope('user')}
+              >
+                Editar Pessoal
+              </button>
+              <button
+                type="button"
+                className={`settings-mode-btn ${templateScope === 'company' ? 'active' : ''}`}
+                onClick={() => setTemplateScope('company')}
+              >
+                Editar Empresa
+              </button>
+            </div>
+          ) : null}
+          {templatesLoadError ? (
+            <div className="settings-inline-error" role="alert">
+              <p>{templatesLoadError}</p>
+              <button
+                type="button"
+                className="settings-mode-btn"
+                onClick={() => void loadBasicTemplateOverview()}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : null}
           <form onSubmit={handleSaveBasicTemplates}>
+            {templateScope === 'company' ? (
+              <p className="settings-help-text">
+                Empresa atual: <strong>{basicTemplateOverview?.companyIdentifier || 'não definida'}</strong>.
+              </p>
+            ) : (
+              <p className="settings-help-text">
+                {hasUserTemplateConfig
+                  ? 'Você já possui um override pessoal salvo para o modo básico.'
+                  : 'Sem override pessoal salvo. O sistema usará a próxima camada da precedência.'}
+              </p>
+            )}
             <div className="settings-field">
-              <label htmlFor="titleTemplate">Template de Titulos</label>
-              <textarea id="titleTemplate" name="titleTemplate" className="settings-input settings-textarea" rows={3} value={basicTemplates.titleTemplate} onChange={handleBasicTemplateChange} disabled={savingTemplates} />
+              <label htmlFor="titleTemplate">Template de Títulos</label>
+              <textarea id="titleTemplate" name="titleTemplate" className="settings-input settings-textarea" rows={3} value={basicTemplates?.titleTemplate || ''} onChange={handleBasicTemplateChange} disabled={savingTemplates} />
             </div>
             <div className="settings-field">
-              <label htmlFor="descriptionTemplate">Template de Descricao</label>
-              <textarea id="descriptionTemplate" name="descriptionTemplate" className="settings-input settings-textarea" rows={8} value={basicTemplates.descriptionTemplate} onChange={handleBasicTemplateChange} disabled={savingTemplates} />
+              <label htmlFor="descriptionTemplate">Template de Descrição</label>
+              <textarea id="descriptionTemplate" name="descriptionTemplate" className="settings-input settings-textarea" rows={8} value={basicTemplates?.descriptionTemplate || ''} onChange={handleBasicTemplateChange} disabled={savingTemplates} />
             </div>
             <small className="settings-help-text">
-              Placeholders: nome_base, marca, modelo, sku, ean, categoria, keyword, descricao_web, specs, bullets, keywords, intro.
+              Placeholders: titulo_base, nome_base, technical_summary, application, reference, material, content, specs, bullets.
             </small>
             <div className="settings-template-actions">
               <button type="submit" className="settings-primary-btn" disabled={savingTemplates}>
                 {savingTemplates ? 'Salvando templates...' : 'Salvar templates'}
               </button>
-              <button type="button" className="settings-mode-reset-btn" onClick={handleResetBasicTemplates} disabled={savingTemplates}>
-                Restaurar padrao
+              <button
+                type="button"
+                className="settings-mode-reset-btn"
+                onClick={handleResetBasicTemplates}
+                disabled={
+                  savingTemplates ||
+                  (templateScope === 'company' ? !hasCompanyTemplateConfig : !hasUserTemplateConfig)
+                }
+              >
+                Restaurar padrão
               </button>
             </div>
           </form>
@@ -492,9 +673,9 @@ function ConfiguracoesPage() {
       </div>
 
       <section className="settings-section-card">
-        <h2>Credenciais e Integracoes</h2>
+        <h2>Credenciais e Integrações</h2>
         <p className="settings-help-text">
-          As credenciais do cliente seguem esta precedencia: <strong>Pessoal &gt; Empresa &gt; Sistema</strong>.
+          As credenciais do cliente seguem esta precedência: <strong>Pessoal &gt; Empresa &gt; Sistema</strong>.
         </p>
         {loadingCredentials ? (
           <div className="settings-inline-loading" role="status" aria-live="polite">
@@ -502,12 +683,25 @@ function ConfiguracoesPage() {
             <span>Carregando credenciais...</span>
           </div>
         ) : (
-          <div className="settings-secondary-grid">
+          <>
+            {credentialsLoadError ? (
+              <div className="settings-inline-error" role="alert">
+                <p>{credentialsLoadError}</p>
+                <button
+                  type="button"
+                  className="settings-mode-btn"
+                  onClick={() => void loadCredentialsOverview()}
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            ) : null}
+            <div className="settings-secondary-grid">
             {isAdmin ? (
               <section className="settings-section-card">
                 <h3>Credenciais da Empresa</h3>
                 <p className="settings-help-text">
-                  Empresa atual: <strong>{credentialsOverview?.company_identifier || 'nao definida'}</strong>.
+                  Empresa atual: <strong>{credentialsOverview?.company_identifier || 'não definida'}</strong>.
                 </p>
                 {PROVIDER_DEFINITIONS.map((providerDef) => {
                   const provider = providerDef.provider;
@@ -557,7 +751,7 @@ function ConfiguracoesPage() {
                         </div>
                       ))}
                       <div className="settings-field">
-                        <label htmlFor={`company-${provider}-description`}>Descricao interna</label>
+                        <label htmlFor={`company-${provider}-description`}>Descrição interna</label>
                         <input
                           id={`company-${provider}-description`}
                           type="text"
@@ -576,7 +770,7 @@ function ConfiguracoesPage() {
                         <button type="submit" className="settings-primary-btn" disabled={saving || validating}>
                           {saving ? 'Salvando...' : 'Salvar'}
                         </button>
-                        <button type="button" className="settings-mode-reset-btn" onClick={() => handleDeleteCredential('company', provider)} disabled={saving || validating || !existing}>
+                        <button type="button" className="settings-mode-reset-btn settings-danger-btn" onClick={() => handleDeleteCredential('company', provider)} disabled={saving || validating || !existing}>
                           Remover
                         </button>
                       </div>
@@ -589,7 +783,7 @@ function ConfiguracoesPage() {
             <section className="settings-section-card">
               <h3>Minhas Credenciais Pessoais</h3>
               <p className="settings-help-text">
-                Use override pessoal quando quiser faturar suas chamadas externamente na sua propria conta.
+                Use override pessoal quando quiser faturar suas chamadas externamente na sua própria conta.
               </p>
               {PROVIDER_DEFINITIONS.map((providerDef) => {
                 const provider = providerDef.provider;
@@ -658,7 +852,7 @@ function ConfiguracoesPage() {
                       <button type="submit" className="settings-primary-btn" disabled={saving || validating}>
                         {saving ? 'Salvando...' : 'Salvar'}
                       </button>
-                      <button type="button" className="settings-mode-reset-btn" onClick={() => handleDeleteCredential('user', provider)} disabled={saving || validating || !existing}>
+                      <button type="button" className="settings-mode-reset-btn settings-danger-btn" onClick={() => handleDeleteCredential('user', provider)} disabled={saving || validating || !existing}>
                         Remover
                       </button>
                     </div>
@@ -666,7 +860,46 @@ function ConfiguracoesPage() {
                 );
               })}
             </section>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="settings-section-card">
+        <h2>Regras de Validação de Importação</h2>
+        <p className="settings-help-text">
+          Regras aprendidas durante revisões de importação. O sistema as aplica automaticamente nos próximos imports do mesmo fornecedor.
+        </p>
+        {loadingImportRules ? (
+          <div className="settings-inline-loading" role="status" aria-live="polite">
+            <span className="settings-inline-loading-spinner" aria-hidden="true" />
+            <span>Carregando regras...</span>
           </div>
+        ) : importRules.length === 0 ? (
+          <p className="settings-help-text">Nenhuma regra salva ainda. Elas são criadas automaticamente ao revisar importações.</p>
+        ) : (
+          <ul className="settings-rules-list">
+            {importRules.map((rule) => (
+              <li key={rule.id} className="settings-rule-item">
+                <div className="settings-rule-info">
+                  <span className="settings-rule-type">{rule.rule_type}</span>
+                  <span className="settings-rule-action">{rule.action}</span>
+                  {rule.min_quality_score != null && (
+                    <span className="settings-rule-score">score ≥ {(rule.min_quality_score * 100).toFixed(0)}%</span>
+                  )}
+                  <span className="settings-rule-applied">Aplicada {rule.times_applied}×</span>
+                </div>
+                <button
+                  type="button"
+                  className="settings-mode-reset-btn settings-danger-btn settings-rule-delete-btn"
+                  disabled={deletingRuleId === rule.id}
+                  onClick={() => handleDeleteImportRule(rule.id)}
+                >
+                  {deletingRuleId === rule.id ? 'Removendo...' : 'Remover'}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

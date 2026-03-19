@@ -19,6 +19,7 @@ from Backend.infrastructure.repositories.product_repository import ProductReposi
 from Backend.infrastructure.repositories.product_type_repository import ProductTypeRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 from Backend.routers.admin_analytics import router as admin_analytics_router
+from Backend.routers.basic_templates import router as basic_templates_router
 from Backend.routers.credentials import router as credentials_router
 from Backend.routers.dashboard import router as dashboard_router
 from Backend.routers.fornecedores import router as fornecedores_router
@@ -33,6 +34,7 @@ from Backend.routers.uso_ia import router as uso_ia_router
 from Backend.routers.web_enrichment import router as web_enrichment_router
 from Backend.routers.import_review import router as import_review_router
 from Backend.routers.import_rules import router as import_rules_router
+from Backend.routers.planos import router as planos_router
 
 logger = get_logger(__name__)
 logger.info("Inicializando aplicacao. Certifique-se de rodar 'alembic upgrade head' antes de usar.")
@@ -156,6 +158,10 @@ class MainBootstrapRuntime:
             if "external_credential_configs" not in table_names:
                 models.ExternalCredentialConfig.__table__.create(bind=engine, checkfirst=True)
                 logger.info("Tabela external_credential_configs criada automaticamente.")
+
+            if "basic_generation_template_configs" not in table_names:
+                models.BasicGenerationTemplateConfig.__table__.create(bind=engine, checkfirst=True)
+                logger.info("Tabela basic_generation_template_configs criada automaticamente.")
 
             if "attribute_templates" in table_names:
                 attribute_columns = {
@@ -384,6 +390,7 @@ app.include_router(auth_router_direct, prefix=settings.API_V1_STR + '/auth', tag
 app.include_router(social_auth_router, prefix=settings.API_V1_STR + '/auth', tags=['Autenticacao Social'])
 app.include_router(dashboard_router, prefix=settings.API_V1_STR, tags=['Dashboard'])
 app.include_router(credentials_router, prefix=settings.API_V1_STR, tags=['Credenciais Externas'])
+app.include_router(basic_templates_router, prefix=settings.API_V1_STR, tags=['Templates Basicos'])
 app.include_router(produtos_router, prefix=settings.API_V1_STR, tags=['Produtos'])
 app.include_router(fornecedores_router, prefix=settings.API_V1_STR, tags=['Fornecedores'])
 app.include_router(generation_router, prefix=settings.API_V1_STR, tags=['Geracao de Conteudo IA'])
@@ -396,4 +403,5 @@ app.include_router(password_recovery_router, prefix=settings.API_V1_STR, tags=['
 app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + '/admin/analytics', tags=['Analytics (Admin)'])
 app.include_router(import_review_router, prefix=settings.API_V1_STR, tags=['Revisao de Importacao'])
 app.include_router(import_rules_router, prefix=settings.API_V1_STR, tags=['Regras de Validacao'])
+app.include_router(planos_router, prefix=settings.API_V1_STR, tags=['Planos e Faturamento'])
 

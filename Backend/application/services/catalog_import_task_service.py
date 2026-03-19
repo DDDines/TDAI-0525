@@ -130,6 +130,7 @@ class CatalogImportTaskWorkflow:
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
         runtime: Optional[Any] = None,
+        vision_service: Optional[Any] = None,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Catalog Import Task Workflow."""
         runtime_obj = CatalogImportTaskRuntime(
@@ -197,6 +198,9 @@ class CatalogImportTaskWorkflow:
         )
         self.audit_writer = CatalogImportAuditWriter(models=runtime_obj.models)
 
+        self.vision_service = vision_service
+        self.user: Optional[Any] = None
+
         self.db: Optional[Session] = None
         self.catalog_file = None
         self.file_id = 0
@@ -245,6 +249,7 @@ class CatalogImportTaskWorkflow:
             list(self.mapping.keys()) if self.mapping else [],
         )
 
+        self.catalog_file.extraction_mode = self.extraction_mode
         self.file_state_service.mark_processing(
             catalog_file=self.catalog_file,
             fornecedor_id=self.fornecedor_id,
@@ -412,6 +417,25 @@ class CatalogImportTaskWorkflow:
         )
         return created_page, updated_page
 
+    async def _render_pdf_page_to_data_url(self, *, content: bytes, page_number: int) -> str:
+        """Render a single PDF page to a base64 PNG data URL using fitz/PyMuPDF."""
+        import base64
+        import fitz  # PyMuPDF
+
+        doc = fitz.open(stream=content, filetype="pdf")
+        try:
+            page_index = page_number - 1
+            if page_index < 0 or page_index >= len(doc):
+                return ""
+            page = doc[page_index]
+            mat = fitz.Matrix(2.0, 2.0)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            png_bytes = pix.tobytes("png")
+            b64 = base64.b64encode(png_bytes).decode("ascii")
+            return f"data:image/png;base64,{b64}"
+        finally:
+            doc.close()
+
     async def _process_pdf(self, *, content: bytes) -> None:
         """Handle process pdf within the catalog import workflow."""
         import io
@@ -427,17 +451,29 @@ class CatalogImportTaskWorkflow:
         )
 
         page_list = self.pages or list(range(1, total + 1))
-        for page in page_list:
+        page_elapsed_times: List[float] = []
+        for idx, page in enumerate(page_list):
             page_start = self.time.perf_counter()
-            produtos_data = await self.file_processing_service.processar_arquivo_pdf(
-                content,
-                mapeamento_colunas_usuario=self.mapping,
-                usar_llm=usar_llm,
-                product_type_id=self.product_type_id,
-                pages=[page],
-                region=self.region,
-                extraction_mode=self.extraction_mode,
-            )
+
+            if self.extraction_mode == "vision":
+                data_url = await self._render_pdf_page_to_data_url(
+                    content=content, page_number=page
+                )
+                produtos_data = await self.vision_service.extrair_pagina(
+                    page_image_data_url=data_url,
+                    page_text=None,
+                    user=self.user,
+                )
+            else:
+                produtos_data = await self.file_processing_service.processar_arquivo_pdf(
+                    content,
+                    mapeamento_colunas_usuario=self.mapping,
+                    usar_llm=usar_llm,
+                    product_type_id=self.product_type_id,
+                    pages=[page],
+                    region=self.region,
+                    extraction_mode=self.extraction_mode,
+                )
 
             produtos_create: List[Any] = []
             for prod in produtos_data:
@@ -448,11 +484,17 @@ class CatalogImportTaskWorkflow:
                 )
 
             created_page, updated_page = self._flush_produtos(produtos_create=produtos_create)
+            page_elapsed = self.time.perf_counter() - page_start
+            page_elapsed_times.append(page_elapsed)
+            avg_page_time = sum(page_elapsed_times) / len(page_elapsed_times)
+            pages_remaining = len(page_list) - (idx + 1)
+            eta_seconds = avg_page_time * pages_remaining
             self.file_state_service.increment_page(
                 catalog_file=self.catalog_file,
+                eta_seconds=eta_seconds,
             )
             self.catalog_logger.info(
-                "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s ignored_total=%s elapsed=%.2fs",
+                "file_id=%s page=%s processed_rows=%s created=%s updated=%s errors_total=%s ignored_total=%s elapsed=%.2fs eta=%.1fs",
                 self.file_id,
                 page,
                 len(produtos_data),
@@ -460,7 +502,8 @@ class CatalogImportTaskWorkflow:
                 len(updated_page),
                 len(self.issue_tracker.errors),
                 len(self.issue_tracker.ignored_non_critical),
-                self.time.perf_counter() - page_start,
+                page_elapsed,
+                eta_seconds,
             )
 
     async def _process_tabular(self, *, ext: str, content: bytes) -> bool:
@@ -672,6 +715,7 @@ class CatalogImportTaskService:
         classificar_qualidade_linha_produto: Callable,
         write_catalog_import_report: Callable,
         normalize_import_text: Callable,
+        vision_service: Optional[Any] = None,
     ):
         """Initialize injected dependencies and runtime configuration for Catalog Import Task Service."""
         self._deps = {
@@ -697,6 +741,7 @@ class CatalogImportTaskService:
             "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
+            "vision_service": vision_service,
         }
 
     async def execute(

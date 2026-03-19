@@ -528,3 +528,129 @@ body.dark .plano-coverage-icon {
     font-size: 1.35rem;
   }
 }
+
+/* Plan chooser */
+.plano-chooser-card {
+  padding: 1.5rem 2rem 2rem;
+}
+
+.plano-chooser-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.plano-chooser-plan {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 16px;
+  padding: 1.25rem;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.plano-chooser-plan.is-current {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.04);
+}
+
+.plano-chooser-plan-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plano-chooser-plan-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #0f172a;
+  flex: 1;
+}
+
+.plano-chooser-plan-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #6366f1;
+  color: #fff;
+}
+
+.plano-chooser-plan-price {
+  font-size: 0.85rem;
+  color: #475569;
+  width: 100%;
+}
+
+.plano-chooser-plan-limits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.plano-chooser-plan-limits li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.plano-chooser-plan-limits li strong {
+  color: #1e293b;
+}
+
+.plano-chooser-select-btn {
+  margin-top: auto;
+  padding: 0.55rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.plano-chooser-select-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.plano-chooser-select-btn.is-upgrade {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  border-color: transparent;
+}
+
+.plano-chooser-select-btn.is-upgrade:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.plano-chooser-select-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .plano-chooser-plan {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .plano-chooser-plan.is-current {
+    background: rgba(99, 102, 241, 0.1);
+  }
+  .plano-chooser-plan-name { color: #f1f5f9; }
+  .plano-chooser-plan-price { color: #94a3b8; }
+  .plano-chooser-plan-limits li { color: #94a3b8; }
+  .plano-chooser-plan-limits li strong { color: #e2e8f0; }
+  .plano-chooser-select-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: #e2e8f0; }
+  .plano-chooser-select-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+}

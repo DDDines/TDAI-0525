@@ -1,62 +1,85 @@
 /**
- * Module import review page.
+ * Import review page.
  *
  * Defines responsibilities and integration points for pages.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LuCircleCheck, LuCircleX, LuTriangleAlert, LuArrowLeft, LuThumbsUp } from 'react-icons/lu';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  LuArrowLeft,
+  LuCircleCheck,
+  LuCircleX,
+  LuThumbsUp,
+  LuTriangleAlert,
+} from 'react-icons/lu';
 import apiClient from '../services/apiClient';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
+import { extractErrorMessage } from '../utils/errorDetails';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import './ImportReviewPage.css';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 function ScoreBadge({ score }) {
-  if (score == null) return <span className="ir-badge ir-badge--none">—</span>;
+  if (score == null) {
+    return <span className="ir-badge ir-badge--none">—</span>;
+  }
+
   const pct = Math.round(score);
-  if (pct >= 75) return <span className="ir-badge ir-badge--high">{pct}%</span>;
-  if (pct >= 45) return <span className="ir-badge ir-badge--mid">{pct}%</span>;
+  if (pct >= 75) {
+    return <span className="ir-badge ir-badge--high">{pct}%</span>;
+  }
+  if (pct >= 45) {
+    return <span className="ir-badge ir-badge--mid">{pct}%</span>;
+  }
   return <span className="ir-badge ir-badge--low">{pct}%</span>;
 }
 
 function FieldRow({ label, value, conf }) {
   const confClass =
     conf == null ? '' : conf >= 0.75 ? 'ir-conf--high' : conf >= 0.45 ? 'ir-conf--mid' : 'ir-conf--low';
+
   return (
     <tr>
       <td className="ir-field-label">{label}</td>
-      <td className="ir-field-value">{value != null && value !== '' ? String(value) : <em className="ir-null">null</em>}</td>
-      {conf != null && (
+      <td className="ir-field-value">
+        {value != null && value !== '' ? String(value) : <em className="ir-null">null</em>}
+      </td>
+      {conf != null ? (
         <td className={`ir-field-conf ${confClass}`}>{(conf * 100).toFixed(0)}%</td>
-      )}
+      ) : null}
     </tr>
   );
 }
-
-// ── main component ────────────────────────────────────────────────────────────
 
 export default function ImportReviewPage() {
   const { fileId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [remember, setRemember] = useState(false);
   const [batchThreshold, setBatchThreshold] = useState(75);
 
-  // ── fetch quarantined items ──────────────────────────────────────────────
-  const { data: items = [], isLoading, isError } = useQuery({
+  const reviewQuery = useQuery({
     queryKey: ['quarentena', fileId],
-    queryFn: () =>
-      apiClient.get(`/importacoes/${fileId}/quarentena`).then((r) => r.data),
+    queryFn: async () => {
+      const response = await apiClient.get(`/importacoes/${fileId}/quarentena`);
+      return Array.isArray(response.data) ? response.data : [];
+    },
     refetchOnWindowFocus: false,
   });
 
-  // ── approve single item ──────────────────────────────────────────────────
+  const items = useMemo(
+    () => (Array.isArray(reviewQuery.data) ? reviewQuery.data : []),
+    [reviewQuery.data]
+  );
+
+  useEffect(() => {
+    if (selectedIndex >= items.length) {
+      setSelectedIndex(items.length > 0 ? items.length - 1 : 0);
+    }
+  }, [items.length, selectedIndex]);
+
   const approveMutation = useMutation({
     mutationFn: ({ index, rememberRule }) =>
       apiClient.post(`/importacoes/${fileId}/quarentena/${index}/aprovar`, {
@@ -64,42 +87,57 @@ export default function ImportReviewPage() {
         min_quality_score: null,
       }),
     onSuccess: () => {
-      showSuccessToast('Produto aprovado com sucesso!');
-      queryClient.invalidateQueries({ queryKey: ['quarentena', fileId] });
+      showSuccessToast('Produto aprovado com sucesso.');
+      void queryClient.invalidateQueries({ queryKey: ['quarentena', fileId] });
       setSelectedIndex(0);
     },
-    onError: (err) => showErrorToast(err.response?.data?.detail || 'Erro ao aprovar produto'),
+    onError: (error) => {
+      showErrorToast(extractErrorMessage(error, 'Erro ao aprovar produto.'));
+    },
   });
 
-  // ── batch approve ────────────────────────────────────────────────────────
   const batchMutation = useMutation({
     mutationFn: () =>
       apiClient.post(`/importacoes/${fileId}/quarentena/aprovar-lote`, {
         min_quality_score: batchThreshold,
         remember,
       }),
-    onSuccess: (res) => {
-      showSuccessToast(`${res.data.aprovados} produto(s) aprovado(s)!`);
-      queryClient.invalidateQueries({ queryKey: ['quarentena', fileId] });
+    onSuccess: (response) => {
+      showSuccessToast(`${response.data.aprovados} produto(s) aprovado(s).`);
+      void queryClient.invalidateQueries({ queryKey: ['quarentena', fileId] });
       setSelectedIndex(0);
     },
-    onError: (err) => showErrorToast(err.response?.data?.detail || 'Erro ao aprovar em lote'),
+    onError: (error) => {
+      showErrorToast(extractErrorMessage(error, 'Erro ao aprovar em lote.'));
+    },
   });
 
-  // ── render ───────────────────────────────────────────────────────────────
-  if (isLoading) return <LoadingOverlay isOpen message="Carregando itens em quarentena..." />;
-  if (isError)
+  if (reviewQuery.isLoading) {
+    return <LoadingOverlay isOpen message="Carregando itens em quarentena..." />;
+  }
+
+  if (reviewQuery.isError) {
     return (
-      <div className="ir-error">
-        <LuCircleX /> Erro ao carregar itens de quarentena.
+      <div className="ir-error" role="alert">
+        <LuCircleX />
+        <div className="ir-error-copy">
+          <p>{extractErrorMessage(reviewQuery.error, 'Erro ao carregar itens de quarentena.')}</p>
+          <button
+            type="button"
+            className="ir-btn ir-btn--secondary"
+            onClick={() => void reviewQuery.refetch()}
+          >
+            Tentar novamente
+          </button>
+        </div>
       </div>
     );
+  }
 
   const selected = items[selectedIndex] ?? null;
   const rawData = selected?.raw_data ?? {};
-
-  const DISPLAY_FIELDS = [
-    { key: 'nome_base', label: 'Nome Base' },
+  const displayFields = [
+    { key: 'nome_base', label: 'Nome base' },
     { key: 'sku_original', label: 'SKU' },
     { key: 'ean_original', label: 'EAN' },
     { key: 'descricao_original', label: 'Descrição' },
@@ -110,13 +148,13 @@ export default function ImportReviewPage() {
 
   return (
     <div className="ir-page">
-      {/* ── header ── */}
       <div className="ir-header">
-        <button className="ir-back-btn" onClick={() => navigate('/fornecedores')}>
-          <LuArrowLeft /> Voltar
+        <button type="button" className="ir-back-btn" onClick={() => navigate('/fornecedores')}>
+          <LuArrowLeft />
+          Voltar
         </button>
         <h1 className="ir-title">
-          Revisão de Importação
+          Revisão de importação
           <span className="ir-subtitle"> — {items.length} produto(s) aguardando revisão</span>
         </h1>
 
@@ -128,7 +166,7 @@ export default function ImportReviewPage() {
               min={0}
               max={100}
               value={batchThreshold}
-              onChange={(e) => setBatchThreshold(Number(e.target.value))}
+              onChange={(event) => setBatchThreshold(Number(event.target.value))}
               className="ir-threshold-input"
             />
             %
@@ -137,16 +175,18 @@ export default function ImportReviewPage() {
             <input
               type="checkbox"
               checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
+              onChange={(event) => setRemember(event.target.checked)}
             />
             Lembrar para este fornecedor
           </label>
           <button
+            type="button"
             className="ir-btn ir-btn--primary"
             onClick={() => batchMutation.mutate()}
             disabled={batchMutation.isPending || items.length === 0}
           >
-            <LuThumbsUp /> Aprovar em Lote
+            <LuThumbsUp />
+            Aprovar em lote
           </button>
         </div>
       </div>
@@ -156,36 +196,37 @@ export default function ImportReviewPage() {
           <LuCircleCheck className="ir-empty-icon" />
           <p>Nenhum produto na fila de quarentena.</p>
           <button className="ir-btn ir-btn--secondary" onClick={() => navigate('/fornecedores')}>
-            Voltar aos Fornecedores
+            Voltar aos fornecedores
           </button>
         </div>
       ) : (
         <div className="ir-body">
-          {/* ── list panel ── */}
           <ul className="ir-list">
-            {items.map((item, idx) => (
+            {items.map((item, index) => (
               <li
-                key={idx}
-                className={`ir-list-item ${idx === selectedIndex ? 'ir-list-item--active' : ''}`}
-                onClick={() => setSelectedIndex(idx)}
+                key={`${item?.sku || item?.nome_base || index}`}
+                className={`ir-list-item ${index === selectedIndex ? 'ir-list-item--active' : ''}`}
+                onClick={() => setSelectedIndex(index)}
               >
                 <ScoreBadge score={item.quality_score} />
-                <span className="ir-list-name">{item.nome_base || item.sku || `Produto #${idx + 1}`}</span>
+                <span className="ir-list-name">{item.nome_base || item.sku || `Produto #${index + 1}`}</span>
               </li>
             ))}
           </ul>
 
-          {/* ── detail panel ── */}
-          {selected && (
+          {selected ? (
             <div className="ir-detail">
               <div className="ir-detail-header">
-                <span className="ir-detail-name">{selected.nome_base || selected.sku || `Produto #${selectedIndex + 1}`}</span>
+                <span className="ir-detail-name">
+                  {selected.nome_base || selected.sku || `Produto #${selectedIndex + 1}`}
+                </span>
                 <ScoreBadge score={selected.quality_score} />
-                {selected.reason && (
+                {selected.reason ? (
                   <span className="ir-detail-reason">
-                    <LuTriangleAlert /> {selected.reason}
+                    <LuTriangleAlert />
+                    {selected.reason}
                   </span>
-                )}
+                ) : null}
               </div>
 
               <table className="ir-fields-table">
@@ -196,7 +237,7 @@ export default function ImportReviewPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {DISPLAY_FIELDS.map(({ key, label }) => (
+                  {displayFields.map(({ key, label }) => (
                     <FieldRow key={key} label={label} value={rawData[key]} conf={null} />
                   ))}
                 </tbody>
@@ -207,20 +248,24 @@ export default function ImportReviewPage() {
                   <input
                     type="checkbox"
                     checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
+                    onChange={(event) => setRemember(event.target.checked)}
                   />
                   Lembrar para este fornecedor
                 </label>
                 <button
+                  type="button"
                   className="ir-btn ir-btn--primary"
-                  onClick={() => approveMutation.mutate({ index: selectedIndex, rememberRule: remember })}
+                  onClick={() =>
+                    approveMutation.mutate({ index: selectedIndex, rememberRule: remember })
+                  }
                   disabled={approveMutation.isPending}
                 >
-                  <LuCircleCheck /> Aprovar
+                  <LuCircleCheck />
+                  Aprovar
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

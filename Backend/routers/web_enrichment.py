@@ -28,6 +28,7 @@ from Backend.application.services.web_enrichment_start_service import WebEnrichm
 from Backend.application.services.web_enrichment_task_runner import WebEnrichmentTaskRunner
 from Backend.core.config import settings
 from Backend.core.logging_config import get_logger
+from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 from Backend.infrastructure.adapters.web_data_extractor_adapter import (
     WebDataExtractorServiceAdapter,
 )
@@ -130,6 +131,7 @@ class WebEnrichmentRequestService:
         usar_ia: Optional[bool] = None,
     ) -> Dict[str, str]:
         """Execute iniciar enriquecimento produto web as part of this module workflow."""
+        LimitServiceAdapter().verificar_limite_enriquecimento(session=self._session, user=current_user)
         self._start_service.validate_start_preconditions(
             produto_id=produto_id,
             current_user=current_user,
