@@ -159,6 +159,19 @@ class ProductManagementService:
             )
         return "\n".join(normalized_lines).strip()
 
+    @staticmethod
+    def _resolve_product_type_label(product_type: Any) -> str:
+        """Return the best available product type label across legacy/current schemas."""
+        if not product_type:
+            return ""
+
+        for attribute_name in ("friendly_name", "nome", "name", "key_name"):
+            value = getattr(product_type, attribute_name, None)
+            if value:
+                return str(value)
+
+        return ""
+
     def _check_produto_limit(self, *, current_user: Any) -> None:
         """Raise 403 if the user has reached their product limit."""
         from fastapi import HTTPException, status as http_status
@@ -383,7 +396,7 @@ class ProductManagementService:
                 "Marca": p.marca or "",
                 "Modelo": p.modelo or "",
                 "Fornecedor": p.fornecedor.nome if p.fornecedor else "",
-                "Tipo de Produto": p.product_type.nome if p.product_type else "",
+                "Tipo de Produto": self._resolve_product_type_label(p.product_type),
                 "Status Enriquecimento": str(p.status_enriquecimento_web.value) if p.status_enriquecimento_web else "",
                 "Status Título IA": str(p.status_titulo_ia.value) if p.status_titulo_ia else "",
                 "Status Descrição IA": str(p.status_descricao_ia.value) if p.status_descricao_ia else "",

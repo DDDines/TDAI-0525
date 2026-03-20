@@ -922,14 +922,6 @@ function ProdutosPage() {
               />
             ) : null}
           </div>
-          <button
-            onClick={handleExportProdutos}
-            className="ops-secondary-btn"
-            disabled={exportLoading}
-            title="Exportar planilha XLSX com todos os produtos (ou selecionados)">
-            <LuDownload />
-            {exportLoading ? 'Exportando...' : 'Exportar'}
-          </button>
           <button onClick={() => handleOpenModal(null)} className="ops-primary-btn">
             <LuPlus />
             Novo Produto

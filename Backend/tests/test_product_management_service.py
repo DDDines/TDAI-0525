@@ -27,6 +27,8 @@ class _CrudProdutosStub:
         self.total_items = 0
         self.list_calls = []
         self.count_calls = []
+        self.export_items = []
+        self._db = SimpleNamespace(commit=lambda: None)
 
     def create_produto(self, *, produto, user_id):
         """Create produto for this workflow."""
@@ -55,6 +57,11 @@ class _CrudProdutosStub:
         """Count produtos by user for this workflow."""
         self.count_calls.append(kwargs)
         return self.total_items
+
+    def get_produtos_for_export(self, **kwargs):
+        """Return produtos for export for this workflow."""
+        self.list_calls.append(kwargs)
+        return self.export_items
 
     def update_produto(self, *, db_produto, produto_update):
         """Update produto for this workflow."""
@@ -427,6 +434,37 @@ def test_batch_delete_produtos_reports_only_unauthorized_ids_when_no_missing_ite
     assert [item.id for item in deleted] == [1]
     assert [item.id for item in crud_produtos.deleted] == [1]
     assert crud_historico.calls[0]["entity_id"] == 1
+
+
+def test_export_produtos_uses_current_product_type_label_fields():
+    service, crud_produtos, _, _ = _build_service()
+    crud_produtos.export_items = [
+        SimpleNamespace(
+            id=1,
+            sku="SKU-1",
+            nome_base="Produto Teste",
+            nome_chat_api="Produto Teste IA",
+            descricao_chat_api="Descricao teste",
+            marca="Marca",
+            modelo="Modelo",
+            fornecedor=SimpleNamespace(nome="Fornecedor A"),
+            product_type=SimpleNamespace(friendly_name="Ferragens", key_name="ferragens"),
+            status_enriquecimento_web=None,
+            status_titulo_ia=None,
+            status_descricao_ia=None,
+            imagem_principal_url=None,
+            created_at=None,
+            last_exported_at=None,
+        )
+    ]
+
+    xlsx_bytes = service.export_produtos(
+        current_user=SimpleNamespace(id=3, is_superuser=False),
+    )
+
+    assert isinstance(xlsx_bytes, bytes)
+    assert len(xlsx_bytes) > 0
+    assert crud_produtos.export_items[0].last_exported_at is not None
 
 
 
