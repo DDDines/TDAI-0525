@@ -98,6 +98,41 @@ function Get-ListeningProcessIds {
   )
 }
 
+function Get-ProcessCommandLine {
+  param([int]$ProcessId)
+
+  try {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop
+    return [string]$process.CommandLine
+  }
+  catch {
+    return ""
+  }
+}
+
+function Test-BackendProcessOwnedByProject {
+  param([int]$ProcessId)
+
+  $commandLine = Get-ProcessCommandLine -ProcessId $ProcessId
+  if (-not $commandLine) {
+    return $false
+  }
+
+  return (
+    $commandLine.Contains($projectRoot) -or
+    $commandLine.Contains("run_backend.py")
+  )
+}
+
+function Get-ProjectBackendProcessIds {
+  param([int]$Port)
+
+  return @(
+    Get-ListeningProcessIds -Port $Port |
+      Where-Object { Test-BackendProcessOwnedByProject -ProcessId $_ }
+  )
+}
+
 function Sync-PidFileWithPort {
   param(
     [string]$PidFile,
@@ -134,8 +169,9 @@ function Resolve-BackendPython {
     $candidates += $env:BACKEND_PYTHON
   }
 
-  $candidates += Join-Path (Split-Path -Parent $projectRoot) "pythagora-core\venv\Scripts\python.exe"
+  $candidates += Join-Path (Split-Path -Parent $projectRoot) ".venv\Scripts\python.exe"
   $candidates += Join-Path $projectRoot "venv\Scripts\python.exe"
+  $candidates += Join-Path (Split-Path -Parent $projectRoot) "pythagora-core\venv\Scripts\python.exe"
 
   foreach ($candidate in $candidates) {
     if ($candidate -and (Test-Path $candidate)) {
@@ -179,10 +215,27 @@ function Start-Backend {
   $backendUrl = "http://${BackendHost}:$BackendPort/health"
   $backendOut = Join-Path $runtimeDir "backend.out.log"
   $backendErr = Join-Path $runtimeDir "backend.err.log"
+  $listeningProcessIds = Get-ListeningProcessIds -Port $BackendPort
+  $projectBackendProcessIds = Get-ProjectBackendProcessIds -Port $BackendPort
+
+  if ($listeningProcessIds -and -not $projectBackendProcessIds) {
+    $externalProcessSummary = @(
+      $listeningProcessIds |
+        ForEach-Object {
+          $commandLine = Get-ProcessCommandLine -ProcessId $_
+          if (-not $commandLine) {
+            $commandLine = "<command line indisponivel>"
+          }
+          "PID $_ => $commandLine"
+        }
+    ) -join [Environment]::NewLine
+
+    throw "A porta $BackendPort esta ocupada por um backend externo a este projeto. Pare esse processo antes de iniciar o ambiente correto.`n$externalProcessSummary"
+  }
 
   if (Test-Path $backendPidFile) {
     $existingPid = [int](Get-Content $backendPidFile -Raw).Trim()
-    if ((Test-ProcessRunning -ProcessId $existingPid) -or (Get-ListeningProcessIds -Port $BackendPort)) {
+    if ((Test-ProcessRunning -ProcessId $existingPid) -or $projectBackendProcessIds) {
       $trackedPid = Sync-PidFileWithPort -PidFile $backendPidFile -Port $BackendPort -FallbackProcessId $existingPid
       if ($trackedPid) {
         Write-Host "Backend ja em execucao (PID rastreado $trackedPid)."
