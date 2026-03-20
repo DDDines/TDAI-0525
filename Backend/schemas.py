@@ -514,8 +514,15 @@ class ProdutoResponse(ProdutoBase):
     product_type: Optional[ProductTypeResponse] = None
     log_enriquecimento_web: Optional[Any] = None
     conteudo_canais: Optional[Dict[str, Any]] = None
+    workflow_status: Optional[str] = "rascunho"
+    last_exported_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProdutoWorkflowUpdateRequest(BaseModel):
+    """Payload para atualizar o workflow_status de um produto."""
+    workflow_status: str
 
 class ProdutoBatchDeleteRequest(BaseModel):
     """Represent Produto Batch Delete Request and centralize its responsibilities inside this module."""
@@ -793,6 +800,7 @@ class UserActivity(BaseModel):
     created_at: datetime
     total_produtos: Optional[int] = None
     total_geracoes_ia_mes_corrente: Optional[int] = None
+    plano_nome: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -1113,6 +1121,62 @@ class CatalogPreview(BaseModel):
     """Represent Catalog Preview and centralize its responsibilities inside this module."""
     columns: List[str]
     data: List[Dict[str, Any]]
+
+
+# --- Workspace / Company Schemas ---
+class CompanyCreate(BaseModel):
+    """Payload para criar uma empresa/workspace."""
+    nome: str = Field(..., min_length=1, max_length=200)
+    cnpj: Optional[str] = Field(None, max_length=20)
+
+
+class CompanyUpdate(BaseModel):
+    """Payload para atualizar dados da empresa."""
+    nome: Optional[str] = Field(None, min_length=1, max_length=200)
+    cnpj: Optional[str] = Field(None, max_length=20)
+
+
+class CompanyMemberResponse(BaseModel):
+    """Represent a company member in API responses."""
+    id: int
+    email: str
+    nome_completo: Optional[str] = None
+    is_active: bool = True
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CompanyResponse(BaseModel):
+    """Represent company/workspace in API responses."""
+    id: int
+    nome: str
+    cnpj: Optional[str] = None
+    criado_por_user_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    members: List[CompanyMemberResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminChangePlanoRequest(BaseModel):
+    """Payload para admin trocar o plano de um usuario."""
+    plano_id: int
+
+
+class WorkspaceInviteCreate(BaseModel):
+    email: EmailStr
+
+
+class WorkspaceInviteResponse(BaseModel):
+    id: int
+    company_id: int
+    email: str
+    token: str
+    accepted_at: Optional[datetime] = None
+    expires_at: datetime
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 
 # --- Rebuilds Finais ---

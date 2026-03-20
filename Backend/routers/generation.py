@@ -1,7 +1,9 @@
 """Camada de transporte HTTP para o dominio 'generation'."""
 
 import logging
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
+from typing import List
+from pydantic import BaseModel as _PydanticBase
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
@@ -17,6 +19,7 @@ from Backend.application.services.generation_scheduling_service import Generatio
 from Backend.application.services.generation_task_service import GenerationTaskService
 from Backend.application.services.ia_generation_service import IAGenerationService
 from Backend.application.services.service_container import ServiceContainerDependencySupport
+from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
@@ -55,6 +58,11 @@ class GenerationRequestService:
             schemas=schemas,
             models=models,
         )
+        self._limit_adapter = LimitServiceAdapter()
+
+    def _check_ia_limit(self, *, user: models.User, tipo: str) -> None:
+        """Raise HTTP 403 if the user has exceeded their IA generation limit."""
+        self._limit_adapter.verificar_limite_uso(self._session, user, tipo)
 
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
         """Handle Validate product access in this request workflow."""
@@ -104,6 +112,7 @@ class GenerationRequestService:
         current_user: models.User,
     ):
         """Handle Agendar geracao novos titulos openai in this request workflow."""
+        self._check_ia_limit(user=current_user, tipo="titulo")
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -128,6 +137,7 @@ class GenerationRequestService:
         current_user: models.User,
     ):
         """Handle Agendar geracao nova descricao openai in this request workflow."""
+        self._check_ia_limit(user=current_user, tipo="descricao")
         self._validate_product_access(produto_id=produto_id, current_user=current_user)
         self._generation_scheduling_service.enqueue_generation_task(
             background_tasks=background_tasks,
@@ -218,6 +228,7 @@ class GenerationRequestService:
         current_user: models.User,
     ):
         """Handle Agendar geracao novos titulos gemini in this request workflow."""
+        self._check_ia_limit(user=current_user, tipo="titulo")
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -246,6 +257,7 @@ class GenerationRequestService:
         current_user: models.User,
     ):
         """Handle Agendar geracao nova descricao gemini in this request workflow."""
+        self._check_ia_limit(user=current_user, tipo="descricao")
         db_produto = self._validate_product_access(
             produto_id=produto_id,
             current_user=current_user,
@@ -453,6 +465,99 @@ async def sugerir_atributos_para_produto_com_gemini(
     )
 
 
+class BatchGenerationRequest(_PydanticBase):
+    produto_ids: List[int]
+    tipo: str          # "titulo" | "descricao"
+    provider: str      # "basico" | "openai" | "gemini"
+    num_titulos: int = 3
+    tamanho_palavras: int = 150
+
+
+class BatchGenerationResponse(_PydanticBase):
+    agendados: int
+    ignorados: int
+    detalhes: List[str]
+
+
+@router.post("/batch", response_model=BatchGenerationResponse, status_code=status.HTTP_202_ACCEPTED)
+async def batch_generation(
+    payload: BatchGenerationRequest,
+    background_tasks: BackgroundTasks,
+    request_service: GenerationRequestService = Depends(),
+    current_user: models.User = Depends(
+        auth_utils._AuthUtilsActiveUserDependency.get_current_active_user
+    ),
+):
+    """Agenda geração em lote para múltiplos produtos."""
+    tipo = payload.tipo.lower()
+    provider = payload.provider.lower()
+
+    if tipo not in ("titulo", "descricao"):
+        raise HTTPException(status_code=400, detail="tipo deve ser 'titulo' ou 'descricao'.")
+    if provider not in ("basico", "openai", "gemini"):
+        raise HTTPException(status_code=400, detail="provider deve ser 'basico', 'openai' ou 'gemini'.")
+
+    # Verifica limite uma vez antes do lote
+    request_service._check_ia_limit(user=current_user, tipo=tipo)
+
+    agendados = 0
+    ignorados = 0
+    detalhes: List[str] = []
+
+    for produto_id in payload.produto_ids:
+        try:
+            if tipo == "titulo":
+                if provider == "openai":
+                    request_service.agendar_geracao_novos_titulos_openai(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        num_titulos=payload.num_titulos,
+                        current_user=current_user,
+                    )
+                elif provider == "gemini":
+                    request_service.agendar_geracao_novos_titulos_gemini(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        num_titulos=payload.num_titulos,
+                        current_user=current_user,
+                    )
+                else:
+                    request_service.agendar_geracao_novos_titulos_basico(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        num_titulos=payload.num_titulos,
+                        current_user=current_user,
+                    )
+            else:
+                if provider == "openai":
+                    request_service.agendar_geracao_nova_descricao_openai(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        tamanho_palavras=payload.tamanho_palavras,
+                        current_user=current_user,
+                    )
+                elif provider == "gemini":
+                    request_service.agendar_geracao_nova_descricao_gemini(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        tamanho_palavras=payload.tamanho_palavras,
+                        current_user=current_user,
+                    )
+                else:
+                    request_service.agendar_geracao_nova_descricao_basica(
+                        produto_id=produto_id,
+                        background_tasks=background_tasks,
+                        tamanho_palavras=payload.tamanho_palavras,
+                        current_user=current_user,
+                    )
+            agendados += 1
+        except HTTPException as exc:
+            ignorados += 1
+            detalhes.append(f"Produto {produto_id}: {exc.detail}")
+
+    return BatchGenerationResponse(agendados=agendados, ignorados=ignorados, detalhes=detalhes)
+
+
 @router.post("/canal/{canal}/{produto_id}/", response_model=schemas.ConteudoCanaisResponse)
 async def gerar_conteudo_canal(
     canal: str,
@@ -465,6 +570,7 @@ async def gerar_conteudo_canal(
     ),
 ):
     """Generate channel-specific title and description for a product."""
+    request_service._check_ia_limit(user=current_user, tipo="titulo")
     channel_service = ChannelContentService(db=request_service._session, models=models)
     try:
         result = await channel_service.generate_canal_content(

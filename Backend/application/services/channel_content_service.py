@@ -118,9 +118,9 @@ class ChannelContentService:
 
     async def _gerar_texto_simples(self, *, prompt: str, max_tokens: int, user: Any) -> str:
         """Call OpenAI to generate a simple text completion for the given prompt."""
-        from Backend.infrastructure.runtime_modules.ia_generation_module import IAGenerationWorkflow
+        from Backend.infrastructure.runtime_modules.ia_generation_module import AiProviderWorkflow
 
-        workflow = IAGenerationWorkflow()
+        workflow = AiProviderWorkflow()
         api_key = await workflow.get_openai_api_key(db=self._db, user=user)
         if not api_key:
             raise ValueError(

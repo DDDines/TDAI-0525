@@ -26,18 +26,19 @@ import {
   LuType,
 } from 'react-icons/lu';
 import logger from '../../utils/logger';
+import { calculateContentQualityScore, getContentQualityTier } from '../../utils/productQualityScore';
 import './ProductTable.css';
 
 const STATUS_CONFIG = {
-  NAO_INICIADO: { class: 'grey', label: 'Nao iniciado', title: 'Nao iniciado', icon: LuCircleMinus },
+  NAO_INICIADO: { class: 'grey', label: 'Não iniciado', title: 'Não iniciado', icon: LuCircleMinus },
   PENDENTE: { class: 'orange', label: 'Pendente', title: 'Pendente', icon: LuClock3 },
   EM_PROGRESSO: { class: 'blue', label: 'Em progresso', title: 'Em progresso', icon: LuLoaderCircle },
-  CONCLUIDO: { class: 'green', label: 'Concluido', title: 'Concluido', icon: LuCircleCheck },
-  CONCLUIDO_SUCESSO: { class: 'green', label: 'Concluido', title: 'Concluido', icon: LuCircleCheck },
+  CONCLUIDO: { class: 'green', label: 'Concluído', title: 'Concluído', icon: LuCircleCheck },
+  CONCLUIDO_SUCESSO: { class: 'green', label: 'Concluído', title: 'Concluído', icon: LuCircleCheck },
   CONCLUIDO_COM_DADOS_PARCIAIS: {
     class: 'blue',
     label: 'Parcial',
-    title: 'Concluido com dados parciais',
+    title: 'Concluído com dados parciais',
     icon: LuTriangleAlert,
   },
   FALHA: { class: 'red', label: 'Falha', title: 'Falha', icon: LuCircleX },
@@ -46,7 +47,7 @@ const STATUS_CONFIG = {
   FALHA_CONFIGURACAO_API_EXTERNA: {
     class: 'red',
     label: 'Config.',
-    title: 'Falha de configuracao da API',
+    title: 'Falha de configuração da API',
     icon: LuTriangleAlert,
   },
   NENHUMA_FONTE_ENCONTRADA: {
@@ -55,20 +56,56 @@ const STATUS_CONFIG = {
     title: 'Nenhuma fonte encontrada',
     icon: LuCircleMinus,
   },
-  NAO_APLICAVEL: { class: 'grey', label: 'Nao aplic.', title: 'Nao aplicavel', icon: LuCircleMinus },
+  NAO_APLICAVEL: { class: 'grey', label: 'Não aplic.', title: 'Não aplicável', icon: LuCircleMinus },
 };
 
 const PROCESS_STATUS_CONFIG = [
   { key: 'status_enriquecimento_web', title: 'Enriquecimento web', icon: LuGlobe },
-  { key: 'status_titulo_ia', title: 'Titulos', icon: LuType },
-  { key: 'status_descricao_ia', title: 'Descricao', icon: LuFileText },
+  { key: 'status_titulo_ia', title: 'Títulos', icon: LuType },
+  { key: 'status_descricao_ia', title: 'Descrição', icon: LuFileText },
 ];
+
+const WORKFLOW_STATUS_CONFIG = {
+  rascunho:            { label: 'Rascunho',       color: '#9ca3af' },
+  em_revisao:          { label: 'Em revisão',      color: '#6366f1' },
+  aprovado:            { label: 'Aprovado',        color: '#10b981' },
+  pronto_para_exportar:{ label: 'Para exportar',   color: '#f59e0b' },
+  exportado:           { label: 'Exportado',       color: '#059669' },
+};
+
+function WorkflowStatusBadge({ status, lastExportedAt }) {
+  const cfg = WORKFLOW_STATUS_CONFIG[status] || WORKFLOW_STATUS_CONFIG.rascunho;
+  const exportedLabel = lastExportedAt
+    ? `Exportado em: ${format(new Date(lastExportedAt), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`
+    : `Workflow: ${cfg.label}`;
+  return (
+    <span
+      className="workflow-badge"
+      style={{ background: cfg.color + '22', color: cfg.color, borderColor: cfg.color + '55' }}
+      title={exportedLabel}
+    >
+      {cfg.label}
+    </span>
+  );
+}
 
 function QualityScoreBadge({ score }) {
   if (score == null) return <span className="quality-badge quality-badge--none">--</span>;
   const s = Math.round(score);
   const cls = s >= 75 ? 'quality-badge--high' : s >= 45 ? 'quality-badge--mid' : 'quality-badge--low';
   return <span className={`quality-badge ${cls}`} title={`Score de qualidade: ${s}/100`}>{s}</span>;
+}
+
+function ContentQualityBadge({ produto }) {
+  const score = calculateContentQualityScore(produto);
+  const { label, tier } = getContentQualityTier(score);
+  return (
+    <span
+      className={`content-quality-badge content-quality-badge--${tier}`}
+      title={`Conteúdo: ${score}/100 — ${label}`}>
+      {score}
+    </span>
+  );
 }
 
 function normalizeStatusValue(status) {
@@ -153,13 +190,13 @@ function extractUserFacingReason(rawReason) {
     return 'Falha interna na integracao de busca Google.';
   }
   if (/401|unauthorized|nao autorizado|não autorizado/.test(lowered)) {
-    return 'Credencial invalida ou sem autorizacao.';
+    return 'Credencial inválida ou sem autorização.';
   }
   if (/403|forbidden|acesso negado/.test(lowered)) {
     return 'Acesso negado pela API configurada.';
   }
   if (/404|not found|nao encontrado|não encontrado/.test(lowered)) {
-    return 'Fonte ou recurso nao encontrado.';
+    return 'Fonte ou recurso não encontrado.';
   }
   if (/409/.test(lowered)) {
     return 'Conflito ao processar a solicitacao.';
@@ -169,7 +206,7 @@ function extractUserFacingReason(rawReason) {
       .replace(/^falha\s*\(422\)\s*-\s*/i, '')
       .replace(/^422\s*[-: ]\s*/i, '')
       .trim();
-    return detail || 'Entrada invalida para processar o conteudo.';
+    return detail || 'Entrada inválida para processar o conteúdo.';
   }
   if (/429|rate limit|limite de requisi/.test(lowered)) {
     return 'Limite de requisicoes atingido. Tente novamente em instantes.';
@@ -191,7 +228,7 @@ function extractUserFacingReason(rawReason) {
     return '';
   }
   if (/configura/.test(lowered) && /api|google|gemini|openai|cse/.test(lowered)) {
-    return 'Configuracao da integracao incompleta ou invalida.';
+    return 'Configuração da integração incompleta ou inválida.';
   }
 
   const withoutPrefix = normalized
@@ -526,7 +563,7 @@ function ProductTable({
                 <button
                   type="button"
                   className={`selection-menu-trigger${selectedSet.size > 0 ? ' is-active' : ''}`}
-                  aria-label="Opcoes de selecao"
+                  aria-label="Opções de seleção"
                   aria-haspopup="menu"
                   aria-expanded={isSelectionMenuOpen}
                   disabled={safeProdutos.length === 0 || tableLoading}
@@ -536,7 +573,7 @@ function ProductTable({
                 </button>
 
                 {isSelectionMenuOpen ? (
-                  <div className="selection-menu-dropdown" role="menu" aria-label="Opcoes de selecao">
+                  <div className="selection-menu-dropdown" role="menu" aria-label="Opções de seleção">
                     {selectionMenuItems.map((item) => (
                       <button
                         key={item.key}
@@ -556,10 +593,10 @@ function ProductTable({
                 ) : null}
               </div>
             ) : (
-              <label className="selection-header-toggle" title="Selecionar pagina atual">
+              <label className="selection-header-toggle" title="Selecionar página atual">
                 <input
                   type="checkbox"
-                  aria-label="Selecionar pagina atual"
+                  aria-label="Selecionar página atual"
                   checked={isAllSelected}
                   onChange={(e) => onSelectAllProdutos(e.target.checked)}
                   disabled={safeProdutos.length === 0 || tableLoading}
@@ -574,9 +611,9 @@ function ProductTable({
         {renderSortableHeader('sku', 'SKU')}
         {renderSortableHeader('fornecedor_id', 'Fornecedor')}
         {renderSortableHeader('status_enriquecimento_web', 'Status')}
-        <th title="Score de qualidade do import (0–100)">Qualidade</th>
+        <th title="Import: qualidade dos dados brutos | Conteúdo: completude do conteúdo gerado (0–100)">Qualidade</th>
         {renderSortableHeader('data_atualizacao', 'Atualizado Em')}
-        <th>Acoes</th>
+        <th>Ações</th>
       </tr>
     </thead>
   );
@@ -642,6 +679,8 @@ function ProductTable({
             </td>
             <td className="quality-score-column">
               <QualityScoreBadge score={produto.import_quality_score} />
+              <ContentQualityBadge produto={produto} />
+              <WorkflowStatusBadge status={produto.workflow_status || 'rascunho'} lastExportedAt={produto.last_exported_at} />
             </td>
             <td>
               {produto.data_atualizacao

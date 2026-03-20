@@ -11,6 +11,7 @@ from Backend import schemas
 from Backend.application.services.service_container import ServiceContainerDependencySupport
 from Backend.auth import AuthWorkflow
 from Backend.core.config import settings
+from Backend.core.rate_limiter import limiter
 from Backend.core.email_utils import EmailWorkflow
 from Backend.core.logging_config import get_logger
 from Backend.infrastructure.repositories.user_repository import UserRepository
@@ -102,10 +103,11 @@ class PasswordRecoveryRequestService:
 
 
 @router.post("/password-recovery/{email}", response_model=schemas.Msg)
+@limiter.limit("5/minute")
 async def recover_password(
     email: str,
     request: Request,
-    request_service: PasswordRecoveryRequestService = Depends(),
+    request_service: PasswordRecoveryRequestService = Depends(PasswordRecoveryRequestService),
 ):
     """Execute recover password as part of this module workflow."""
     return await request_service.recover_password(email=email, request=request)

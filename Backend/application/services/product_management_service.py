@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import re
-from typing import Any, Optional
+from datetime import datetime, timezone
+from typing import Any, List, Optional
 
 from fastapi import HTTPException, status
 
@@ -60,7 +62,7 @@ class ProductManagementService:
             return db_produto
 
         produto_response = produto_response_cls.model_validate(db_produto)
-        fallback_description = self._basic_content_service._build_basic_description(
+        fallback_description = self._basic_content_service.build_basic_description(
             produto=produto_response,
             tamanho_palavras=150,
             template_descricao=self._basic_content_service._DEFAULT_DESCRIPTION_TEMPLATE,
@@ -117,7 +119,7 @@ class ProductManagementService:
         if not normalized:
             return ""
 
-        cleaned = self._basic_content_service._sanitize_description_context(normalized)
+        cleaned = self._basic_content_service.sanitize_description_context(normalized)
         if self._description_requires_fallback(normalized, cleaned):
             return self._normalize_multiline_text(fallback)
 
@@ -131,18 +133,18 @@ class ProductManagementService:
 
     def _description_requires_fallback(self, original_text: str, cleaned_text: str) -> bool:
         """Detect persisted descriptions that should never be shown directly to the user."""
-        folded_original = self._basic_content_service._fold_text(original_text).lower()
+        folded_original = self._basic_content_service.fold_text(original_text).lower()
         if not cleaned_text:
             return True
         if re.search(r"%[0-9A-Fa-f]{2}", str(original_text or "")):
             return True
         if folded_original.count(
-            self._basic_content_service._fold_text(cleaned_text.split("\n", 1)[0]).lower()
+            self._basic_content_service.fold_text(cleaned_text.split("\n", 1)[0]).lower()
         ) >= 3:
             return True
         if "url da fonte" in folded_original or "controle sua privacidade" in folded_original:
             return True
-        if self._basic_content_service._looks_like_english_source_fragment(original_text):
+        if self._basic_content_service.looks_like_english_source_fragment(original_text):
             return True
         return False
 
@@ -338,6 +340,78 @@ class ProductManagementService:
             "total_items": len(ids),
         }
 
+    def export_produtos(
+        self,
+        *,
+        current_user: Any,
+        ids: Optional[List[int]] = None,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Any = None,
+        status_titulo_ia: Any = None,
+        status_descricao_ia: Any = None,
+        product_type_id: Optional[int] = None,
+        enrichment_scope: Optional[str] = None,
+    ) -> bytes:
+        """Build and return an XLSX spreadsheet of products matching the given filters."""
+        import pandas as pd
+
+        user_id_filter = None if current_user.is_superuser else current_user.id
+        produtos = self._produto_repo.get_produtos_for_export(
+            user_id=user_id_filter,
+            is_admin=current_user.is_superuser,
+            ids=ids,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            enrichment_scope=enrichment_scope,
+        )
+
+        rows = []
+        for p in produtos:
+            rows.append({
+                "ID": p.id,
+                "SKU": p.sku or "",
+                "Nome Base": p.nome_base or "",
+                "Título Gerado (IA)": p.nome_chat_api or "",
+                "Descrição Gerada (IA)": p.descricao_chat_api or "",
+                "Marca": p.marca or "",
+                "Modelo": p.modelo or "",
+                "Fornecedor": p.fornecedor.nome if p.fornecedor else "",
+                "Tipo de Produto": p.product_type.nome if p.product_type else "",
+                "Status Enriquecimento": str(p.status_enriquecimento_web.value) if p.status_enriquecimento_web else "",
+                "Status Título IA": str(p.status_titulo_ia.value) if p.status_titulo_ia else "",
+                "Status Descrição IA": str(p.status_descricao_ia.value) if p.status_descricao_ia else "",
+                "Imagem URL": p.imagem_principal_url or "",
+                "Criado em": p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
+            })
+
+        df = pd.DataFrame(rows)
+        buf = io.BytesIO()
+        with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Produtos")
+            ws = writer.sheets["Produtos"]
+            # Auto-size columns (approximate)
+            for col in ws.columns:
+                max_len = max((len(str(cell.value or "")) for cell in col), default=10)
+                ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 80)
+        buf.seek(0)
+        xlsx_bytes = buf.read()
+
+        # Stamp last_exported_at on all exported products
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        for p in produtos:
+            p.last_exported_at = now
+        self._produto_repo._db.commit()
+
+        return xlsx_bytes
+
     def update_produto(
         self,
         *,
@@ -406,7 +480,7 @@ class ProductManagementService:
                 entity_id=deleted.id,
             ),
         )
-        return deleted
+        return self._build_produto_response(db_produto=deleted)
 
     def batch_delete_produtos(
         self,
@@ -438,7 +512,7 @@ class ProductManagementService:
                     entity_id=db_produto.id,
                 ),
             )
-            deleted_produtos.append(db_produto)
+            deleted_produtos.append(self._build_produto_response(db_produto=db_produto))
 
         if not_found_ids or not_authorized_ids:
             error_detail_parts = []

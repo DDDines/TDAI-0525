@@ -2,9 +2,13 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional, Tuple
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from Backend.core.rate_limiter import limiter
 from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 from Backend import models
@@ -34,7 +38,10 @@ from Backend.routers.uso_ia import router as uso_ia_router
 from Backend.routers.web_enrichment import router as web_enrichment_router
 from Backend.routers.import_review import router as import_review_router
 from Backend.routers.import_rules import router as import_rules_router
+from Backend.routers.ai_policy import router as ai_policy_router
 from Backend.routers.planos import router as planos_router
+from Backend.routers.billing import router as billing_router
+from Backend.routers.workspace import router as workspace_router
 
 logger = get_logger(__name__)
 logger.info("Inicializando aplicacao. Certifique-se de rodar 'alembic upgrade head' antes de usar.")
@@ -361,6 +368,9 @@ class _MainLifecycleEntries:
         await MainBootstrapWorkflow().startup_event_create_defaults()
 lifespan = asynccontextmanager(_MainLifecycleEntries.lifespan)
 app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION, description='API para o sistema CatalogAI - Ferramenta de Descricao Assistida por IA.', lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 final_unique_allowed_origins = MainBootstrapWorkflow().build_allowed_origins()
 logger.info('Final unique allowed_origins para CORSMiddleware: %s', final_unique_allowed_origins)
 app.add_middleware(CORSMiddleware, allow_origins=final_unique_allowed_origins, allow_credentials=True, allow_methods=['*'], allow_headers=['*'])
@@ -370,7 +380,9 @@ app.mount('/static', StaticFiles(directory=static_files_path), name='static')
 class _EndpointHandlers:
 
     @app.post('/api/v1/users/', response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED, tags=['Usuarios'])
+    @limiter.limit("10/minute")
     def create_new_user(
+        request: Request,
         user_in: schemas.UserCreate,
         session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ):
@@ -404,4 +416,7 @@ app.include_router(admin_analytics_router, prefix=settings.API_V1_STR + '/admin/
 app.include_router(import_review_router, prefix=settings.API_V1_STR, tags=['Revisao de Importacao'])
 app.include_router(import_rules_router, prefix=settings.API_V1_STR, tags=['Regras de Validacao'])
 app.include_router(planos_router, prefix=settings.API_V1_STR, tags=['Planos e Faturamento'])
+app.include_router(ai_policy_router, prefix=settings.API_V1_STR, tags=['Politica de IA'])
+app.include_router(billing_router, prefix=settings.API_V1_STR, tags=['Billing'])
+app.include_router(workspace_router, prefix=settings.API_V1_STR, tags=['Workspace'])
 

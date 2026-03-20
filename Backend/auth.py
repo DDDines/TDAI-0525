@@ -5,8 +5,9 @@ import hashlib
 import secrets
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from Backend.core.rate_limiter import limiter
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from starlette.config import Config as AuthlibConfig
@@ -529,7 +530,9 @@ class _EndpointHandlers:
 
     """Represent Endpoint Handlers and centralize its responsibilities inside this module."""
     @router.post("/token", response_model=schemas.Token)
+    @limiter.limit("20/minute")
     async def login_for_access_token(
+        request: Request,
         form_data: OAuth2PasswordRequestForm = Depends(),
         request_scope: _AuthRequestScope = Depends(_build_auth_request_scope),
     ):

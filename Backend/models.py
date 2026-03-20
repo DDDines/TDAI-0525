@@ -59,6 +59,7 @@ class ExternalCredentialProviderEnum(str, enum.Enum):
     OPENAI = "openai"
     GOOGLE_GEMINI = "google_gemini"
     GOOGLE_CSE = "google_cse"
+    LM_STUDIO = "lm_studio"
 
 
 class AIPolicyScopeEnum(str, enum.Enum):
@@ -103,6 +104,15 @@ class StatusGeracaoIAEnum(str, enum.Enum):
     CONCLUIDO = "CONCLUIDO"
     FALHA = "FALHA"
     NAO_APLICAVEL = "NAO_APLICAVEL"  # Se IA não for usada para este campo/produto
+
+
+class ProdutoWorkflowStatusEnum(str, enum.Enum):
+    """Workflow lifecycle status for a product."""
+    RASCUNHO = "rascunho"
+    EM_REVISAO = "em_revisao"
+    APROVADO = "aprovado"
+    PRONTO_PARA_EXPORTAR = "pronto_para_exportar"
+    EXPORTADO = "exportado"
 
 
 class TipoAcaoEnum(str, enum.Enum):
@@ -197,6 +207,13 @@ class User(Base):
     reset_password_token = Column(String, nullable=True, index=True)
     reset_password_token_expires_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Stripe billing
+    stripe_customer_id = Column(String, nullable=True, unique=True, index=True)
+    stripe_subscription_id = Column(String, nullable=True, unique=True, index=True)
+
+    # Workspace/empresa
+    company_id = Column(Integer, ForeignKey("companies.id", use_alter=True, name="fk_users_company_id"), nullable=True)
+
     plano = relationship("Plano", back_populates="usuarios")
     role = relationship("Role", back_populates="usuarios")
     produtos = relationship(
@@ -214,6 +231,7 @@ class User(Base):
     historicos = relationship(
         "RegistroHistorico", back_populates="usuario", cascade="all, delete-orphan"
     )
+    company = relationship("Company", back_populates="members", foreign_keys="[User.company_id]")
 
     __table_args__ = (
         UniqueConstraint("provider", "provider_user_id", name="uq_provider_user_id"),
@@ -250,6 +268,39 @@ class Role(Base):
     )
 
     usuarios = relationship("User", back_populates="role")
+
+
+# Modelo de Empresa (Workspace)
+class Company(Base):
+    """Represents a company/workspace grouping users together."""
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nome = Column(String, nullable=False)
+    cnpj = Column(String, nullable=True, unique=True, index=True)
+    criado_por_user_id = Column(Integer, nullable=True)  # stored as int, no FK to avoid circular ref
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    members = relationship("User", back_populates="company", foreign_keys="[User.company_id]")
+    invites = relationship("WorkspaceInvite", back_populates="company", cascade="all, delete-orphan")
+
+
+class WorkspaceInvite(Base):
+    """Pending invite for a user to join a company workspace."""
+    __tablename__ = "workspace_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    email = Column(String, nullable=False, index=True)
+    token = Column(String, nullable=False, unique=True, index=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    company = relationship("Company", back_populates="invites")
+    created_by = relationship("User", foreign_keys=[created_by_user_id])
 
 
 # Modelo de Plano de Assinatura
@@ -630,8 +681,19 @@ class Produto(Base):
     )
     # Adicionar mais status conforme necessário (ex: status_imagens_ia, status_seo_ia)
 
+    # Workflow lifecycle
+    workflow_status = Column(
+        SQLAlchemyEnum(ProdutoWorkflowStatusEnum, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=ProdutoWorkflowStatusEnum.RASCUNHO,
+        server_default="rascunho",
+    )
+
     # Score de qualidade de importação (0–100), calculado automaticamente durante o import
     import_quality_score = Column(Float, nullable=True)
+
+    # Timestamp do último export deste produto
+    last_exported_at = Column(DateTime(timezone=True), nullable=True)
 
     # Exclusao logica para manter historico sem expor o item nas listagens ativas
     is_deleted = Column(Boolean, nullable=False, default=False)

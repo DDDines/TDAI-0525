@@ -31,6 +31,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Importe outras páginas e componentes necessários
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
 import ImportReviewPage from './pages/ImportReviewPage';
+import LandingPage from './pages/LandingPage';
+import SignupPage from './pages/SignupPage';
+import WorkspacePage from './pages/WorkspacePage';
+import AdminPage from './pages/AdminPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 
 import './App.css';
 import logger from './utils/logger';
@@ -54,10 +59,13 @@ function AppContent()
 
     return (
       <Routes>
+      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
       <Route path="/resetar-senha" element={<ResetSenhaPage />} />
       <Route path="/auth/oauth-callback" element={<OAuthCallbackPage />} />
+      <Route path="/invite/:token" element={<AcceptInvitePage />} />
       
       {/* Rotas Protegidas */}
       <Route
@@ -79,11 +87,13 @@ function AppContent()
         <Route path="historico" element={<HistoricoPage />} />
         <Route path="plano" element={<PlanoPage />} />
         <Route path="configuracoes" element={<ConfiguracoesPage />} />
+        <Route path="workspace" element={<WorkspacePage />} />
+        <Route path="admin" element={<AdminPage />} />
         {/* Adicione outras rotas filhas de MainLayout aqui */}
       </Route>
 
-      {/* Rota para página não encontrada ou outras rotas públicas */}
-      <Route path="*" element={<div>Página não encontrada</div>} />
+      {/* Rota para página não encontrada */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>);
 
   }

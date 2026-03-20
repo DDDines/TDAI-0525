@@ -50,9 +50,45 @@ const adminService = {
     }
   },
 
-  // Você pode adicionar outras funções de admin aqui no futuro, como:
-  // async getUsoIaPorPlano() { ... }
-  // async getUserActivity() { ... }
+  async getUserActivity(skip = 0, limit = 100) {
+    try {
+      const response = await apiClient.get('/admin/analytics/user-activity/', { params: { skip, limit } });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user activity:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar atividade dos usuários.');
+    }
+  },
+
+  async getUsoIAPorPlano() {
+    try {
+      const response = await apiClient.get('/admin/analytics/uso-ia/por-plano');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching uso IA por plano:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar uso de IA por plano.');
+    }
+  },
+
+  async changeUserPlano(userId, planoId) {
+    try {
+      const response = await apiClient.patch(`/admin/analytics/users/${userId}/plano`, { plano_id: planoId });
+      return response.data;
+    } catch (error) {
+      console.error('Error changing user plano:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao alterar plano do usuário.');
+    }
+  },
+
+  async getPlanos() {
+    try {
+      const response = await apiClient.get('/planos/');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching planos:', error.response?.data || error.message);
+      throw error.response?.data || new Error('Falha ao buscar planos.');
+    }
+  },
 };
 
 export default adminService;

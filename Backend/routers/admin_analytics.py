@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
@@ -131,6 +131,10 @@ class AdminAnalyticsRequestService:
                 user_id=user_model.id,
                 start_at=start_of_month,
             )
+            plano_nome = None
+            if user_model.plano_id:
+                plano = self._user_repository.get_plano(plano_id=user_model.plano_id)
+                plano_nome = plano.nome if plano else None
             activities.append(
                 schemas.UserActivity(
                     user_id=user_model.id,
@@ -139,6 +143,7 @@ class AdminAnalyticsRequestService:
                     created_at=user_model.created_at,
                     total_produtos=total_produtos_user,
                     total_geracoes_ia_mes_corrente=total_ia_mes_user,
+                    plano_nome=plano_nome,
                 )
             )
         return activities
@@ -168,6 +173,19 @@ class AdminAnalyticsRequestService:
     def get_recent_historico(self, *, limit: int) -> List[schemas.RegistroHistoricoResponse]:
         """Retrieve recent historico using the current service dependencies."""
         return self._historico_repository.get_registros_historico(skip=0, limit=limit)
+
+    def change_user_plano(self, *, user_id: int, plano_id: int) -> models.User:
+        """Change the plan of a specific user."""
+        user = self._user_repository.get_user(user_id=user_id)
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado.")
+        plano = self._user_repository.get_plano(plano_id=plano_id)
+        if not plano:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plano nao encontrado.")
+        self._user_repository._apply_plano_limits(db_user=user, plano_id=plano_id)
+        self._user_repository._db.commit()
+        self._user_repository._db.refresh(user)
+        return user
 
 
 class _AdminAnalyticsDependencies:
@@ -266,3 +284,18 @@ async def get_recent_historico(
 ):
     """Retrieve recent historico using the current service dependencies."""
     return request_service.get_recent_historico(limit=limit)
+
+
+@router.patch(
+    "/users/{user_id}/plano",
+    response_model=schemas.UserResponse,
+    dependencies=[Depends(_AdminAnalyticsDependencies.get_current_active_admin_user)],
+    summary="Admin: troca o plano de um usuario",
+)
+async def change_user_plano(
+    user_id: int,
+    payload: schemas.AdminChangePlanoRequest,
+    request_service: AdminAnalyticsRequestService = Depends(),
+):
+    """Admin endpoint to change a user's subscription plan."""
+    return request_service.change_user_plano(user_id=user_id, plano_id=payload.plano_id)

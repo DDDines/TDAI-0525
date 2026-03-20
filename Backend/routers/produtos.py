@@ -592,6 +592,32 @@ class _EndpointHandlers:
         """Endpoint HTTP que delega a execucao para workflow/servico OO (update_produto)."""
         return request_services.product_management_service.update_produto(produto_id=produto_id, produto_update=produto, current_user=current_user)
 
+    @router.patch('/{produto_id}/workflow-status', response_model=schemas.ProdutoResponse)
+    def update_workflow_status(
+        produto_id: int,
+        payload: schemas.ProdutoWorkflowUpdateRequest,
+        current_user: models.User = Depends(_CURRENT_ACTIVE_USER_PROVIDER),
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+    ):
+        """Atualiza o workflow_status de um produto."""
+        from Backend.models import ProdutoWorkflowStatusEnum
+        allowed = {e.value for e in ProdutoWorkflowStatusEnum}
+        if payload.workflow_status not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"workflow_status inválido. Valores aceitos: {sorted(allowed)}",
+            )
+        produto = session.query(models.Produto).filter(
+            models.Produto.id == produto_id,
+            models.Produto.user_id == current_user.id,
+        ).first()
+        if not produto:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Produto não encontrado.")
+        produto.workflow_status = payload.workflow_status
+        session.commit()
+        session.refresh(produto)
+        return produto
+
     @router.delete('/{produto_id}', response_model=schemas.ProdutoResponse)
     def delete_produto(produto_id: int, current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (delete_produto)."""
@@ -618,7 +644,7 @@ class _EndpointHandlers:
         return await request_context.catalog_workflow.importar_catalogo_fornecedor(fornecedor_id=fornecedor_id, file=file, mapeamento_colunas_usuario=mapeamento_colunas_usuario, current_user=current_user)
 
     @router.post('/importar-catalogo-finalizar/{file_id}/', status_code=status.HTTP_202_ACCEPTED)
-    async def importar_catalogo_finalizar(background_tasks: BackgroundTasks, file_id: int, product_type_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), mapping: Optional[Dict[str, str]]=Body(None), pages: Optional[List[int]]=Body(None), region: Optional[List[float]]=Body(None), extraction_mode: str=Body("ocr", embed=True), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
+    async def importar_catalogo_finalizar(background_tasks: BackgroundTasks, file_id: int, product_type_id: int=Body(..., embed=True), fornecedor_id: int=Body(..., embed=True), mapping: Optional[Dict[str, str]]=Body(None), pages: Optional[List[int]]=Body(None), region: Optional[List[float]]=Body(None), extraction_mode: str=Body("vision", embed=True), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar)."""
         return await request_context.catalog_workflow.importar_catalogo_finalizar(background_tasks=background_tasks, file_id=file_id, product_type_id=product_type_id, fornecedor_id=fornecedor_id, mapping=mapping, pages=pages, region=region, extraction_mode=extraction_mode, user_id=current_user.id)
 
@@ -638,7 +664,7 @@ class _EndpointHandlers:
         return request_context.catalog_workflow.importar_catalogo_result(file_id=file_id, user_id=current_user.id)
 
     @router.post('/importar-catalogo-finalizar/', response_model=schemas.CatalogImportResult)
-    async def importar_catalogo_finalizar_todas_paginas(file_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), mapping: Optional[Dict[str, str]]=Body(None), extraction_mode: str=Body("ocr", embed=True), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
+    async def importar_catalogo_finalizar_todas_paginas(file_id: int=Body(..., embed=True), start_page: int=Body(1, embed=True), mapping: Optional[Dict[str, str]]=Body(None), extraction_mode: str=Body("vision", embed=True), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_context: _ProdutosRequestContext=Depends(_build_produtos_request_context)):
         """Endpoint HTTP que delega a execucao para workflow/servico OO (importar_catalogo_finalizar_todas_paginas)."""
         return await request_context.catalog_workflow.importar_catalogo_finalizar_todas_paginas(file_id=file_id, start_page=start_page, mapping=mapping, extraction_mode=extraction_mode, user_id=current_user.id)
 

@@ -8,11 +8,13 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LuBox,
+  LuBuilding2,
   LuHistory,
   LuLayoutDashboard,
   LuLayers,
   LuLogOut,
   LuSettings,
+  LuShieldCheck,
   LuTag,
   LuUsers,
   LuX,
@@ -24,9 +26,10 @@ import LogoImg from '../assets/Logo.png';
 import './Sidebar.css';
 
 function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
-  const { logout } = useAuth();
+  const { logout, currentUser } = useAuth();
   const { effectiveMode } = useAppExperience();
   const isCompleteMode = effectiveMode === 'complete';
+  const isAdmin = currentUser?.is_superuser;
 
   const handleLogout = () => {
     logout();
@@ -39,8 +42,10 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
     { path: '/tipos-de-produto', name: 'Tipos de Produto', icon: <LuTag /> },
     { path: '/enriquecimento', name: 'Enriquecimento', icon: <LuZap /> },
     { path: '/historico', name: 'Histórico', icon: <LuHistory /> },
+    { path: '/workspace', name: 'Workspace', icon: <LuBuilding2 /> },
     { path: '/plano', name: 'Meu Plano', icon: <LuLayers /> },
     { path: '/configuracoes', name: 'Configurações', icon: <LuSettings /> },
+    ...(isAdmin ? [{ path: '/admin', name: 'Admin', icon: <LuShieldCheck /> }] : []),
   ];
 
   return (

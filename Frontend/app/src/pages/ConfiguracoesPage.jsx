@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import authService from '../services/authService';
 import basicTemplateService from '../services/basicTemplateService';
 import credentialsService from '../services/credentialsService';
+import aiPolicyService from '../services/aiPolicyService';
 import importRulesService from '../services/importRulesService';
 import { showErrorToast, showSuccessToast } from '../utils/notifications';
 import { extractErrorMessage } from '../utils/errorDetails';
@@ -42,12 +43,22 @@ const PROVIDER_DEFINITIONS = [
       { key: 'search_engine_id', label: 'Search Engine ID', placeholder: '5684ee...' },
     ],
   },
+  {
+    provider: 'lm_studio',
+    label: 'LM Studio (Local)',
+    description: 'Configuração de referência do servidor LM Studio. Ativo apenas quando AI_PROVIDER=lm_studio está definido no servidor. A URL base e o modelo aqui registados ficam documentados para o administrador.',
+    fields: [
+      { key: 'secret_value', label: 'URL base', placeholder: 'http://127.0.0.1:1234/v1' },
+      { key: 'lm_studio_model', label: 'Modelo', placeholder: 'mistral-7b-instruct' },
+    ],
+  },
 ];
 
 function emptyCredentialDraft() {
   return {
     secret_value: '',
     search_engine_id: '',
+    lm_studio_model: '',
     description: '',
     is_active: true,
   };
@@ -70,9 +81,9 @@ function buildCredentialPayload(scope, provider, draft) {
     is_active: Boolean(draft.is_active),
     config_json:
       provider === 'google_cse'
-        ? {
-            search_engine_id: draft.search_engine_id || '',
-          }
+        ? { search_engine_id: draft.search_engine_id || '' }
+        : provider === 'lm_studio'
+        ? { model: draft.lm_studio_model || '' }
         : undefined,
   };
 }
@@ -147,6 +158,10 @@ function ConfiguracoesPage() {
   const [importRules, setImportRules] = useState([]);
   const [loadingImportRules, setLoadingImportRules] = useState(false);
   const [deletingRuleId, setDeletingRuleId] = useState(null);
+  const [aiPolicyOverview, setAiPolicyOverview] = useState(null);
+  const [loadingAiPolicy, setLoadingAiPolicy] = useState(false);
+  const [savingAiPolicy, setSavingAiPolicy] = useState(false);
+  const [aiPolicyDraft, setAiPolicyDraft] = useState(null);
 
   const loadImportRules = useCallback(async () => {
     setLoadingImportRules(true);
@@ -157,6 +172,30 @@ function ConfiguracoesPage() {
       // silently degrade
     } finally {
       setLoadingImportRules(false);
+    }
+  }, []);
+
+  const loadAiPolicy = useCallback(async () => {
+    setLoadingAiPolicy(true);
+    try {
+      const overview = await aiPolicyService.getOverview();
+      setAiPolicyOverview(overview);
+      const userCfg = overview?.user_config || overview?.effective_config || {};
+      setAiPolicyDraft({
+        generation_default_mode: userCfg.generation_default_mode || 'basic',
+        enrichment_default_mode: userCfg.enrichment_default_mode || 'basic',
+        allow_openai: userCfg.allow_openai !== false,
+        allow_gemini: userCfg.allow_gemini !== false,
+        allow_attribute_ai: userCfg.allow_attribute_ai !== false,
+        allow_web_llm: userCfg.allow_web_llm !== false,
+        allow_provider_fallback: userCfg.allow_provider_fallback !== false,
+        max_recovery_attempts: userCfg.max_recovery_attempts ?? 1,
+        default_provider_preference: userCfg.default_provider_preference || '',
+      });
+    } catch {
+      // silently degrade
+    } finally {
+      setLoadingAiPolicy(false);
     }
   }, []);
 
@@ -190,6 +229,7 @@ function ConfiguracoesPage() {
             nextDrafts[scope][item.provider] = {
               secret_value: '',
               search_engine_id: item?.config_json?.search_engine_id || '',
+              lm_studio_model: item?.config_json?.model || '',
               description: item?.description || '',
               is_active: item?.is_active !== false,
             };
@@ -249,7 +289,8 @@ function ConfiguracoesPage() {
     void loadCredentialsOverview();
     void loadBasicTemplateOverview();
     void loadImportRules();
-  }, [loadBasicTemplateOverview, loadCredentialsOverview, loadImportRules]);
+    void loadAiPolicy();
+  }, [loadBasicTemplateOverview, loadCredentialsOverview, loadImportRules, loadAiPolicy]);
 
   useEffect(() => {
     if (!basicTemplateOverview) {
@@ -465,6 +506,49 @@ function ConfiguracoesPage() {
   const profileAvatarFallback = (profileData.nome_completo || profileData.email || 'U')
     .slice(0, 1)
     .toUpperCase();
+
+  const handleAiPolicyDraftChange = (field, value) => {
+    setAiPolicyDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveAiPolicy = async (event) => {
+    event.preventDefault();
+    if (!aiPolicyDraft) return;
+    setSavingAiPolicy(true);
+    try {
+      await aiPolicyService.upsertPolicy({
+        scope_type: 'user',
+        generation_default_mode: aiPolicyDraft.generation_default_mode,
+        enrichment_default_mode: aiPolicyDraft.enrichment_default_mode,
+        allow_openai: aiPolicyDraft.allow_openai,
+        allow_gemini: aiPolicyDraft.allow_gemini,
+        allow_attribute_ai: aiPolicyDraft.allow_attribute_ai,
+        allow_web_llm: aiPolicyDraft.allow_web_llm,
+        allow_provider_fallback: aiPolicyDraft.allow_provider_fallback,
+        max_recovery_attempts: Number(aiPolicyDraft.max_recovery_attempts),
+        default_provider_preference: aiPolicyDraft.default_provider_preference || null,
+      });
+      showSuccessToast('Política de IA salva com sucesso.');
+      await loadAiPolicy();
+    } catch (error) {
+      showErrorToast(extractErrorMessage(error, 'Falha ao salvar política de IA.'));
+    } finally {
+      setSavingAiPolicy(false);
+    }
+  };
+
+  const handleResetAiPolicy = async () => {
+    setSavingAiPolicy(true);
+    try {
+      await aiPolicyService.deletePolicy('user');
+      showSuccessToast('Política de IA pessoal removida. O sistema usa a política padrão.');
+      await loadAiPolicy();
+    } catch (error) {
+      showErrorToast(extractErrorMessage(error, 'Falha ao remover política de IA.'));
+    } finally {
+      setSavingAiPolicy(false);
+    }
+  };
 
   if ((!initialUserDataLoaded && loadingProfile) || loadingTemplates) {
     return <LoadingOverlay isOpen={true} message="Carregando configurações..." />;
@@ -901,6 +985,112 @@ function ConfiguracoesPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="settings-section-card">
+        <h2>Política de IA</h2>
+        <p className="settings-help-text">
+          Controle quais provedores e modos de IA estão ativos para o seu perfil.
+          Origem efetiva: <strong>{aiPolicyOverview?.effective_config?.source_label || 'Sistema'}</strong>
+        </p>
+        {loadingAiPolicy ? (
+          <div className="settings-inline-loading" role="status" aria-live="polite">
+            <span className="settings-inline-loading-spinner" aria-hidden="true" />
+            <span>Carregando política de IA...</span>
+          </div>
+        ) : aiPolicyDraft ? (
+          <form onSubmit={handleSaveAiPolicy}>
+            <div className="settings-secondary-grid">
+              <div className="settings-field">
+                <label htmlFor="ai-gen-mode">Modo de geração padrão</label>
+                <select
+                  id="ai-gen-mode"
+                  className="settings-input"
+                  value={aiPolicyDraft.generation_default_mode}
+                  onChange={(e) => handleAiPolicyDraftChange('generation_default_mode', e.target.value)}
+                  disabled={savingAiPolicy}
+                >
+                  <option value="basic">Básico (sem IA externa)</option>
+                  <option value="ia">IA (OpenAI / Gemini)</option>
+                </select>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="ai-enrich-mode">Modo de enriquecimento padrão</label>
+                <select
+                  id="ai-enrich-mode"
+                  className="settings-input"
+                  value={aiPolicyDraft.enrichment_default_mode}
+                  onChange={(e) => handleAiPolicyDraftChange('enrichment_default_mode', e.target.value)}
+                  disabled={savingAiPolicy}
+                >
+                  <option value="basic">Básico (sem IA)</option>
+                  <option value="ia">IA</option>
+                </select>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="ai-provider-pref">Provedor preferido</label>
+                <select
+                  id="ai-provider-pref"
+                  className="settings-input"
+                  value={aiPolicyDraft.default_provider_preference || ''}
+                  onChange={(e) => handleAiPolicyDraftChange('default_provider_preference', e.target.value)}
+                  disabled={savingAiPolicy}
+                >
+                  <option value="">Automático</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="google_gemini">Google Gemini</option>
+                </select>
+              </div>
+              <div className="settings-field">
+                <label htmlFor="ai-max-recovery">Tentativas de recuperação (max)</label>
+                <input
+                  id="ai-max-recovery"
+                  type="number"
+                  min={0}
+                  max={10}
+                  className="settings-input"
+                  value={aiPolicyDraft.max_recovery_attempts}
+                  onChange={(e) => handleAiPolicyDraftChange('max_recovery_attempts', e.target.value)}
+                  disabled={savingAiPolicy}
+                />
+              </div>
+            </div>
+            <div className="settings-experience-controls" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+              {[
+                { key: 'allow_openai', label: 'OpenAI habilitado' },
+                { key: 'allow_gemini', label: 'Gemini habilitado' },
+                { key: 'allow_attribute_ai', label: 'IA para atributos' },
+                { key: 'allow_web_llm', label: 'LLM para enriquecimento web' },
+                { key: 'allow_provider_fallback', label: 'Fallback de provedor' },
+              ].map(({ key, label }) => (
+                <label key={key} className="settings-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(aiPolicyDraft[key])}
+                    onChange={(e) => handleAiPolicyDraftChange(key, e.target.checked)}
+                    disabled={savingAiPolicy}
+                  />
+                  {' '}{label}
+                </label>
+              ))}
+            </div>
+            <div className="settings-template-actions" style={{ marginTop: '1rem' }}>
+              <button type="submit" className="settings-primary-btn" disabled={savingAiPolicy}>
+                {savingAiPolicy ? 'Salvando...' : 'Salvar política'}
+              </button>
+              {aiPolicyOverview?.user_config ? (
+                <button
+                  type="button"
+                  className="settings-mode-reset-btn"
+                  onClick={handleResetAiPolicy}
+                  disabled={savingAiPolicy}
+                >
+                  Remover override pessoal
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : null}
       </section>
 
       <ChangePasswordModal isOpen={isChangePasswordModalOpen} onClose={() => setIsChangePasswordModalOpen(false)} userId={user?.id} />
