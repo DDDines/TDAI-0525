@@ -1,44 +1,89 @@
-﻿/* Frontend/app/src/pages/EnriquecimentoPage.css */
+/* Frontend/app/src/pages/EnriquecimentoPage.css */
 
 .enriquecimento-page-shell {
   width: 100%;
 }
 
-.enrich-search-row {
-  margin: 0;
+.enriquecimento-stats-card {
+  padding: 0.95rem 1.1rem;
 }
 
-.enrich-search-row input {
-  max-width: 460px;
+.enriquecimento-metrics-row {
+  padding-top: 0;
+}
+
+.enriquecimento-table-card {
+  padding-top: 1rem;
+}
+
+.enriquecimento-list-toolbar {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.92);
+}
+
+.enriquecimento-search-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.enriquecimento-filters-row {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+.enriquecimento-filter-select {
+  flex: 0 1 220px;
+  min-width: 190px;
+}
+
+.enriquecimento-selection-bar .ops-selection-actions {
+  align-items: center;
+}
+
+.enriquecimento-error-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0 0.9rem;
 }
 
 .error-text {
   color: #dc2626;
-  padding: 0.4rem 0 0.9rem;
   font-weight: 500;
-}
-
-.btn-info {
-  background-color: var(--info);
-  color: #fff;
-}
-
-.btn-info:hover:not(:disabled) {
-  filter: brightness(0.92);
+  margin: 0;
 }
 
 .enrich-note {
-  text-align: right;
-  margin-top: 0.9rem;
+  margin-top: 0.85rem;
+  text-align: left;
+  line-height: 1.55;
+}
+
+@media (max-width: 1180px) {
+  .enriquecimento-list-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .enriquecimento-filters-row {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 768px) {
-  .enrich-note {
-    text-align: left;
+  .enriquecimento-error-state {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .enrich-search-row {
-    flex-direction: column;
-    align-items: flex-start;
+  .enriquecimento-filter-select {
+    flex: 1 1 100%;
   }
 }

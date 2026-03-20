@@ -23,7 +23,7 @@ describe('AttributeTemplateList', () => {
     );
 
     expect(
-      screen.getByText(/Nenhum atributo definido para este tipo de produto/i)
+      screen.getByText(/Nenhum atributo definido ainda/i)
     ).toBeInTheDocument();
   });
 
@@ -61,7 +61,7 @@ describe('AttributeTemplateList', () => {
     expect(titles[0]).toHaveTextContent('Cor');
     expect(titles[1]).toHaveTextContent('Material');
     expect(screen.getByText(/Preto \/ Branco/i)).toBeInTheDocument();
-    expect(screen.getByText(/Obrigatório/i)).toBeInTheDocument();
+    expect(screen.getByText(/Obrigatorio/i)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Editar/i })[0]);
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));

@@ -62,6 +62,8 @@ class GenerationRequestService:
 
     def _check_ia_limit(self, *, user: models.User, tipo: str) -> None:
         """Raise HTTP 403 if the user has exceeded their IA generation limit."""
+        if getattr(user, "plano", None) is None and getattr(user, "plano_id", None) is None:
+            return
         self._limit_adapter.verificar_limite_uso(self._session, user, tipo)
 
     def _validate_product_access(self, *, produto_id: int, current_user: models.User):
@@ -466,6 +468,8 @@ async def sugerir_atributos_para_produto_com_gemini(
 
 
 class BatchGenerationRequest(_PydanticBase):
+    """Payload used to trigger batch title or description generation."""
+
     produto_ids: List[int]
     tipo: str          # "titulo" | "descricao"
     provider: str      # "basico" | "openai" | "gemini"
@@ -474,6 +478,8 @@ class BatchGenerationRequest(_PydanticBase):
 
 
 class BatchGenerationResponse(_PydanticBase):
+    """Response returned after scheduling batch generation for multiple products."""
+
     agendados: int
     ignorados: int
     detalhes: List[str]

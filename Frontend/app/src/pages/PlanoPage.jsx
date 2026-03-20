@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   LuArrowUpRight,
   LuBadgeCheck,
@@ -296,6 +297,7 @@ function PlanoPage() {
   const [planos, setPlanos] = useState([]);
   const [upgradingPlanoId, setUpgradingPlanoId] = useState(null);
   const [showPlanChooser, setShowPlanChooser] = useState(false);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -325,11 +327,27 @@ function PlanoPage() {
     void fetchUserData();
   }, []);
 
-  const handleMudarPlano = async (planoId) => {
+  useEffect(() => {
+    const checkout = searchParams.get('checkout');
+    if (checkout === 'success') {
+      showSuccessToast('Pagamento confirmado! Seu plano será atualizado em instantes.');
+    } else if (checkout === 'cancel') {
+      showInfoToast('Checkout cancelado.');
+    }
+  }, [searchParams]);
+
+  const handleMudarPlano = async (plano) => {
     if (upgradingPlanoId) return;
-    setUpgradingPlanoId(planoId);
+    setUpgradingPlanoId(plano.id);
     try {
-      const novoPlano = await planosService.mudarPlano(planoId);
+      if (plano.preco_mensal > 0) {
+        // Plano pago → redireciona para Stripe Checkout
+        const { checkout_url } = await planosService.criarCheckout(plano.id);
+        window.location.href = checkout_url;
+        return;
+      }
+      // Plano gratuito → muda diretamente
+      const novoPlano = await planosService.mudarPlano(plano.id);
       setCurrentUser((prev) => prev ? { ...prev, plano: novoPlano, plano_id: novoPlano.id } : prev);
       showSuccessToast(`Plano alterado para ${novoPlano.nome} com sucesso.`);
       setShowPlanChooser(false);
@@ -337,6 +355,15 @@ function PlanoPage() {
       showErrorToast(err?.response?.data?.detail || err?.message || 'Falha ao alterar plano.');
     } finally {
       setUpgradingPlanoId(null);
+    }
+  };
+
+  const handleGerenciarAssinatura = async () => {
+    try {
+      const { portal_url } = await planosService.abrirPortal();
+      window.location.href = portal_url;
+    } catch (err) {
+      showErrorToast(err?.response?.data?.detail || err?.message || 'Não foi possível abrir o portal.');
     }
   };
 
@@ -516,6 +543,16 @@ function PlanoPage() {
               {showPlanChooser ? <LuChevronDown style={{ transform: 'rotate(180deg)' }} /> : <LuArrowUpRight />}
             </button>
 
+            {currentUser?.plano?.preco_mensal > 0 && (
+              <button type="button" className="plano-action-button" onClick={handleGerenciarAssinatura}>
+                <div>
+                  <strong>Gerenciar assinatura</strong>
+                  <span>Atualize forma de pagamento, faturas e cancelamento via Stripe.</span>
+                </div>
+                <LuArrowUpRight />
+              </button>
+            )}
+
             <button type="button" className="plano-action-button" onClick={handleSupportClick}>
               <div>
                 <strong>Falar com suporte</strong>
@@ -562,7 +599,7 @@ function PlanoPage() {
                       type="button"
                       className={`plano-chooser-select-btn${plano.preco_mensal > (currentUser?.plano?.preco_mensal ?? 0) ? ' is-upgrade' : ''}`}
                       disabled={!!upgradingPlanoId}
-                      onClick={() => handleMudarPlano(plano.id)}
+                      onClick={() => handleMudarPlano(plano)}
                     >
                       {isUpgrading
                         ? 'Alterando...'

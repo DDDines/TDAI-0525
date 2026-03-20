@@ -6,6 +6,13 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  LuBoxes,
+  LuCircleAlert,
+  LuClock3,
+  LuGlobe,
+  LuSearch,
+} from 'react-icons/lu';
 import './EnriquecimentoPage.css';
 import productService from '../services/productService';
 import usoIAService from '../services/usoIAService';
@@ -15,11 +22,14 @@ import {
   showSuccessToast,
   showErrorToast,
   showInfoToast,
+  showWarningToast,
 } from '../utils/notifications';
 import logger from '../utils/logger';
 import { extractErrorMessage } from '../utils/errorDetails';
 import { queryKeys } from '../lib/queryKeys.js';
 import { useAppExperience } from '../contexts/AppExperienceContext.jsx';
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import OperationalStatChip from '../components/common/OperationalStatChip.jsx';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -31,6 +41,21 @@ const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'FALHA_CONFIGURACAO_API_EXTERNA',
   'NENHUMA_FONTE_ENCONTRADA',
   'NAO_APLICAVEL',
+]);
+const WEB_ENRICHMENT_FAILURE_STATUSES = new Set([
+  'FALHA',
+  'FALHOU',
+  'FALHA_API_EXTERNA',
+  'FALHA_CONFIGURACAO_API_EXTERNA',
+  'NENHUMA_FONTE_ENCONTRADA',
+]);
+const WEB_ENRICHMENT_WARNING_STATUSES = new Set([
+  'CONCLUIDO_COM_DADOS_PARCIAIS',
+  ...WEB_ENRICHMENT_FAILURE_STATUSES,
+]);
+const WEB_ENRICHMENT_RUNNING_STATUSES = new Set([
+  'PENDENTE',
+  'EM_PROGRESSO',
 ]);
 const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
 const WEB_ENRICHMENT_MAX_POLLS = 120;
@@ -64,9 +89,13 @@ function formatSelectionSummary(selectedCount, selectionScope) {
     return `${selectedCount} item(ns) selecionado(s) (todos os resultados)`;
   }
   if (selectionScope === 'page') {
-    return `${selectedCount} item(ns) selecionado(s) (pagina atual)`;
+    return `${selectedCount} item(ns) selecionado(s) (página atual)`;
   }
-  return `${selectedCount} item(ns) selecionado(s) (selecao manual)`;
+  return `${selectedCount} item(ns) selecionado(s) (seleção manual)`;
+}
+
+function normalizeStatus(status) {
+  return String(status || '').toUpperCase();
 }
 
 function EnriquecimentoPage() {
@@ -82,7 +111,13 @@ function EnriquecimentoPage() {
   const [enrichmentScope, setEnrichmentScope] = useState('enriched');
   const [usarIAEnriquecimento, setUsarIAEnriquecimento] = useState(false);
   const webStatusPollRunRef = React.useRef(0);
+  const isMountedRef = React.useRef(true);
   const queryClient = useQueryClient();
+
+  React.useEffect(() => () => {
+    isMountedRef.current = false;
+    webStatusPollRunRef.current += 1;
+  }, []);
 
   const queryParams = useMemo(
     () => ({
@@ -105,6 +140,7 @@ function EnriquecimentoPage() {
   const produtos = Array.isArray(produtosQuery.data?.items) ? produtosQuery.data.items : [];
   const totalProdutosCount =
     typeof produtosQuery.data?.total_items === 'number' ? produtosQuery.data.total_items : 0;
+  const loadingInitial = produtosQuery.isLoading;
   const loading = produtosQuery.isLoading || produtosQuery.isFetching;
   const error = produtosQuery.error
     ? extractErrorMessage(produtosQuery.error, 'Falha ao buscar produtos.')
@@ -112,22 +148,17 @@ function EnriquecimentoPage() {
   const totalPages = Math.ceil(totalProdutosCount / limitPerPage);
   const selectedCount = selectedProductIds.size;
   const selectionSummary = formatSelectionSummary(selectedCount, selectionScope);
-  const canSelectAllFilteredResults =
-    selectedCount > 0
-    && selectionScope !== 'all'
-    && totalProdutosCount > selectedCount;
-  const canReduceSelectionToPage =
-    selectionScope === 'all'
-    && produtos.length > 0;
+  const produtosEmAndamentoNaPagina = produtos.filter((produto) =>
+    WEB_ENRICHMENT_RUNNING_STATUSES.has(normalizeStatus(produto?.status_enriquecimento_web))
+  ).length;
+  const produtosComFalhaNaPagina = produtos.filter((produto) =>
+    WEB_ENRICHMENT_FAILURE_STATUSES.has(normalizeStatus(produto?.status_enriquecimento_web))
+  ).length;
 
   const clearSelectionState = useCallback(() => {
     setSelectedProductIds(new Set());
     setSelectionScope('none');
   }, []);
-
-  const refreshProdutos = useCallback(async () => {
-    await produtosQuery.refetch();
-  }, [produtosQuery]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -177,18 +208,9 @@ function EnriquecimentoPage() {
       setSelectedProductIds(new Set(ids));
       setSelectionScope('all');
     } catch (error) {
-      showErrorToast(error.message || 'Falha ao selecionar todos os resultados.');
+      showErrorToast(extractErrorMessage(error, 'Falha ao selecionar todos os resultados.'));
     }
   };
-
-  const handleSelectCurrentPageOnly = useCallback(() => {
-    if (!produtos.length) {
-      clearSelectionState();
-      return;
-    }
-    setSelectedProductIds(new Set(produtos.map((produto) => produto.id)));
-    setSelectionScope('page');
-  }, [clearSelectionState, produtos]);
 
   const handleSort = (key) => {
     let direction = 'ascending';
@@ -199,6 +221,27 @@ function EnriquecimentoPage() {
     setCurrentPage(0);
     clearSelectionState();
   };
+
+  const enrichmentSelectionMenuItems = useMemo(() => ([
+    {
+      key: 'page',
+      label: 'Selecionar página atual',
+      onClick: () => handleSelectAllRows(true),
+      disabled: produtos.length === 0,
+    },
+    {
+      key: 'all',
+      label: 'Selecionar todos os resultados da pesquisa',
+      onClick: () => void handleSelectAllResults(true),
+      disabled: totalProdutosCount === 0,
+    },
+    {
+      key: 'clear',
+      label: 'Limpar seleção',
+      onClick: clearSelectionState,
+      disabled: selectedCount === 0,
+    },
+  ]), [clearSelectionState, produtos.length, selectedCount, totalProdutosCount]);
 
   const updateCurrentProdutosData = useCallback((updater) => {
     queryClient.setQueryData(produtosQueryKey, (previous) => {
@@ -243,25 +286,36 @@ function EnriquecimentoPage() {
     );
   }, [queryClient, updateCurrentProdutosData]);
 
+  const fetchRequestedProducts = useCallback(async (produtoIds) => {
+    const requestedIds = new Set(Array.from(produtoIds).map((id) => String(id)));
+    const fetched = await Promise.all(
+      Array.from(requestedIds).map(async (produtoId) => {
+        try {
+          return await productService.getProdutoById(produtoId);
+        } catch {
+          return null;
+        }
+      })
+    );
+    return fetched.filter((produto) => {
+      const produtoId = produto?.id;
+      return produtoId !== undefined && produtoId !== null && requestedIds.has(String(produtoId));
+    });
+  }, []);
+
   const pollWebEnrichmentStatuses = useCallback(async (produtoIds) => {
     const pollRunId = webStatusPollRunRef.current + 1;
     webStatusPollRunRef.current = pollRunId;
     const ids = Array.from(produtoIds).map((id) => String(id));
 
     for (let attempt = 0; attempt < WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
-      if (webStatusPollRunRef.current !== pollRunId) {
+      if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
         return;
       }
-      const fetched = await Promise.all(
-        ids.map(async (produtoId) => {
-          try {
-            return await productService.getProdutoById(produtoId);
-          } catch {
-            return null;
-          }
-        })
-      );
-      const validFetched = fetched.filter(Boolean);
+      const validFetched = await fetchRequestedProducts(ids);
+      if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+        return;
+      }
       mergeProdutosById(validFetched);
 
       if (validFetched.length > 0) {
@@ -271,7 +325,21 @@ function EnriquecimentoPage() {
           )
         );
         if (allTerminal) {
-          showSuccessToast('Enriquecimento web finalizado para os produtos selecionados.');
+          if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+            return;
+          }
+          const hasWarnings = validFetched.some((produto) =>
+            WEB_ENRICHMENT_WARNING_STATUSES.has(
+              String(produto.status_enriquecimento_web || '').toUpperCase()
+            )
+          );
+          if (hasWarnings) {
+            showWarningToast(
+              'Enriquecimento web finalizado com pendências para os produtos selecionados.'
+            );
+          } else {
+            showSuccessToast('Enriquecimento web finalizado para os produtos selecionados.');
+          }
           await queryClient.invalidateQueries({ queryKey: ['produtos'] });
           return;
         }
@@ -280,55 +348,60 @@ function EnriquecimentoPage() {
       await new Promise((resolve) => setTimeout(resolve, WEB_ENRICHMENT_POLL_INTERVAL_MS));
     }
 
+    if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+      return;
+    }
     showInfoToast(
       'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
     );
     await queryClient.invalidateQueries({ queryKey: ['produtos'] });
-  }, [mergeProdutosById, queryClient]);
+  }, [fetchRequestedProducts, mergeProdutosById, queryClient]);
 
   const handleEnrichSelected = async () => {
     setActionLoading(true);
     const idsParaProcessar = Array.from(selectedProductIds);
     clearSelectionState();
     updateLocalProductStatus(new Set(idsParaProcessar), 'PENDENTE');
-    const modeLabel = showAiFeatures && usarIAEnriquecimento ? ' com IA' : ' basico';
+    const modeLabel = showAiFeatures && usarIAEnriquecimento ? ' com IA' : ' básico';
     showInfoToast(
       `Iniciando enriquecimento web${modeLabel} para ${idsParaProcessar.length} produto(s). Isso ocorrera em segundo plano.`
     );
 
     const failedIds = new Set();
-    await Promise.all(
-      idsParaProcessar.map(async (produtoId) => {
-        try {
-          if (showAiFeatures && usarIAEnriquecimento) {
-            await productService.iniciarEnriquecimentoWebProduto(produtoId, {
-              usarIA: true,
-            });
-          } else {
-            await productService.iniciarEnriquecimentoWebProduto(produtoId);
+    const ENRICH_CHUNK = 3;
+    for (let i = 0; i < idsParaProcessar.length; i += ENRICH_CHUNK) {
+      const chunk = idsParaProcessar.slice(i, i + ENRICH_CHUNK);
+      await Promise.all(
+        chunk.map(async (produtoId) => {
+          try {
+            if (showAiFeatures && usarIAEnriquecimento) {
+              await productService.iniciarEnriquecimentoWebProduto(produtoId, { usarIA: true });
+            } else {
+              await productService.iniciarEnriquecimentoWebProduto(produtoId);
+            }
+          } catch (err) {
+            failedIds.add(String(produtoId));
+            const errorMsg = extractErrorMessage(
+              err,
+              `Erro desconhecido ao iniciar enriquecimento para produto ID ${produtoId}.`
+            );
+            showErrorToast(errorMsg);
+            console.error(`Erro ao iniciar enriquecimento para produto ID ${produtoId}:`, err);
+            updateLocalProductStatus(new Set([produtoId]), 'FALHA');
           }
-        } catch (err) {
-          failedIds.add(String(produtoId));
-          const errorMsg = extractErrorMessage(
-            err,
-            `Erro desconhecido ao iniciar enriquecimento para produto ID ${produtoId}.`
-          );
-          showErrorToast(errorMsg);
-          console.error(`Erro ao iniciar enriquecimento para produto ID ${produtoId}:`, err);
-          updateLocalProductStatus(new Set([produtoId]), 'FALHA');
-        }
-      })
-    );
+        })
+      );
+    }
+    if (!isMountedRef.current) {
+      return;
+    }
     setActionLoading(false);
 
     const startedIds = idsParaProcessar.filter((id) => !failedIds.has(String(id)));
     if (startedIds.length > 0) {
       updateLocalProductStatus(new Set(startedIds), 'EM_PROGRESSO');
       void pollWebEnrichmentStatuses(startedIds);
-      return;
     }
-
-    await refreshProdutos();
   };
 
   const handleRowClick = (produto) => {
@@ -376,78 +449,138 @@ function EnriquecimentoPage() {
   };
 
   return (
-    <div className="app-page-shell enriquecimento-page-shell">
-      <div className="app-toolbar-card">
-        <div className="search-container enrich-search-row">
-          <label htmlFor="search-enr-prod">Buscar produtos para enriquecer:</label>
-          <input
-            type="text"
-            id="search-enr-prod"
-            placeholder="Nome, SKU..."
-            value={searchTerm}
-            onChange={handleSearchChange}
-            disabled={loading || actionLoading}
+    <div className="app-page-shell ops-page-shell enriquecimento-page-shell">
+      <section className="ops-card ops-toolbar-card enriquecimento-stats-card">
+        <div className="ops-metrics-row enriquecimento-metrics-row">
+          <OperationalStatChip
+            icon={<LuBoxes />}
+            label="Na base"
+            value={totalProdutosCount}
+            tone="neutral"
           />
-          <select
-            value={enrichmentScope}
-            onChange={(event) => {
-              setEnrichmentScope(event.target.value);
-              setCurrentPage(0);
-              clearSelectionState();
-            }}
-            disabled={loading || actionLoading}
-          >
-            <option value="enriched">Enriquecidos</option>
-            <option value="all">Todos</option>
-            <option value="pending">Pendentes</option>
-            <option value="failed">Falharam</option>
-          </select>
+          <OperationalStatChip
+            icon={<LuGlobe />}
+            label="Na página"
+            value={produtos.length}
+            tone="info"
+          />
+          <OperationalStatChip
+            icon={<LuClock3 />}
+            label="Em andamento"
+            value={produtosEmAndamentoNaPagina}
+            tone={produtosEmAndamentoNaPagina > 0 ? 'warn' : 'neutral'}
+          />
+          <OperationalStatChip
+            icon={<LuCircleAlert />}
+            label="Com falha"
+            value={produtosComFalhaNaPagina}
+            tone={produtosComFalhaNaPagina > 0 ? 'danger' : 'success'}
+          />
+          {selectedCount > 0 ? (
+            <OperationalStatChip
+              icon={<LuGlobe />}
+              label="Selecionados"
+              value={selectedCount}
+              tone="warn"
+            />
+          ) : null}
         </div>
-      </div>
+      </section>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>Produtos para Enriquecimento Web</h3>
+      <section className="ops-card ops-table-card enriquecimento-table-card">
+        <div className="enriquecimento-list-toolbar">
+          <div className="ops-search-field enriquecimento-search-field">
+            <div className="ops-search-input-wrap">
+              <LuSearch />
+              <input
+                type="text"
+                id="search-enr-prod"
+                aria-label="Buscar produtos para enriquecer"
+                placeholder="Buscar por nome, SKU..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                disabled={loading || actionLoading}
+              />
+            </div>
+          </div>
+          <div className="ops-filters-row enriquecimento-filters-row">
+            <select
+              value={enrichmentScope}
+              onChange={(event) => {
+                setEnrichmentScope(event.target.value);
+                setCurrentPage(0);
+                clearSelectionState();
+              }}
+              className="ops-select enriquecimento-filter-select"
+              disabled={loading || actionLoading}
+            >
+              <option value="enriched">Enriquecidos</option>
+              <option value="all">Todos</option>
+              <option value="pending">Pendentes</option>
+              <option value="failed">Falharam</option>
+            </select>
+          </div>
         </div>
 
-        {error && !loading ? <p className="error-text">Erro ao carregar produtos: {error}</p> : null}
+        {error && !loadingInitial ? (
+          <div className="enriquecimento-error-state" role="alert">
+            <p className="error-text">Erro ao carregar produtos: {error}</p>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => void produtosQuery.refetch()}
+              disabled={loading || actionLoading}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : null}
 
-        {selectionSummary ? (
-          <div className="ops-selection-bar">
+        {selectedCount > 0 ? (
+          <div className="ops-selection-bar enriquecimento-selection-bar">
             <div className="ops-selection-copy">
               <p className="ops-selection-summary">{selectionSummary}</p>
-              {canSelectAllFilteredResults ? (
-                <button
-                  type="button"
-                  className="ops-selection-inline-action"
-                  onClick={() => void handleSelectAllResults(true)}
-                >
-                  Selecionar todos os {totalProdutosCount} resultados
-                </button>
+              {showAiFeatures ? (
+                <label className="ops-inline-toggle">
+                  <input
+                    type="checkbox"
+                    checked={usarIAEnriquecimento}
+                    onChange={(event) => setUsarIAEnriquecimento(event.target.checked)}
+                    disabled={loading || actionLoading}
+                  />
+                  Usar IA no enriquecimento web
+                </label>
               ) : null}
-              {canReduceSelectionToPage ? (
-                <button
-                  type="button"
-                  className="ops-selection-inline-action"
-                  onClick={handleSelectCurrentPageOnly}
-                >
-                  Manter apenas os {produtos.length} itens desta pagina
-                </button>
-              ) : null}
+            </div>
+            <div className="ops-selection-actions">
+              <button
+                onClick={handleEnrichSelected}
+                disabled={loading || actionLoading || selectedCount === 0}
+                className="btn-secondary btn-sm"
+              >
+                {actionLoading
+                  ? 'Processando...'
+                  : `Enriquecer Web${showAiFeatures && usarIAEnriquecimento ? ' + IA' : ''}`}
+              </button>
             </div>
           </div>
         ) : null}
 
-        <ProductTable
-          produtos={produtos}
-          selectedProdutos={selectedProductIds}
-          onSelectProduto={handleSelectRow}
-          onSelectAllProdutos={handleSelectAllRows}
-          onEdit={handleRowClick}
-          loading={loading}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-        />
+        {loadingInitial && (!produtos || produtos.length === 0) ? (
+          <LoadingOverlay isOpen={true} message="Carregando produtos para enriquecimento..." />
+        ) : (
+          <ProductTable
+            produtos={produtos}
+            selectedProdutos={selectedProductIds}
+            onSelectProduto={handleSelectRow}
+            onSelectAllProdutos={handleSelectAllRows}
+            selectionMenuItems={enrichmentSelectionMenuItems}
+            onEdit={handleRowClick}
+            loading={loading}
+            sortConfig={sortConfig}
+            onSort={handleSort}
+          />
+        )}
 
         {totalPages > 0 && !error ? (
           <PaginationControls
@@ -458,34 +591,13 @@ function EnriquecimentoPage() {
           />
         ) : null}
 
-        <div className="table-actions">
-          {showAiFeatures ? (
-            <label className="app-muted-note" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                checked={usarIAEnriquecimento}
-                onChange={(event) => setUsarIAEnriquecimento(event.target.checked)}
-                disabled={loading || actionLoading}
-              />
-              Usar IA no enriquecimento web
-            </label>
-          ) : null}
-          <button
-            onClick={handleEnrichSelected}
-            disabled={loading || actionLoading || selectedCount === 0}
-            className="btn-info"
-          >
-            {actionLoading
-              ? 'Processando...'
-              : `Enriquecer Web${showAiFeatures && usarIAEnriquecimento ? ' + IA' : ''} (${selectedCount}) selecionado(s)`}
-          </button>
-        </div>
-        <div className="enrich-note app-muted-note">
-          O status do enriquecimento sera atualizado na tabela conforme o processo ocorre no backend.
-          {showAiFeatures ? ' Sem marcar a opcao de IA, o fluxo roda apenas na versao basica.' : ''}
-          Clique em uma linha para ver logs.
-        </div>
-      </div>
+        <p className="enrich-note app-muted-note">
+          O status do enriquecimento será atualizado conforme o processo termina no backend.
+          {showAiFeatures ? ' Sem marcar a opção de IA, o fluxo roda apenas na versão básica.' : ''}
+          {' '}
+          Use o ícone de ação para revisar detalhes e logs.
+        </p>
+      </section>
     </div>
   );
 }

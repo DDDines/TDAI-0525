@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from fastapi.responses import RedirectResponse
 
 from Backend import models, schemas
 from Backend.auth import OAuthError
@@ -223,7 +224,10 @@ def test_generation_request_methods_cover_success_paths(
         gerar_titulos_com_gemini="fn_gemini_titulos",
         gerar_descricao_com_gemini="fn_gemini_desc",
     )
-    service._basic_generation_service = SimpleNamespace(gerar_titulos_basicos="fn_basic_titles")
+    service._basic_generation_service = SimpleNamespace(
+        gerar_titulos_basicos="fn_basic_titles",
+        gerar_descricao_basica="fn_basic_description",
+    )
     user = SimpleNamespace(id=8)
 
     result = getattr(service, method_name)(current_user=user, **payload)
@@ -803,9 +807,9 @@ async def test_social_auth_google_callback_unavailable_and_oauth_error():
     service = SocialAuthRequestService(session="db")
     service._has_client = lambda provider: False
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.google_callback(request=object())
-    assert exc_info.value.status_code == 503
+    response = await service.google_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_not_configured")
 
     service._has_client = lambda provider: True
 
@@ -814,9 +818,9 @@ async def test_social_auth_google_callback_unavailable_and_oauth_error():
 
     service._authorize_access_token = fail_authorize
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.google_callback(request=object())
-    assert exc_info.value.status_code == 400
+    response = await service.google_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_failed")
 
 
 @pytest.mark.asyncio
@@ -849,10 +853,9 @@ async def test_social_auth_google_callback_fallback_and_missing_user():
     service._get_userinfo = fallback_userinfo
     service._auth_workflow = FakeAuthWorkflow()
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.google_callback(request=object())
-
-    assert exc_info.value.status_code == 400
+    response = await service.google_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_user_failed")
 
 
 @pytest.mark.asyncio
@@ -864,9 +867,9 @@ async def test_social_auth_facebook_login_and_callback_reject_missing_client():
         await service.facebook_login(request=object())
     assert exc_info.value.status_code == 503
 
-    with pytest.raises(HTTPException) as exc_info:
-        await service.facebook_callback(request=object())
-    assert exc_info.value.status_code == 503
+    response = await service.facebook_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_not_configured")
 
 
 @pytest.mark.asyncio
@@ -891,9 +894,9 @@ async def test_social_auth_facebook_login_and_callback_paths(monkeypatch):
         raise OAuthError("bad")
 
     service._authorize_access_token = fail_authorize
-    with pytest.raises(HTTPException) as exc_info:
-        await service.facebook_callback(request=object())
-    assert exc_info.value.status_code == 400
+    response = await service.facebook_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_failed")
 
     async def success_authorize(_provider, _request):
         return {"access": "token"}
@@ -918,14 +921,14 @@ async def test_social_auth_facebook_login_and_callback_paths(monkeypatch):
     service._authorize_access_token = success_authorize
     service._get_userinfo = get_userinfo
     service._auth_workflow = FakeAuthWorkflow(None)
-    with pytest.raises(HTTPException) as exc_info:
-        await service.facebook_callback(request=object())
-    assert exc_info.value.status_code == 400
+    response = await service.facebook_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/login?error=oauth_user_failed")
 
     service._auth_workflow = FakeAuthWorkflow(SimpleNamespace(id=18, email="fb@test.com"))
-    token = await service.facebook_callback(request=object())
-    assert token.access_token == "access:18"
-    assert token.token_type == "bearer"
+    response = await service.facebook_callback(request=object())
+    assert isinstance(response, RedirectResponse)
+    assert response.headers["location"].endswith("/auth/oauth-callback?access_token=access:18")
 
 
 @pytest.mark.asyncio
@@ -934,9 +937,9 @@ async def test_social_auth_facebook_login_and_callback_paths(monkeypatch):
     [
         (social_auth_router.social_login_config, schemas.SocialLoginConfig(google_enabled=True, facebook_enabled=False, product_experience_default="basic", allow_admin_experience_preview=True)),
         (social_auth_router.google_login, {"provider": "google"}),
-        (social_auth_router.google_callback, schemas.Token(access_token="a", refresh_token="b", token_type="bearer")),
+        (social_auth_router.google_callback, RedirectResponse(url="/auth/oauth-callback?access_token=a")),
         (social_auth_router.facebook_login, {"provider": "facebook"}),
-        (social_auth_router.facebook_callback, schemas.Token(access_token="c", refresh_token="d", token_type="bearer")),
+        (social_auth_router.facebook_callback, RedirectResponse(url="/auth/oauth-callback?access_token=c")),
     ],
 )
 async def test_social_auth_route_wrappers_delegate(route_fn, expected_result):
@@ -965,4 +968,8 @@ async def test_social_auth_route_wrappers_delegate(route_fn, expected_result):
     else:
         result = await route_fn(request="request", request_service=FakeRequestService())
 
-    assert result == expected_result
+    if isinstance(expected_result, RedirectResponse):
+        assert isinstance(result, RedirectResponse)
+        assert result.headers["location"] == expected_result.headers["location"]
+    else:
+        assert result == expected_result

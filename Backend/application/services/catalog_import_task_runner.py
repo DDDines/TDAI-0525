@@ -40,6 +40,7 @@ class CatalogImportTaskRunner:
         normalize_import_text: Any,
         product_repository_factory: Any,
         catalog_file_repository_factory: Any,
+        vision_service: Any = None,
     ) -> None:
         """Initialize injected dependencies and runtime configuration for Catalog Import Task Runner."""
         self._kwargs = {
@@ -64,6 +65,7 @@ class CatalogImportTaskRunner:
             "classificar_qualidade_linha_produto": classificar_qualidade_linha_produto,
             "write_catalog_import_report": write_catalog_import_report,
             "normalize_import_text": normalize_import_text,
+            "vision_service": vision_service,
         }
         self._file_processing_service = file_processing_service
         self._service: CatalogImportTaskService | None = None
@@ -90,7 +92,7 @@ class CatalogImportTaskRunner:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
-        extraction_mode: str = "ocr",
+        extraction_mode: str = "vision",
     ) -> None:
         """Handle execute within the catalog import workflow."""
         await self._get_service().execute(

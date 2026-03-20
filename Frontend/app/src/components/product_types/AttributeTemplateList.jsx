@@ -5,85 +5,117 @@
  */
 
 import React from 'react';
+import { LuArrowDown, LuArrowUp, LuPencil, LuSparkles, LuTrash2 } from 'react-icons/lu';
 import '../../pages/TiposProdutoPage.css';
+
+function formatFieldTypeLabel(fieldType) {
+  const normalizedType = String(fieldType || '').toLowerCase();
+  const labels = {
+    text: 'texto',
+    textarea: 'texto longo',
+    number: 'numero',
+    boolean: 'sim/nao',
+    select: 'selecao unica',
+    multiselect: 'selecao multipla',
+    date: 'data',
+  };
+  return labels[normalizedType] || normalizedType || '--';
+}
 
 function AttributeTemplateList({ attributes, onEdit, onDelete, onReorder }) {
   if (!attributes || attributes.length === 0) {
     return (
-      <p style={{ textAlign: 'center', color: 'var(--text-color-light)', padding: '2rem 0' }}>
-        Nenhum atributo definido para este tipo de produto.
-      </p>
+      <div className="tipos-produto-empty-state tipos-produto-empty-state--compact">
+        <span className="tipos-produto-empty-icon">
+          <LuSparkles />
+        </span>
+        <strong>Nenhum atributo definido ainda</strong>
+        <p>Adicione campos para orientar o enrichment e a geracao com mais precisao.</p>
+      </div>
     );
   }
 
   const sortedAttributes = [...attributes].sort((a, b) => a.display_order - b.display_order);
 
   return (
-    <div>
-      {sortedAttributes.map((attr, index) => (
-        <div key={attr.id} className="attribute-template-card">
-          <div className="main-info">
-            <strong>{attr.label}</strong>
-            <div className="details">
-              <span className="detail-item" title={attr.attribute_key}>
-                <strong>Chave:</strong> {attr.attribute_key}
-              </span>
-              <span className="detail-item">
-                <strong>Tipo:</strong> {attr.field_type}
-              </span>
-              {attr.is_required ? (
-                <span className="detail-item">
-                  <strong style={{ color: 'var(--danger)' }}>Obrigatório</strong>
-                </span>
+    <div className="attribute-template-list">
+      {sortedAttributes.map((attribute, index) => (
+        <article key={attribute.id} className="attribute-template-card">
+          <div className="attribute-template-main">
+            <div className="attribute-template-title-row">
+              <strong>{attribute.label}</strong>
+              <span className="attribute-template-badge">{formatFieldTypeLabel(attribute.field_type)}</span>
+              {attribute.is_required ? (
+                <span className="attribute-template-badge required">Obrigatorio</span>
               ) : null}
-              {attr.collect_in_ai !== false ? (
-                <span className="detail-item">
-                  <strong style={{ color: 'var(--success)' }}>Usado pela IA</strong>
+              {attribute.collect_in_ai !== false ? (
+                <span className="attribute-template-badge ai">Usado pela IA</span>
+              ) : null}
+            </div>
+
+            <div className="attribute-template-meta">
+              <span title={attribute.attribute_key}>
+                <strong>Chave:</strong> {attribute.attribute_key}
+              </span>
+              <span>
+                <strong>Ordem:</strong> {attribute.display_order}
+              </span>
+              {attribute.tooltip_text ? (
+                <span>
+                  <strong>Ajuda:</strong> {attribute.tooltip_text}
                 </span>
               ) : null}
             </div>
-            {attr.options ? (
-              <div className="details" style={{ marginTop: '5px' }}>
-                <span className="detail-item">
-                  <strong>Opções:</strong>{' '}
-                  {Array.isArray(attr.options) ? attr.options.join(', ') : attr.options}
-                </span>
+
+            {attribute.options ? (
+              <div className="attribute-template-options">
+                <strong>Opcoes:</strong>{' '}
+                {Array.isArray(attribute.options) ? attribute.options.join(', ') : attribute.options}
               </div>
             ) : null}
           </div>
-          <div className="attr-controls">
-            <div className="attr-order-icons">
+
+          <div className="attribute-template-controls">
+            <div className="attribute-template-reorder">
               <button
-                onClick={() => onReorder(attr.id, 'up')}
+                type="button"
+                className="attribute-template-icon-button"
+                onClick={() => onReorder(attribute.id, 'up')}
                 disabled={index === 0}
-                title="Mover para Cima"
-                className="btn-icon btn-small"
+                title="Mover para cima"
               >
-                ^
+                <LuArrowUp />
               </button>
               <button
-                onClick={() => onReorder(attr.id, 'down')}
+                type="button"
+                className="attribute-template-icon-button"
+                onClick={() => onReorder(attribute.id, 'down')}
                 disabled={index === sortedAttributes.length - 1}
-                title="Mover para Baixo"
-                className="btn-icon btn-small"
+                title="Mover para baixo"
               >
-                v
+                <LuArrowDown />
               </button>
             </div>
-            <div className="attr-actions">
+            <div className="attribute-template-actions">
               <button
-                className="btn-small"
-                style={{ backgroundColor: 'var(--info)' }}
-                onClick={() => onEdit(attr)}
+                type="button"
+                className="attribute-template-action-button edit"
+                onClick={() => onEdit(attribute)}
               >
+                <LuPencil />
                 Editar
               </button>
-              <button className="btn-small btn-danger" onClick={() => onDelete(attr.id)}>
+              <button
+                type="button"
+                className="attribute-template-action-button delete"
+                onClick={() => onDelete(attribute.id)}
+              >
+                <LuTrash2 />
                 Excluir
               </button>
             </div>
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );

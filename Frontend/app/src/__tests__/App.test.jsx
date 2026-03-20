@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import App from '../App.jsx';
@@ -52,6 +52,16 @@ jest.mock('../components/common/LoadingOverlay.jsx', () => ({
 jest.mock('../pages/LoginPage', () => ({
   __esModule: true,
   default: () => <div>login-page</div>,
+}));
+
+jest.mock('../pages/LandingPage', () => ({
+  __esModule: true,
+  default: () => <div>landing-page</div>,
+}));
+
+jest.mock('../pages/SignupPage', () => ({
+  __esModule: true,
+  default: () => <div>signup-page</div>,
 }));
 
 jest.mock('../pages/DashboardPage', () => ({
@@ -159,11 +169,12 @@ describe('App', () => {
     expect(screen.getByTestId('toast-theme')).toHaveTextContent('dark');
   });
 
-  test('renders the not-found route for unknown paths', () => {
+  test('redirects unknown paths back into the authenticated app shell', () => {
     window.history.pushState({}, '', '/rota-inexistente');
 
     render(<App />);
 
-    expect(screen.getByText('Página não encontrada')).toBeInTheDocument();
+    expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    expect(screen.getByText('dashboard-page')).toBeInTheDocument();
   });
 });

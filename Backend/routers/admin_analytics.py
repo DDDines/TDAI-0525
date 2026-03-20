@@ -132,8 +132,9 @@ class AdminAnalyticsRequestService:
                 start_at=start_of_month,
             )
             plano_nome = None
-            if user_model.plano_id:
-                plano = self._user_repository.get_plano(plano_id=user_model.plano_id)
+            plano_id = getattr(user_model, "plano_id", None)
+            if plano_id:
+                plano = self._user_repository.get_plano(plano_id=plano_id)
                 plano_nome = plano.nome if plano else None
             activities.append(
                 schemas.UserActivity(

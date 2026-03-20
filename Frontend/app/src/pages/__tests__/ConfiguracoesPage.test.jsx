@@ -20,7 +20,11 @@ jest.mock('../../services/authService', () => ({
 jest.mock('../../services/basicTemplateService', () => ({
   __esModule: true,
   default: {
-    getBasicGenerationTemplates: jest.fn(),
+    DEFAULT_BASIC_GENERATION_TEMPLATES: {
+      titleTemplate: '{titulo_base}',
+      descriptionTemplate: '{nome_base}\n\n{technical_summary}',
+    },
+    getBasicGenerationTemplateOverview: jest.fn(),
     saveBasicGenerationTemplates: jest.fn(),
     resetBasicGenerationTemplates: jest.fn(),
   },
@@ -101,23 +105,107 @@ function buildCredentialsOverview() {
   };
 }
 
+function buildTemplateOverview(overrides = {}) {
+  const systemDefaults =
+    overrides.systemDefaults || basicTemplateService.DEFAULT_BASIC_GENERATION_TEMPLATES;
+  const companyConfig = overrides.companyConfig ?? {
+    scope: 'company',
+    titleTemplate: '{titulo_base} Empresa',
+    descriptionTemplate: 'Descricao da empresa',
+  };
+  const userConfig = overrides.userConfig ?? {
+    scope: 'user',
+    titleTemplate: '{nome_base} {marca}',
+    descriptionTemplate: '{descricao_web}',
+  };
+  const effectiveConfig =
+    overrides.effectiveConfig || {
+      source: 'user',
+      sourceLabel: 'Pessoal',
+      isCustom: true,
+      titleTemplate: userConfig.titleTemplate,
+      descriptionTemplate: userConfig.descriptionTemplate,
+    };
+
+  return {
+    companyIdentifier: overrides.companyIdentifier || 'catalogai',
+    systemDefaults,
+    companyConfig,
+    userConfig,
+    effectiveConfig,
+  };
+}
+
 describe('ConfiguracoesPage', () => {
   const setUser = jest.fn();
   const setAdminPreviewMode = jest.fn();
   const clearAdminPreviewMode = jest.fn();
+  let currentTemplateOverview;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    basicTemplateService.getBasicGenerationTemplates.mockReturnValue({
-      titleTemplate: '{nome_base} {marca}',
-      descriptionTemplate: '{descricao_web}',
-    });
-    basicTemplateService.saveBasicGenerationTemplates.mockImplementation((templates) => templates);
-    basicTemplateService.resetBasicGenerationTemplates.mockReturnValue({
-      titleTemplate: '{nome_base}',
-      descriptionTemplate: '{intro}',
-    });
+    currentTemplateOverview = buildTemplateOverview();
+
+    basicTemplateService.getBasicGenerationTemplateOverview.mockImplementation(async () => ({
+      ...currentTemplateOverview,
+    }));
+    basicTemplateService.saveBasicGenerationTemplates.mockImplementation(
+      async (templates, { scope } = {}) => {
+        const nextScope = scope === 'company' ? 'company' : 'user';
+        currentTemplateOverview = {
+          ...currentTemplateOverview,
+          [`${nextScope}Config`]: {
+            scope: nextScope,
+            titleTemplate: templates.titleTemplate,
+            descriptionTemplate: templates.descriptionTemplate,
+          },
+          effectiveConfig:
+            nextScope === 'user'
+              ? {
+                  source: 'user',
+                  sourceLabel: 'Pessoal',
+                  isCustom: true,
+                  titleTemplate: templates.titleTemplate,
+                  descriptionTemplate: templates.descriptionTemplate,
+                }
+              : currentTemplateOverview.effectiveConfig,
+        };
+
+        return {
+          titleTemplate: templates.titleTemplate,
+          descriptionTemplate: templates.descriptionTemplate,
+          overview: { ...currentTemplateOverview },
+          scope: nextScope,
+        };
+      }
+    );
+    basicTemplateService.resetBasicGenerationTemplates.mockImplementation(
+      async ({ scope } = {}) => {
+        const nextScope = scope === 'company' ? 'company' : 'user';
+        currentTemplateOverview = {
+          ...currentTemplateOverview,
+          [`${nextScope}Config`]: null,
+          effectiveConfig:
+            nextScope === 'user'
+              ? {
+                  source: 'system',
+                  sourceLabel: 'Sistema',
+                  isCustom: false,
+                  titleTemplate: currentTemplateOverview.systemDefaults.titleTemplate,
+                  descriptionTemplate: currentTemplateOverview.systemDefaults.descriptionTemplate,
+                }
+              : currentTemplateOverview.effectiveConfig,
+        };
+
+        return {
+          titleTemplate: currentTemplateOverview.systemDefaults.titleTemplate,
+          descriptionTemplate: currentTemplateOverview.systemDefaults.descriptionTemplate,
+          overview: { ...currentTemplateOverview },
+          scope: nextScope,
+        };
+      }
+    );
 
     useAuth.mockReturnValue({
       user: {
@@ -172,14 +260,14 @@ describe('ConfiguracoesPage', () => {
     fireEvent.change(screen.getByLabelText('Empresa'), {
       target: { value: 'Nova Empresa' },
     });
-    fireEvent.change(screen.getByLabelText('Imagem do usuario (URL)'), {
+    fireEvent.change(screen.getByLabelText(/Imagem do usu/i), {
       target: { value: 'https://img.example/avatar.png' },
     });
-    fireEvent.change(screen.getByLabelText('Idioma preferido'), {
+    fireEvent.change(screen.getByLabelText(/Idioma preferido/i), {
       target: { value: 'en' },
     });
 
-    fireEvent.click(screen.getByText('Salvar alteracoes do perfil'));
+    fireEvent.click(screen.getByRole('button', { name: /Salvar .*perfil/i }));
 
     await waitFor(() => {
       expect(authService.updateCurrentUser).toHaveBeenCalledWith({
@@ -200,46 +288,70 @@ describe('ConfiguracoesPage', () => {
     expect(showSuccessToast).toHaveBeenCalledWith('Perfil atualizado com sucesso.');
   });
 
-  test('saves templates, resets defaults and allows admin preview changes', async () => {
+  test('saves user templates, resets defaults and allows admin preview changes', async () => {
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
+    const templatesCard = screen.getByRole('heading', { name: /Templates do Modo/i }).closest('section');
+    expect(within(templatesCard).getByText(/Origem efetiva em uso:/i)).toBeInTheDocument();
+    expect(within(templatesCard).getByText(/Escopo em edi/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Template de T/i), {
+      target: { value: '{nome_base} {sku}' },
+    });
+    fireEvent.change(screen.getByLabelText(/Template de Descri/i), {
+      target: { value: '{intro}\n{specs}' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Salvar templates/i }));
+
+    await waitFor(() => {
+      expect(basicTemplateService.saveBasicGenerationTemplates).toHaveBeenCalledWith(
+        {
+          titleTemplate: '{nome_base} {sku}',
+          descriptionTemplate: '{intro}\n{specs}',
+        },
+        {
+          scope: 'user',
+        }
+      );
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith(
+      expect.stringContaining('Templates do modo')
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Restaurar padr/i }));
+
+    await waitFor(() => {
+      expect(basicTemplateService.resetBasicGenerationTemplates).toHaveBeenCalledWith({
+        scope: 'user',
+      });
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Visualizar B/i }));
+    expect(setAdminPreviewMode).toHaveBeenCalledWith('basic');
+
+    fireEvent.click(screen.getByRole('button', { name: /Visualizar Completo/i }));
+    expect(setAdminPreviewMode).toHaveBeenCalledWith('complete');
+
+    fireEvent.click(screen.getByRole('button', { name: /Voltar ao padr/i }));
+    expect(clearAdminPreviewMode).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Alterar Senha/i }));
+    expect(screen.getByTestId('change-password-modal')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('close-change-password'));
+    expect(screen.queryByTestId('change-password-modal')).not.toBeInTheDocument();
+  });
+
+  test('supports switching the template editor scope for admins', async () => {
     render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Template de Titulos'), {
-      target: { value: '{nome_base} {sku}' },
-    });
-    fireEvent.change(screen.getByLabelText('Template de Descricao'), {
-      target: { value: '{intro}\n{specs}' },
-    });
-    fireEvent.click(screen.getByText('Salvar templates'));
+    fireEvent.click(screen.getByRole('button', { name: /Editar Empresa/i }));
 
-    await waitFor(() => {
-      expect(basicTemplateService.saveBasicGenerationTemplates).toHaveBeenCalledWith({
-        titleTemplate: '{nome_base} {sku}',
-        descriptionTemplate: '{intro}\n{specs}',
-      });
-    });
-    expect(showSuccessToast).toHaveBeenCalledWith('Templates do modo basico salvos com sucesso.');
-
-    fireEvent.click(screen.getByText('Restaurar padrao'));
-    expect(basicTemplateService.resetBasicGenerationTemplates).toHaveBeenCalled();
-    expect(showSuccessToast).toHaveBeenCalledWith(
-      'Templates do modo basico restaurados para o padrao.'
-    );
-
-    fireEvent.click(screen.getByText('Visualizar Basico'));
-    expect(setAdminPreviewMode).toHaveBeenCalledWith('basic');
-
-    fireEvent.click(screen.getByText('Visualizar Completo'));
-    expect(setAdminPreviewMode).toHaveBeenCalledWith('complete');
-
-    fireEvent.click(screen.getByText('Voltar ao padrao'));
-    expect(clearAdminPreviewMode).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Alterar Senha'));
-    expect(screen.getByTestId('change-password-modal')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('close-change-password'));
-    expect(screen.queryByTestId('change-password-modal')).not.toBeInTheDocument();
+    expect(await screen.findByDisplayValue('{titulo_base} Empresa')).toBeInTheDocument();
+    const templatesCard = screen.getByRole('heading', { name: /Templates do Modo/i }).closest('section');
+    expect(within(templatesCard).getByText(/Empresa atual:/i)).toHaveTextContent('catalogai');
   });
 
   test('renders company and personal credentials with precedence information', async () => {
@@ -268,7 +380,7 @@ describe('ConfiguracoesPage', () => {
     fireEvent.change(within(googleCseCard).getByLabelText('Search Engine ID'), {
       target: { value: 'cse-company-new' },
     });
-    fireEvent.change(within(googleCseCard).getByLabelText('Descricao interna'), {
+    fireEvent.change(within(googleCseCard).getByLabelText(/Descri/i), {
       target: { value: 'Novo mecanismo' },
     });
 
@@ -355,8 +467,9 @@ describe('ConfiguracoesPage', () => {
     render(<ConfiguracoesPage />);
 
     expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Basico (sem IA)')).toBeInTheDocument();
-    expect(screen.getByText('Seu modo real vem do plano ativo e do seu perfil.')).toBeInTheDocument();
+    const experienceCard = screen.getByRole('heading', { name: /Experi.ncia do Produto/i }).closest('section');
+    expect(within(experienceCard).getByText(/sem IA/i)).toBeInTheDocument();
+    expect(screen.getByText(/Seu modo real vem do plano ativo e do seu perfil/i)).toBeInTheDocument();
     expect(screen.queryByText('Credenciais da Empresa')).not.toBeInTheDocument();
     expect(screen.getByText('Minhas Credenciais Pessoais')).toBeInTheDocument();
   });
@@ -372,7 +485,7 @@ describe('ConfiguracoesPage', () => {
 
     render(<ConfiguracoesPage />);
 
-    expect(screen.getByText('Carregando configuracoes...')).toBeInTheDocument();
+    expect(screen.getByText(/Carregando configura/i)).toBeInTheDocument();
 
     resolveCurrentUser({
       id: 8,
@@ -403,16 +516,31 @@ describe('ConfiguracoesPage', () => {
       expect(showErrorToast).toHaveBeenCalledWith('credenciais indisponiveis');
     });
 
-    fireEvent.click(screen.getByText('Salvar templates'));
+    fireEvent.click(screen.getByRole('button', { name: /Salvar templates/i }));
     expect(screen.getByRole('button', { name: /Salvando templates/i })).toBeDisabled();
 
     resolveSave({
       titleTemplate: '{nome_base} {marca}',
       descriptionTemplate: '{descricao_web}',
+      overview: currentTemplateOverview,
+      scope: 'user',
     });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /Salvar templates/i })).toBeEnabled();
     });
+  });
+
+  test('shows the template load error and lets the user retry', async () => {
+    basicTemplateService.getBasicGenerationTemplateOverview
+      .mockRejectedValueOnce(new Error('templates offline'))
+      .mockResolvedValueOnce(currentTemplateOverview);
+
+    render(<ConfiguracoesPage />);
+
+    expect(await screen.findByText('templates offline')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente/i }));
+
+    expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
   });
 });

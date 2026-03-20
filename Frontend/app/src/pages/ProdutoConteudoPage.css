@@ -852,3 +852,33 @@ body.dark .pcc-canal-copy-btn:hover {
   color: #cbd5e1;
   border-color: #475569;
 }
+
+.pcc-workflow-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-color, #eee);
+  margin-top: 0.5rem;
+}
+
+.pcc-workflow-label {
+  font-size: 0.85rem;
+  color: var(--text-color-light, #777);
+  white-space: nowrap;
+}
+
+.pcc-workflow-select {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #ccc);
+  background: var(--card-bg, #fff);
+  color: inherit;
+  cursor: pointer;
+}
+
+.pcc-workflow-saving {
+  font-size: 0.78rem;
+  color: var(--text-color-light, #999);
+}

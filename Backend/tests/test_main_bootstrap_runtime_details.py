@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 from Backend import main as main_module
 from Backend.main import MainBootstrapRuntime, MainBootstrapWorkflow
@@ -352,7 +353,8 @@ async def test_startup_workflow_runtime_and_http_handlers_delegate(monkeypatch):
         create_new_user=lambda **kwargs: kwargs["user_in"],
     )).create_new_user(payload, "db") is payload
 
-    assert main_module._EndpointHandlers.create_new_user(payload, "db") == {"email": "endpoint@test.com"}
+    request = Request({"type": "http", "method": "POST", "path": "/api/v1/users/", "headers": []})
+    assert main_module._EndpointHandlers.create_new_user(request, payload, "db") == {"email": "endpoint@test.com"}
     assert await main_module._EndpointHandlers.root() == {
         "message": f"Bem-vindo a API do {main_module.settings.PROJECT_NAME}!"
     }

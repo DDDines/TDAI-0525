@@ -79,6 +79,8 @@ class GenerationSchedulingService:
         generation_type: str,
         generation_func: Any,
         generation_provider_key: str | None = None,
+        fallback_generation_func: Any = None,
+        fallback_generation_provider_key: str | None = None,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
         template_titulo: str | None = None,
@@ -90,6 +92,7 @@ class GenerationSchedulingService:
             "produto_id": produto_id,
             "tipo_geracao_principal": generation_type,
             "funcao_geracao_ia_no_servico": generation_func,
+            "funcao_geracao_fallback_no_servico": fallback_generation_func,
             "num_titulos": num_titulos,
             "tamanho_palavras": tamanho_palavras,
         }
@@ -104,6 +107,7 @@ class GenerationSchedulingService:
                 "produto_id": produto_id,
                 "tipo_geracao_principal": generation_type,
                 "generation_provider_key": generation_provider_key,
+                "fallback_generation_provider_key": fallback_generation_provider_key,
                 "num_titulos": num_titulos,
                 "tamanho_palavras": tamanho_palavras,
             }

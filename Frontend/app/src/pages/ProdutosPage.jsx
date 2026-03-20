@@ -11,6 +11,7 @@ import {
   LuBox,
   LuBoxes,
   LuCircleAlert,
+  LuDownload,
   LuPlus,
   LuSearch,
 } from 'react-icons/lu';
@@ -20,7 +21,12 @@ import ProductEditModal from '../components/ProductEditModal';
 import { useAppExperience } from '../contexts/AppExperienceContext';
 import PaginationControls from '../components/common/PaginationControls';
 import productService from '../services/productService';
-import { showErrorToast } from '../utils/notifications';
+import {
+  showErrorToast,
+  showInfoToast,
+  showSuccessToast,
+  showWarningToast,
+} from '../utils/notifications';
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
@@ -30,6 +36,7 @@ import {
   resolveGenerationHandler,
 } from './ProdutosPage.helpers.js';
 import { queryKeys } from '../lib/queryKeys.js';
+import { extractErrorMessage } from '../utils/errorDetails';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -44,6 +51,15 @@ const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
 ]);
 const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
 const WEB_ENRICHMENT_MAX_POLLS = 120;
+const GENERATION_POLL_INTERVAL_MS = 3000;
+const GENERATION_MAX_POLLS = 120;
+const GENERATION_TERMINAL_STATUSES = new Set([
+  'CONCLUIDO',
+  'CONCLUIDO_SUCESSO',
+  'FALHA',
+  'FALHOU',
+  'NAO_APLICAVEL',
+]);
 const FAILURE_STATUSES = new Set([
   'FALHA',
   'FALHOU',
@@ -51,6 +67,34 @@ const FAILURE_STATUSES = new Set([
   'FALHA_CONFIGURACAO_API_EXTERNA',
   'NENHUMA_FONTE_ENCONTRADA',
 ]);
+const ENRICHMENT_WARNING_STATUSES = new Set([
+  'CONCLUIDO_COM_DADOS_PARCIAIS',
+  ...FAILURE_STATUSES,
+]);
+const GENERATION_WARNING_STATUSES = new Set([
+  'FALHA',
+  'FALHOU',
+]);
+const PROCESS_ACTIVE_STATUSES = new Set([
+  'PENDENTE',
+  'EM_PROGRESSO',
+]);
+const REPROCESS_CONFIRM_STATUSES = new Set([
+  'CONCLUIDO',
+  'CONCLUIDO_SUCESSO',
+  'CONCLUIDO_COM_DADOS_PARCIAIS',
+]);
+
+function normalizeProcessStatusValue(statusValue) {
+  const rawStatus =
+    typeof statusValue === 'object' && statusValue !== null && 'value' in statusValue
+      ? statusValue.value
+      : statusValue;
+  return String(rawStatus || '')
+    .split('.')
+    .pop()
+    .toUpperCase();
+}
 
 function formatProductSelectionSummary(count, scope) {
   if (count <= 0) {
@@ -60,9 +104,17 @@ function formatProductSelectionSummary(count, scope) {
     return `${count} item(ns) selecionado(s) (todos os resultados)`;
   }
   if (scope === 'page') {
-    return `${count} item(ns) selecionado(s) (pagina atual)`;
+    return `${count} item(ns) selecionado(s) (página atual)`;
   }
-  return `${count} item(ns) selecionado(s) (selecao manual)`;
+  return `${count} item(ns) selecionado(s) (seleção manual)`;
+}
+
+function formatSelectedCountSuffix(count) {
+  return count === 1 ? 'para o produto selecionado.' : 'para os produtos selecionados.';
+}
+
+function _formatContentTypeLabel(contentType) {
+  return contentType === 'titulo' ? 'título' : 'descrição';
 }
 
 function hasFailureStatus(statusValue) {
@@ -101,6 +153,11 @@ function ProdutosPage() {
   const [usarIAEnriquecimento, setUsarIAEnriquecimento] = useState(false);
   const pendingRefreshTimeoutsRef = React.useRef([]);
   const webStatusPollRunRef = React.useRef(0);
+  const generationPollRunsRef = React.useRef({
+    status_titulo_ia: 0,
+    status_descricao_ia: 0,
+  });
+  const isMountedRef = React.useRef(true);
 
   const { productTypes, isLoading: loadingProductTypes, error: productTypesError } = useProductTypes();
 
@@ -166,11 +223,20 @@ function ProdutosPage() {
   const produtos = Array.isArray(produtosQuery.data?.items) ? produtosQuery.data.items : [];
   const totalProdutos =
     typeof produtosQuery.data?.total_items === 'number' ? produtosQuery.data.total_items : 0;
+  const currentProdutosById = useMemo(
+    () =>
+      new Map(
+        produtos
+          .filter((produto) => produto?.id !== undefined && produto?.id !== null)
+          .map((produto) => [String(produto.id), produto])
+      ),
+    [produtos]
+  );
   const loadingInitial = produtosQuery.isLoading;
   const loading = produtosQuery.isFetching;
-  const error = produtosQuery.error?.response?.data?.detail ||
-    produtosQuery.error?.message ||
-    (produtosQuery.error ? 'Falha ao carregar produtos.' : null);
+  const error = produtosQuery.error
+    ? extractErrorMessage(produtosQuery.error, 'Falha ao carregar produtos.')
+    : null;
 
   const refreshProdutos = useCallback(async () => {
     await produtosQuery.refetch();
@@ -241,15 +307,12 @@ function ProdutosPage() {
   }, []);
 
   useEffect(() => () => {
+    isMountedRef.current = false;
     clearPendingRefreshTimeouts();
     webStatusPollRunRef.current += 1;
+    generationPollRunsRef.current.status_titulo_ia += 1;
+    generationPollRunsRef.current.status_descricao_ia += 1;
   }, [clearPendingRefreshTimeouts]);
-
-  const scheduleProdutosRefresh = useCallback(() => {
-    schedulePendingRefreshTimeout(() => {
-      void refreshProdutos();
-    }, 15000);
-  }, [refreshProdutos, schedulePendingRefreshTimeout]);
 
   const handleProductUpdated = useCallback((updatedProduct) => {
     updateCurrentProdutosData((prevProdutos) => {
@@ -301,8 +364,7 @@ function ProdutosPage() {
           nextParams.delete('id');
           setSearchParams(nextParams, { replace: true });
         } catch (err) {
-          const msg = err.response?.data?.detail || err.message || 'Falha ao carregar produto.';
-          showErrorToast(msg);
+          showErrorToast(extractErrorMessage(err, 'Falha ao carregar produto.'));
         }
       };
       void openById();
@@ -352,20 +414,52 @@ function ProdutosPage() {
       setSelectedProdutos(new Set(ids));
       setSelectionScope('all');
     } catch (error) {
-      showErrorToast(error.message || 'Falha ao selecionar todos os resultados.');
+      showErrorToast(extractErrorMessage(error, 'Falha ao selecionar todos os resultados.'));
+    }
+  };
+
+  const [exportLoading, setExportLoading] = React.useState(false);
+
+  const handleExportProdutos = async () => {
+    setExportLoading(true);
+    try {
+      const hasSelection = selectedProdutos.size > 0;
+      const exportParams = hasSelection
+        ? { ids: Array.from(selectedProdutos) }
+        : {
+            search: filtroStatusEnriquecimento ? undefined : searchTerm || undefined,
+            fornecedor_id: filtroFornecedor || undefined,
+            categoria: undefined,
+            status_enriquecimento_web: filtroStatusEnriquecimento || undefined,
+            status_titulo_ia: filtroStatusTituloIA || undefined,
+            status_descricao_ia: filtroStatusDescricaoIA || undefined,
+            product_type_id: filtroTipoProduto || undefined,
+          };
+      await productService.exportarProdutos(exportParams);
+      showSuccessToast(hasSelection
+        ? `${selectedProdutos.size} produto(s) exportado(s).`
+        : 'Planilha exportada com sucesso.');
+    } catch (err) {
+      showErrorToast(extractErrorMessage(err, 'Falha ao exportar produtos.'));
+    } finally {
+      setExportLoading(false);
     }
   };
 
   const handleDeleteSelected = async () => {
-    if (!window.confirm(`Tem certeza que deseja deletar ${selectedProdutos.size} produto(s) selecionado(s)?`)) {
+    if (!window.confirm(`Tem certeza que deseja ocultar ${selectedProdutos.size} produto(s) selecionado(s)?`)) {
       return;
     }
+    const deletedCount = selectedProdutos.size;
     try {
       await productService.batchDeleteProdutos(Array.from(selectedProdutos));
       clearSelectionState();
       await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+      showSuccessToast(
+        `${deletedCount} produto(s) ocultado(s) com sucesso.`
+      );
     } catch (err) {
-      showErrorToast(err.response?.data?.detail || err.message || 'Falha ao deletar produtos.');
+      showErrorToast(extractErrorMessage(err, 'Falha ao ocultar produtos.'));
     }
   };
 
@@ -404,25 +498,69 @@ function ProdutosPage() {
     );
   }, [queryClient, updateCurrentProdutosData]);
 
+  const fetchRequestedProducts = useCallback(async (produtoIds) => {
+    const requestedIds = new Set(Array.from(produtoIds).map((id) => String(id)));
+    const fetched = await Promise.all(
+      Array.from(requestedIds).map(async (produtoId) => {
+        try {
+          return await productService.getProdutoById(produtoId);
+        } catch {
+          return null;
+        }
+      })
+    );
+    return fetched.filter((produto) => {
+      const produtoId = produto?.id;
+      return produtoId !== undefined && produtoId !== null && requestedIds.has(String(produtoId));
+    });
+  }, []);
+
+  const filterActiveProcessIds = useCallback(async (produtoIds, statusField, processLabel) => {
+    const ids = Array.from(produtoIds);
+    const shouldRefreshBatchStatuses = ids.length > 1;
+    const idsToInspect = shouldRefreshBatchStatuses
+      ? ids
+      : ids.filter((id) => !currentProdutosById.has(String(id)));
+    const fetched = idsToInspect.length > 0 ? await fetchRequestedProducts(idsToInspect) : [];
+    const fetchedById = new Map(
+      fetched.map((produto) => [String(produto.id), produto])
+    );
+    const knownProdutos = ids
+      .map((id) => fetchedById.get(String(id)) ?? currentProdutosById.get(String(id)))
+      .filter(Boolean);
+    const activeIds = new Set(
+      [...knownProdutos, ...fetched]
+        .filter((produto) =>
+          PROCESS_ACTIVE_STATUSES.has(normalizeProcessStatusValue(produto?.[statusField]))
+        )
+        .map((produto) => String(produto.id))
+    );
+
+    if (activeIds.size > 0) {
+      const skippedMessage =
+        activeIds.size === 1
+          ? `1 produto já estava em processamento de ${processLabel} e foi ignorado.`
+          : `${activeIds.size} produtos já estavam em processamento de ${processLabel} e foram ignorados.`;
+      showInfoToast(skippedMessage);
+    }
+
+    return ids.filter((id) => !activeIds.has(String(id)));
+  }, [currentProdutosById, fetchRequestedProducts]);
+
   const pollWebEnrichmentStatuses = useCallback(async (produtoIds) => {
     const pollRunId = webStatusPollRunRef.current + 1;
     webStatusPollRunRef.current = pollRunId;
     const ids = Array.from(produtoIds).map((id) => String(id));
+    const countSuffix = formatSelectedCountSuffix(ids.length);
 
     for (let attempt = 0; attempt < WEB_ENRICHMENT_MAX_POLLS; attempt += 1) {
-      if (webStatusPollRunRef.current !== pollRunId) {
+      if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
         return;
       }
-      const fetched = await Promise.all(
-        ids.map(async (produtoId) => {
-          try {
-            return await productService.getProdutoById(produtoId);
-          } catch {
-            return null;
-          }
-        })
-      );
-      const validFetched = fetched.filter(Boolean);
+      const validFetched = await fetchRequestedProducts(ids);
+      if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+        return;
+      }
       mergeProdutosById(validFetched);
 
       if (validFetched.length > 0) {
@@ -432,6 +570,21 @@ function ProdutosPage() {
           )
         );
         if (allTerminal) {
+          if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+            return;
+          }
+          const hasWarnings = validFetched.some((produto) =>
+            ENRICHMENT_WARNING_STATUSES.has(
+              String(produto.status_enriquecimento_web || '').toUpperCase()
+            )
+          );
+          if (hasWarnings) {
+            showWarningToast(
+              `Enriquecimento web finalizado com pendências ${countSuffix}`
+            );
+          } else {
+            showSuccessToast(`Enriquecimento web finalizado ${countSuffix}`);
+          }
           await queryClient.invalidateQueries({ queryKey: ['produtos'] });
           return;
         }
@@ -442,12 +595,84 @@ function ProdutosPage() {
       });
     }
 
+    if (webStatusPollRunRef.current !== pollRunId || !isMountedRef.current) {
+      return;
+    }
     await queryClient.invalidateQueries({ queryKey: ['produtos'] });
-  }, [mergeProdutosById, queryClient, schedulePendingRefreshTimeout]);
+  }, [fetchRequestedProducts, mergeProdutosById, queryClient, schedulePendingRefreshTimeout]);
+
+  const pollGenerationStatuses = useCallback(async (produtoIds, statusField) => {
+    const pollRunId = generationPollRunsRef.current[statusField] + 1;
+    generationPollRunsRef.current[statusField] = pollRunId;
+    const ids = Array.from(produtoIds).map((id) => String(id));
+    const countSuffix = formatSelectedCountSuffix(ids.length);
+
+    for (let attempt = 0; attempt < GENERATION_MAX_POLLS; attempt += 1) {
+      if (generationPollRunsRef.current[statusField] !== pollRunId || !isMountedRef.current) {
+        return;
+      }
+
+      const validFetched = await fetchRequestedProducts(ids);
+      if (generationPollRunsRef.current[statusField] !== pollRunId || !isMountedRef.current) {
+        return;
+      }
+      mergeProdutosById(validFetched);
+
+      if (validFetched.length > 0) {
+        const allTerminal = validFetched.every((produto) =>
+          GENERATION_TERMINAL_STATUSES.has(
+            normalizeProcessStatusValue(produto?.[statusField])
+          )
+        );
+        if (allTerminal) {
+          const processLabel =
+            statusField === 'status_titulo_ia' ? 'títulos' : 'descrições';
+          if (generationPollRunsRef.current[statusField] !== pollRunId || !isMountedRef.current) {
+            return;
+          }
+          const hasWarnings = validFetched.some((produto) =>
+            GENERATION_WARNING_STATUSES.has(
+              normalizeProcessStatusValue(produto?.[statusField])
+            )
+          );
+          if (hasWarnings) {
+            showWarningToast(
+              `A geração de ${processLabel} terminou com pendências ${countSuffix}`
+            );
+          } else {
+            showSuccessToast(
+              `Geração de ${processLabel} finalizada ${countSuffix}`
+            );
+          }
+          await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+          return;
+        }
+      }
+
+      await new Promise((resolve) => {
+        schedulePendingRefreshTimeout(resolve, GENERATION_POLL_INTERVAL_MS, resolve);
+      });
+    }
+
+    if (generationPollRunsRef.current[statusField] !== pollRunId || !isMountedRef.current) {
+      return;
+    }
+    showInfoToast(
+      'A geração ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+    );
+    await queryClient.invalidateQueries({ queryKey: ['produtos'] });
+  }, [fetchRequestedProducts, mergeProdutosById, queryClient, schedulePendingRefreshTimeout]);
 
   const handleEnrichSelectedWeb = async () => {
-    const idsToProcess = Array.from(selectedProdutos);
+    const idsToProcess = await filterActiveProcessIds(
+      selectedProdutos,
+      'status_enriquecimento_web',
+      'enriquecimento web'
+    );
     clearSelectionState();
+    if (idsToProcess.length === 0) {
+      return;
+    }
     updateLocalProductStatus(new Set(idsToProcess), 'status_enriquecimento_web', 'PENDENTE');
     const failedIds = new Set();
     await Promise.all(
@@ -462,10 +687,11 @@ function ProdutosPage() {
           }
         } catch (err) {
           failedIds.add(String(produtoId));
+          const detail = extractErrorMessage(err, '');
           showErrorToast(
-            `Erro ao iniciar enriquecimento para produto ID ${produtoId}: ${
-              err.response?.data?.detail || err.message
-            }`
+            detail
+              ? `Erro ao iniciar enriquecimento para produto ID ${produtoId}: ${detail}`
+              : `Erro ao iniciar enriquecimento para produto ID ${produtoId}.`
           );
           updateLocalProductStatus(new Set([produtoId]), 'status_enriquecimento_web', 'FALHA');
         }
@@ -480,30 +706,153 @@ function ProdutosPage() {
   };
 
   const handleGenerateContentForSelected = async (contentType) => {
-    const contentTypePlural = contentType === 'titulo' ? 'títulos' : 'descrições';
-
     const statusField = `status_${contentType}_ia`;
-    updateLocalProductStatus(selectedProdutos, statusField, 'EM_PROGRESSO');
-
-    const idsToProcess = Array.from(selectedProdutos);
+    const idsToProcess = await filterActiveProcessIds(
+      selectedProdutos,
+      statusField,
+      contentType === 'titulo' ? 'geração de títulos' : 'geração de descrições'
+    );
     clearSelectionState();
-    const generationHandler = resolveGenerationHandler(contentType, showAiFeatures, productService);
+    if (idsToProcess.length === 0) return;
 
-    for (const produtoId of idsToProcess) {
-      try {
-        await generationHandler(produtoId);
-      } catch (err) {
-        showErrorToast(
-          `Erro ao gerar ${contentType} para produto ID ${produtoId}: ${
-            err.response?.data?.detail || err.message
-          }`
-        );
-        updateLocalProductStatus(new Set([produtoId]), statusField, 'FALHA');
+    updateLocalProductStatus(new Set(idsToProcess), statusField, 'PENDENTE');
+    const provider = showAiFeatures ? 'openai' : 'basico';
+
+    try {
+      const result = await productService.batchGeneration({
+        produtoIds: idsToProcess,
+        tipo: contentType,
+        provider,
+      });
+      if (result.agendados > 0) {
+        updateLocalProductStatus(new Set(idsToProcess), statusField, 'EM_PROGRESSO');
+        void pollGenerationStatuses(idsToProcess, statusField);
+        showSuccessToast(`${result.agendados} produto(s) agendado(s) para geração.`);
+      }
+      if (result.ignorados > 0) {
+        showErrorToast(`${result.ignorados} produto(s) ignorado(s). Verifique os limites do plano.`);
+      }
+    } catch (err) {
+      updateLocalProductStatus(new Set(idsToProcess), statusField, 'FALHA');
+      showErrorToast(extractErrorMessage(err, 'Falha ao agendar geração em lote.'));
+    }
+  };
+
+  const handleProductProcessAction = useCallback(async (produto, processKey) => {
+    if (!produto?.id) {
+      return;
+    }
+
+    const processMap = {
+      status_enriquecimento_web: {
+        label: 'enriquecimento web',
+        run: async () => {
+          updateLocalProductStatus(new Set([produto.id]), 'status_enriquecimento_web', 'PENDENTE');
+          try {
+            if (showAiFeatures && usarIAEnriquecimento) {
+              await productService.iniciarEnriquecimentoWebProduto(produto.id, { usarIA: true });
+          } else {
+            await productService.iniciarEnriquecimentoWebProduto(produto.id);
+          }
+          updateLocalProductStatus(new Set([produto.id]), 'status_enriquecimento_web', 'EM_PROGRESSO');
+          void pollWebEnrichmentStatuses([produto.id]);
+        } catch (error) {
+          updateLocalProductStatus(new Set([produto.id]), 'status_enriquecimento_web', 'FALHA');
+          const detail = extractErrorMessage(error, '');
+          showErrorToast(
+            detail
+              ? `Erro ao iniciar enriquecimento para produto ID ${produto.id}: ${detail}`
+              : `Erro ao iniciar enriquecimento para produto ID ${produto.id}.`
+          );
+        }
+      },
+    },
+      status_titulo_ia: {
+        label: showAiFeatures ? 'geração de títulos com IA' : 'geração de títulos',
+        requiresWebEnrichment: true,
+        incompleteWarningLabel: 'os títulos serão gerados',
+        run: async () => {
+          const generationHandler = resolveGenerationHandler('titulo', showAiFeatures, productService);
+          updateLocalProductStatus(new Set([produto.id]), 'status_titulo_ia', 'PENDENTE');
+          try {
+            await generationHandler(produto.id);
+            updateLocalProductStatus(new Set([produto.id]), 'status_titulo_ia', 'EM_PROGRESSO');
+            void pollGenerationStatuses([produto.id], 'status_titulo_ia');
+          } catch (error) {
+            updateLocalProductStatus(new Set([produto.id]), 'status_titulo_ia', 'FALHA');
+            const detail = extractErrorMessage(error, '');
+            showErrorToast(
+              detail
+                ? `Erro ao gerar título para produto ID ${produto.id}: ${detail}`
+                : `Erro ao gerar título para produto ID ${produto.id}.`
+            );
+          }
+        },
+      },
+      status_descricao_ia: {
+        label: showAiFeatures ? 'geração de descrições com IA' : 'geração de descrições',
+        requiresWebEnrichment: true,
+        incompleteWarningLabel: 'as descrições serão geradas',
+        run: async () => {
+          const generationHandler = resolveGenerationHandler('descricao', showAiFeatures, productService);
+          updateLocalProductStatus(new Set([produto.id]), 'status_descricao_ia', 'PENDENTE');
+          try {
+            await generationHandler(produto.id);
+            updateLocalProductStatus(new Set([produto.id]), 'status_descricao_ia', 'EM_PROGRESSO');
+            void pollGenerationStatuses([produto.id], 'status_descricao_ia');
+          } catch (error) {
+            updateLocalProductStatus(new Set([produto.id]), 'status_descricao_ia', 'FALHA');
+            const detail = extractErrorMessage(error, '');
+            showErrorToast(
+              detail
+                ? `Erro ao gerar descrição para produto ID ${produto.id}: ${detail}`
+                : `Erro ao gerar descrição para produto ID ${produto.id}.`
+            );
+          }
+        },
+      },
+    };
+
+    const process = processMap[processKey];
+    if (!process) {
+      return;
+    }
+
+    const currentStatus = normalizeProcessStatusValue(produto?.[processKey]);
+    const webEnrichmentStatus = normalizeProcessStatusValue(produto?.status_enriquecimento_web);
+    if (PROCESS_ACTIVE_STATUSES.has(currentStatus)) {
+      return;
+    }
+
+    if (
+      process.requiresWebEnrichment
+      && !WEB_ENRICHMENT_TERMINAL_STATUSES.has(webEnrichmentStatus)
+    ) {
+      const confirmed = window.confirm(
+        `O enriquecimento web de "${produto.nome_base}" ainda não foi concluído. Se continuar agora, ${process.incompleteWarningLabel} com informações incompletas. Deseja continuar mesmo assim?`
+      );
+      if (!confirmed) {
+        return;
       }
     }
 
-    scheduleProdutosRefresh();
-  };
+    if (REPROCESS_CONFIRM_STATUSES.has(currentStatus)) {
+      const confirmed = window.confirm(
+        `A etapa de ${process.label} para "${produto.nome_base}" já foi concluída. Deseja executar novamente?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    await process.run();
+  }, [
+    pollWebEnrichmentStatuses,
+    pollGenerationStatuses,
+    showAiFeatures,
+    updateLocalProductStatus,
+    usarIAEnriquecimento,
+  ]);
 
   const totalPages = Math.ceil(totalProdutos / limitPerPage);
   const produtosComFalhaNaPagina = produtos.filter((produto) =>
@@ -515,7 +864,7 @@ function ProdutosPage() {
   const productSelectionMenuItems = [
     {
       key: 'page',
-      label: 'Selecionar pagina atual',
+      label: 'Selecionar página atual',
       onClick: () => handleSelectAllProdutos(true),
       disabled: produtos.length === 0,
     },
@@ -527,7 +876,7 @@ function ProdutosPage() {
     },
     {
       key: 'clear',
-      label: 'Limpar selecao',
+      label: 'Limpar seleção',
       onClick: clearSelectionState,
       disabled: selectedProdutos.size === 0,
     },
@@ -554,7 +903,7 @@ function ProdutosPage() {
             />
             <OperationalStatChip
               icon={<LuBox />}
-              label="Na pagina"
+              label="Na página"
               value={produtos.length}
               tone="info"
             />
@@ -573,6 +922,14 @@ function ProdutosPage() {
               />
             ) : null}
           </div>
+          <button
+            onClick={handleExportProdutos}
+            className="ops-secondary-btn"
+            disabled={exportLoading}
+            title="Exportar planilha XLSX com todos os produtos (ou selecionados)">
+            <LuDownload />
+            {exportLoading ? 'Exportando...' : 'Exportar'}
+          </button>
           <button onClick={() => handleOpenModal(null)} className="ops-primary-btn">
             <LuPlus />
             Novo Produto
@@ -694,12 +1051,16 @@ function ProdutosPage() {
               ) : null}
             </div>
             <div className="ops-selection-actions">
-              <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Deletar</button>
+              <button onClick={handleExportProdutos} className="btn-secondary btn-sm" disabled={exportLoading}>
+                <LuDownload style={{ marginRight: 4 }} />
+                {exportLoading ? 'Exportando...' : 'Exportar'}
+              </button>
+              <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Ocultar</button>
               <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">
                 {showAiFeatures && usarIAEnriquecimento ? 'Enriquecer Web + IA' : 'Enriquecer Web'}
               </button>
               <button onClick={() => void handleGenerateContentForSelected('titulo')} className="btn-secondary btn-sm">
-                {showAiFeatures ? 'Gerar Titulos IA' : 'Gerar Titulos'}
+                {showAiFeatures ? 'Gerar Títulos IA' : 'Gerar Títulos'}
               </button>
               <button onClick={() => void handleGenerateContentForSelected('descricao')} className="btn-secondary btn-sm">
                 {showAiFeatures ? 'Gerar Descricoes IA' : 'Gerar Descricoes'}
@@ -715,6 +1076,7 @@ function ProdutosPage() {
             produtos={produtos}
             onEdit={handleOpenModal}
             onViewContent={handleOpenContentView}
+            onProcessAction={handleProductProcessAction}
             onSort={handleSort}
             sortConfig={sortConfig}
             onSelectProduto={handleSelectProduto}

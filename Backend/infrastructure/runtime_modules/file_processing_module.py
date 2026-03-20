@@ -501,7 +501,7 @@ class _FileProcessingImplementation:
                     return pd.DataFrame()
                 try:
                     ocr_render_start = time.perf_counter()
-                    dpi = int(os.getenv('OCR_REGION_DPI', '220'))
+                    dpi = int(os.getenv('OCR_REGION_DPI', '300'))
                     page_img = page_to_process.to_image(resolution=dpi)
                     buf = io.BytesIO()
                     page_img.original.save(buf, format='PNG')
@@ -510,11 +510,17 @@ class _FileProcessingImplementation:
                         logger.debug('extract_data_from_pdf_region: OCR image class indisponivel.')
                         return pd.DataFrame()
                     img = image_cls.open(io.BytesIO(buf.getvalue()))
-                    from PIL import ImageEnhance, ImageOps
+                    from PIL import ImageEnhance, ImageOps, ImageFilter
                     img = img.convert('L')
+                    img = img.filter(ImageFilter.MedianFilter(size=3))
                     img = ImageOps.autocontrast(img)
-                    img = ImageEnhance.Contrast(img).enhance(1.6)
-                    logger.info('extract_data_from_pdf_region: OCR render ok dpi=%s elapsed=%.2fs', dpi, time.perf_counter() - ocr_render_start)
+                    img = ImageEnhance.Contrast(img).enhance(2.0)
+                    pixel_data = list(img.getdata())
+                    total_px = len(pixel_data)
+                    mean_brightness = sum(pixel_data) / total_px if total_px else 200
+                    binarize_threshold = max(80, min(220, int(mean_brightness * 0.88)))
+                    img = img.point(lambda px: 255 if px >= binarize_threshold else 0)
+                    logger.info('extract_data_from_pdf_region: OCR render ok dpi=%s threshold=%s lang=%s elapsed=%.2fs', dpi, binarize_threshold, getattr(ocr_state, 'language', 'eng'), time.perf_counter() - ocr_render_start)
                 except Exception as e_img:
                     logger.error('Falha ao renderizar regiao para OCR: %s', e_img)
                     return pd.DataFrame()
@@ -524,8 +530,18 @@ class _FileProcessingImplementation:
                     if pytesseract_module is None:
                         logger.debug('extract_data_from_pdf_region: pytesseract indisponivel.')
                         return pd.DataFrame()
-                    ocr_data = pytesseract_module.image_to_data(img, output_type=pytesseract_module.Output.DICT, config='--psm 6 --oem 3')
-                    logger.info('extract_data_from_pdf_region: OCR image_to_data concluido em %.2fs', time.perf_counter() - ocr_start)
+                    ocr_lang = getattr(ocr_state, 'language', 'eng')
+                    ocr_config = f'-l {ocr_lang} --psm 3 --oem 3'
+                    ocr_data = pytesseract_module.image_to_data(img, output_type=pytesseract_module.Output.DICT, config=ocr_config)
+                    word_count_psm3 = sum(1 for t in (ocr_data.get('text') or []) if str(t or '').strip())
+                    if word_count_psm3 < 5:
+                        ocr_config_fallback = f'-l {ocr_lang} --psm 11 --oem 3'
+                        ocr_data_fb = pytesseract_module.image_to_data(img, output_type=pytesseract_module.Output.DICT, config=ocr_config_fallback)
+                        word_count_fb = sum(1 for t in (ocr_data_fb.get('text') or []) if str(t or '').strip())
+                        if word_count_fb > word_count_psm3:
+                            ocr_data = ocr_data_fb
+                            logger.info('extract_data_from_pdf_region: PSM 11 fallback ativado words=%s > psm3=%s', word_count_fb, word_count_psm3)
+                    logger.info('extract_data_from_pdf_region: OCR image_to_data concluido em %.2fs config=%s', time.perf_counter() - ocr_start, ocr_config)
                 except Exception as e_ocr:
                     if not ocr_state.exec_failed_once:
                         logger.error('Falha no OCR da regiao: %s', e_ocr)
@@ -544,7 +560,7 @@ class _FileProcessingImplementation:
                         conf = float(conf_raw)
                     except Exception:
                         conf = -1.0
-                    if 0 <= conf < 25:
+                    if 0 <= conf < 30:
                         continue
                     words.append({'text': txt, 'x': int(ocr_data.get('left', [0])[i] or 0), 'y': int(ocr_data.get('top', [0])[i] or 0), 'w': int(ocr_data.get('width', [0])[i] or 0), 'h': int(ocr_data.get('height', [0])[i] or 0), 'block': int(ocr_data.get('block_num', [0])[i] or 0), 'par': int(ocr_data.get('par_num', [0])[i] or 0), 'line': int(ocr_data.get('line_num', [0])[i] or 0)})
                 if not words:
@@ -807,6 +823,7 @@ class OcrRuntimeState:
         self.exec_failed_once = False
         self.pytesseract = None
         self.image_cls = None
+        self.language = 'eng'
         self._initialize()
 
     def _initialize(self) -> None:
@@ -827,6 +844,16 @@ class OcrRuntimeState:
                         break
 
             pytesseract_module.get_tesseract_version()
+            try:
+                available_langs = pytesseract_module.get_languages()
+                if 'por' in available_langs:
+                    self.language = 'por+eng'
+                    logger.info('OCR: idioma Portugues (por+eng) detectado e ativado.')
+                else:
+                    self.language = 'eng'
+                    logger.info('OCR: idioma Portugues nao instalado; usando eng. Instale tesseract-ocr-por para melhor qualidade.')
+            except Exception:
+                self.language = 'eng'
             self.pytesseract = pytesseract_module
             self.image_cls = pil_image_cls
             self.available = True

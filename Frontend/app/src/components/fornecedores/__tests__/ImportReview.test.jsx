@@ -39,14 +39,14 @@ test('fetches review data and commits on confirm', async () => {
   });
   expect(await screen.findByText('Prod1')).toBeInTheDocument();
 
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
   expect(fornecedorService.commitImport).toHaveBeenCalledWith(5);
 });
 
 test('does not render when closed', () => {
   render(<ImportReview jobId={5} isOpen={false} onClose={() => {}} />);
 
-  expect(screen.queryByText(/Revisar Importa/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Revisar importa/i)).not.toBeInTheDocument();
 });
 
 test('renders array review payloads with object cells and paginates review data', async () => {
@@ -152,16 +152,16 @@ test('shows commit errors from detail, message and default fallbacks', async () 
 
   const { rerender } = render(<ImportReview jobId={12} isOpen={true} onClose={() => {}} />);
   await screen.findByText('Prod1');
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
 
   await waitFor(() => {
-    expect(showErrorToast).toHaveBeenCalledWith({ motivo: 'arquivo bloqueado' });
+    expect(showErrorToast).toHaveBeenCalledWith('{"motivo":"arquivo bloqueado"}');
   });
 
   fornecedorService.commitImport.mockRejectedValueOnce(new Error('falha commit'));
   rerender(<ImportReview jobId={13} isOpen={true} onClose={() => {}} />);
   await screen.findByText('Prod1');
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
 
   await waitFor(() => {
     expect(showErrorToast).toHaveBeenCalledWith('falha commit');
@@ -170,7 +170,7 @@ test('shows commit errors from detail, message and default fallbacks', async () 
   fornecedorService.commitImport.mockRejectedValueOnce({});
   rerender(<ImportReview jobId={14} isOpen={true} onClose={() => {}} />);
   await screen.findByText('Prod1');
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
 
   await waitFor(() => {
     expect(showErrorToast).toHaveBeenCalledWith('Falha ao confirmar importação.');
@@ -183,7 +183,7 @@ test('shows success feedback and supports successful commit without onClose call
   const { rerender } = render(<ImportReview jobId={15} isOpen={true} onClose={onClose} />);
 
   await screen.findByText('Prod1');
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
 
   await waitFor(() => {
     expect(showSuccessToast).toHaveBeenCalledWith('Importação confirmada com sucesso!');
@@ -192,7 +192,7 @@ test('shows success feedback and supports successful commit without onClose call
 
   rerender(<ImportReview jobId={16} isOpen={true} />);
   await screen.findByText('Prod1');
-  await userEvent.click(screen.getByText('Confirmar e Salvar Tudo'));
+  await userEvent.click(screen.getByText('Confirmar e salvar tudo'));
 
   await waitFor(() => {
     expect(showSuccessToast).toHaveBeenCalledWith('Importação confirmada com sucesso!');

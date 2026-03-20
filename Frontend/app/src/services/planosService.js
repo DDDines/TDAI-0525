@@ -19,4 +19,14 @@ async function mudarPlano(planoId) {
   return response.data;
 }
 
-export default { listarPlanos, meuPlano, mudarPlano };
+async function criarCheckout(planoId) {
+  const response = await apiClient.post('/billing/checkout', { plano_id: planoId });
+  return response.data; // { checkout_url }
+}
+
+async function abrirPortal() {
+  const response = await apiClient.get('/billing/portal');
+  return response.data; // { portal_url }
+}
+
+export default { listarPlanos, meuPlano, mudarPlano, criarCheckout, abrirPortal };

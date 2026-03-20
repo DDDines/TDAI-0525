@@ -184,9 +184,18 @@ class CatalogImportFileStateService:
         catalog_file.pages_processed = 0
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
-    def increment_page(self, *, catalog_file: Any) -> None:
+    def increment_page(self, *, catalog_file: Any, eta_seconds: float | None = None) -> None:
         """Increment the processed-page counter and persist progress."""
         catalog_file.pages_processed = (catalog_file.pages_processed or 0) + 1
+        if eta_seconds is not None:
+            current = catalog_file.result_summary
+            progress_patch = {
+                **(dict(current) if isinstance(current, dict) else {}),
+                "eta_seconds": round(eta_seconds, 1),
+                "pages_processed": catalog_file.pages_processed,
+                "total_pages": catalog_file.total_pages,
+            }
+            catalog_file.result_summary = progress_patch
         self._repo().update_catalog_file(catalog_file=catalog_file)
 
     def mark_final(

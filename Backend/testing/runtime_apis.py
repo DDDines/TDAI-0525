@@ -13,6 +13,7 @@ import Backend.infrastructure.runtime_modules.ia_generation_module as ia_service
 import Backend.infrastructure.runtime_modules.limit_module as limit_service
 import Backend.infrastructure.runtime_modules.tabular_parse_worker as tabular_parse_worker
 import Backend.infrastructure.runtime_modules.validator_crew_module as validator_crew
+import Backend.infrastructure.runtime_modules.vision_extraction_module as vision_extraction
 import Backend.infrastructure.runtime_modules.web_data_extractor_module as web_extractor
 
 class RuntimeApis:
@@ -34,6 +35,7 @@ PdfJobWorkflow = file_processing.PdfJobWorkflow
 TabularIngestionWorkflow = file_processing.TabularIngestionWorkflow
 TabularPreviewWorkflow = file_processing.TabularPreviewWorkflow
 WebExtractionEnrichmentWorkflow = web_extractor.WebExtractionEnrichmentWorkflow
+VisionExtractionRuntime = vision_extraction.VisionExtractionRuntime
 
 __all__ = [
     "file_processing",
@@ -42,6 +44,8 @@ __all__ = [
     "limit_service",
     "tabular_parse_worker",
     "validator_crew",
+    "vision_extraction",
+    "VisionExtractionRuntime",
     "RuntimeApis",
     "LineNormalizationRuntime",
     "CatalogStorageWorkflow",

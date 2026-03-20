@@ -40,12 +40,30 @@ class _PdfContext:
 
 
 class _ImageStub:
+    width = 100
+    height = 100
+
     def save(self, destination, fmt=None, **kwargs):
         _ = fmt, kwargs
         if hasattr(destination, "write"):
             destination.write(b"img-bytes")
             return
         Path(destination).write_bytes(b"img-bytes")
+
+    def convert(self, mode):
+        _ = mode
+        return self
+
+    def filter(self, filter_obj):
+        _ = filter_obj
+        return self
+
+    def getdata(self):
+        return [200] * (self.width * self.height)
+
+    def point(self, func):
+        _ = func
+        return self
 
 
 class _RenderedPageImage:
@@ -303,7 +321,7 @@ def test_extract_data_from_pdf_region_impl_returns_ocr_guided_dataframe(monkeypa
         available=True,
         exec_available=True,
         exec_failed_once=False,
-        image_cls=SimpleNamespace(open=lambda stream: SimpleNamespace(convert=lambda mode: SimpleNamespace())),
+        image_cls=SimpleNamespace(open=lambda stream: _ImageStub()),
         pytesseract=SimpleNamespace(
             Output=SimpleNamespace(DICT=object()),
             image_to_data=lambda img, output_type, config: {

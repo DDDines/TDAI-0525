@@ -46,6 +46,19 @@ function LoginPage()
       fetchSocialConfig();
     }, []);
 
+    useEffect(() => {
+      const params = new URLSearchParams(location.search);
+      const oauthError = params.get('error');
+      if (oauthError) {
+        const messages = {
+          oauth_not_configured: 'Login social não está configurado.',
+          oauth_failed: 'Falha ao autenticar com o provedor.',
+          oauth_user_failed: 'Não foi possível identificar o usuário.',
+        };
+        setError(messages[oauthError] || 'Erro durante o login social.');
+      }
+    }, [location.search]);
+
     const handleSubmit = async (e) => {
       e.preventDefault();
       setError('');
@@ -126,6 +139,7 @@ function LoginPage()
 
           <div className="login-links">
             <Link to="/recuperar-senha">Esqueceu a senha?</Link>
+            <Link to="/signup">Não tem conta? Criar conta grátis</Link>
           </div>
         </form>
       </div>

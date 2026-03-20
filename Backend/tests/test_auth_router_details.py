@@ -10,6 +10,7 @@ import sys
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 from Backend import auth as auth_module
 from Backend import schemas
@@ -59,7 +60,8 @@ def _load_auth_probe_module(monkeypatch, *, settings):
 
     module_name = "Backend.tests._auth_probe_runtime"
     sys.modules.pop(module_name, None)
-    spec = importlib.util.spec_from_file_location(module_name, Path("Backend/auth.py"))
+    auth_path = Path(__file__).resolve().parents[1] / "auth.py"
+    spec = importlib.util.spec_from_file_location(module_name, auth_path)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     sys.modules[module_name] = module
@@ -369,8 +371,13 @@ async def test_auth_dependencies_and_endpoint_handlers_delegate(monkeypatch):
     refresh_data = schemas.RefreshTokenRequest(refresh_token="refresh")
     user_update = schemas.UserUpdate(nome_completo="Atualizado")
     password_payload = schemas.UserChangePassword(current_password="Atual1!", new_password="NovaSenha123!")
+    request = Request({"type": "http", "method": "POST", "path": "/token", "headers": []})
 
-    assert await auth_module._EndpointHandlers.login_for_access_token(form_data=form_data, request_scope=scope) == {
+    assert await auth_module._EndpointHandlers.login_for_access_token(
+        request=request,
+        form_data=form_data,
+        request_scope=scope,
+    ) == {
         "access_token": "a",
         "refresh_token": "b",
         "token_type": "bearer",

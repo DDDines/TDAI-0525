@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from Backend import schemas
@@ -79,20 +80,16 @@ class SocialAuthRequestService:
             )
         return await self._authorize_redirect("google", request, settings.GOOGLE_REDIRECT_URI)
 
-    async def google_callback(self, request: Request) -> schemas.Token:
+    async def google_callback(self, request: Request) -> RedirectResponse:
         """Execute google callback as part of this module workflow."""
+        frontend_url = settings.FRONTEND_URL.rstrip("/")
         if not self._has_client("google"):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Google OAuth nao configurado.",
-            )
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_not_configured")
         try:
             token = await self._authorize_access_token("google", request)
         except OAuthError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erro ao autorizar com Google.",
-            ) from exc
+            logger.warning("Google OAuth error: %s", exc)
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_failed")
 
         try:
             userinfo = await self._parse_google_id_token(request, token)
@@ -101,14 +98,10 @@ class SocialAuthRequestService:
 
         user = await self._auth_workflow.process_google_login(google_userinfo=userinfo)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nao foi possivel autenticar o usuario Google.",
-            )
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_user_failed")
 
         access = self._auth_workflow.create_access_token({"sub": user.email, "user_id": user.id})
-        refresh = self._auth_workflow.create_refresh_token({"sub": user.email, "user_id": user.id})
-        return schemas.Token(access_token=access, refresh_token=refresh, token_type="bearer")
+        return RedirectResponse(url=f"{frontend_url}/auth/oauth-callback?access_token={access}")
 
     async def facebook_login(self, request: Request):
         """Execute facebook login as part of this module workflow."""
@@ -123,32 +116,24 @@ class SocialAuthRequestService:
             settings.FACEBOOK_REDIRECT_URI,
         )
 
-    async def facebook_callback(self, request: Request) -> schemas.Token:
+    async def facebook_callback(self, request: Request) -> RedirectResponse:
         """Execute facebook callback as part of this module workflow."""
+        frontend_url = settings.FRONTEND_URL.rstrip("/")
         if not self._has_client("facebook"):
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Facebook OAuth nao configurado.",
-            )
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_not_configured")
         try:
             token = await self._authorize_access_token("facebook", request)
         except OAuthError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erro ao autorizar com Facebook.",
-            ) from exc
+            logger.warning("Facebook OAuth error: %s", exc)
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_failed")
 
         userinfo = await self._get_userinfo("facebook", token)
         user = await self._auth_workflow.process_facebook_login(facebook_userinfo=userinfo)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Nao foi possivel autenticar o usuario Facebook.",
-            )
+            return RedirectResponse(url=f"{frontend_url}/login?error=oauth_user_failed")
 
         access = self._auth_workflow.create_access_token({"sub": user.email, "user_id": user.id})
-        refresh = self._auth_workflow.create_refresh_token({"sub": user.email, "user_id": user.id})
-        return schemas.Token(access_token=access, refresh_token=refresh, token_type="bearer")
+        return RedirectResponse(url=f"{frontend_url}/auth/oauth-callback?access_token={access}")
 
 
 @router.get("/social/config", response_model=schemas.SocialLoginConfig)
@@ -163,7 +148,7 @@ async def google_login(request: Request, request_service: SocialAuthRequestServi
     return await request_service.google_login(request)
 
 
-@router.get("/google/callback", response_model=schemas.Token)
+@router.get("/google/callback")
 async def google_callback(request: Request, request_service: SocialAuthRequestService = Depends()):
     """Execute google callback as part of this module workflow."""
     return await request_service.google_callback(request)
@@ -175,7 +160,7 @@ async def facebook_login(request: Request, request_service: SocialAuthRequestSer
     return await request_service.facebook_login(request)
 
 
-@router.get("/facebook/callback", response_model=schemas.Token)
+@router.get("/facebook/callback")
 async def facebook_callback(
     request: Request,
     request_service: SocialAuthRequestService = Depends(),

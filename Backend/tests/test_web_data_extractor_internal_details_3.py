@@ -96,7 +96,7 @@ async def test_search_runtime_covers_cache_eviction_helper_branches_and_google_c
 @pytest.mark.asyncio
 async def test_search_runtime_covers_cached_google_empty_google_error_and_public_empty(monkeypatch):
     runtime = web_module.WebSearchEngineRuntime()
-    await runtime.search_cache_set("produto", ["https://cached/a", "https://cached/b"])
+    await runtime.search_cache_set("produto::fallback", ["https://cached/a", "https://cached/b"])
     assert await runtime.buscar_urls_google_async("produto", num_results=1) == ["https://cached/a"]
 
     monkeypatch.setattr(web_module, "GOOGLE_API_CLIENT_INSTALLED", True)

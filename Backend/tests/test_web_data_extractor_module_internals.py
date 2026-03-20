@@ -66,7 +66,7 @@ class _TopLevelFunctionSurface:
         monkeypatch.setattr(
             runtime,
             "_executar_busca_google_cse",
-            lambda query_limpa, limite: [
+            lambda *args, **kwargs: [
                 "https://example.com/produto",
                 "https://loja.com/item",
             ],
@@ -83,7 +83,7 @@ class _TopLevelFunctionSurface:
         )
         urls = await runtime.buscar_urls_google_async("produto y", num_results=1)
         assert urls == ["https://fallback.com/item"]
-        assert await runtime.search_cache_get("produto y") == ["https://fallback.com/item"]
+        assert await runtime.search_cache_get("produto y::cx") == ["https://fallback.com/item"]
 
     def test_web_search_engine_url_scoring_normalization_and_sync_search(monkeypatch):
         """Cover URL scoring, redirect unwrapping and public search parsing."""

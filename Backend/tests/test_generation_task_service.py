@@ -193,8 +193,62 @@ class _TopLevelFunctionSurface:
             tipo_geracao_principal="descricao",
             funcao_geracao_ia_no_servico=_fake_generation,
         )
-     
+      
         assert produto.status_descricao_ia == "FALHA"
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_uses_basic_fallback_when_ai_returns_empty():
+        """Fallback to the basic generator when the IA returns an empty payload."""
+        produto = _ProdutoStub()
+        service, _crud_produtos = _build_service(produto=produto)
+
+        async def _empty_generation(**kwargs):
+            return ""
+
+        async def _basic_generation(**kwargs):
+            return ["Titulo pelo template"]
+
+        await service.run_generation_task(
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="titulo",
+            funcao_geracao_ia_no_servico=_empty_generation,
+            funcao_geracao_fallback_no_servico=_basic_generation,
+        )
+
+        assert produto.status_titulo_ia == "CONCLUIDO"
+        assert produto.titulos_sugeridos == ["Titulo pelo template"]
+        assert any(
+            "fallback basico" in log["action"].lower()
+            for log in produto.log_processamento
+        )
+
+    @pytest.mark.asyncio
+    async def test_generation_task_service_uses_basic_fallback_when_ai_raises_http_error():
+        """Fallback to the basic generator when the IA call raises an HTTPException."""
+        produto = _ProdutoStub()
+        service, _crud_produtos = _build_service(produto=produto)
+
+        async def _failing_generation(**kwargs):
+            raise HTTPException(status_code=503, detail="provider indisponivel")
+
+        async def _basic_generation(**kwargs):
+            return "Descricao basica gerada pelo template."
+
+        await service.run_generation_task(
+            user_id=1,
+            produto_id=10,
+            tipo_geracao_principal="descricao",
+            funcao_geracao_ia_no_servico=_failing_generation,
+            funcao_geracao_fallback_no_servico=_basic_generation,
+        )
+
+        assert produto.status_descricao_ia == "CONCLUIDO"
+        assert produto.descricao_chat_api == "Descricao basica gerada pelo template."
+        assert any(
+            "provider indisponivel" in log["action"].lower()
+            for log in produto.log_processamento
+        )
 
     @pytest.mark.asyncio
     async def test_generation_task_service_persists_description_in_raw_data():

@@ -12,12 +12,10 @@ test('returns null when there is only one page and no page-size selector', () =>
 
 test('shows current page information', () => {
   render(<PaginationControls currentPage={0} totalPages={3} onPageChange={() => {}} isLoading={false} />);
-  expect(
-    screen.getByText((_, element) => element?.textContent === 'Página 1 de 3')
-  ).toBeInTheDocument();
+  expect(screen.getByText((_, element) => element?.textContent === 'Página 1 de 3')).toBeInTheDocument();
 });
 
-test('renders items per page selector and total items when props provided', () => {
+test('renders items per page trigger and total items when props provided', () => {
   render(
     <PaginationControls
       currentPage={0}
@@ -31,7 +29,7 @@ test('renders items per page selector and total items when props provided', () =
   );
 
   expect(screen.getByText(/25 itens/)).toBeInTheDocument();
-  expect(screen.getByDisplayValue('10/página')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Itens por página/i })).toHaveTextContent('10/página');
 });
 
 test('navigates between pages only when movement is allowed', () => {
@@ -59,14 +57,22 @@ test('disables navigation at boundaries or while loading', () => {
   expect(onPageChange).not.toHaveBeenCalled();
 
   rerender(
-    <PaginationControls currentPage={2} totalPages={3} onPageChange={onPageChange} isLoading={true} />
+    <PaginationControls
+      currentPage={2}
+      totalPages={3}
+      onPageChange={onPageChange}
+      isLoading={true}
+      itemsPerPage={10}
+      onItemsPerPageChange={() => {}}
+    />
   );
 
   expect(screen.getByRole('button', { name: /Anterior/i })).toBeDisabled();
   expect(screen.getByRole('button', { name: /Próxima/i })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /Itens por página/i })).toBeDisabled();
 });
 
-test('emits page-size changes using the component payload', () => {
+test('emits page-size changes using the dropdown payload', () => {
   const onItemsPerPageChange = jest.fn();
 
   render(
@@ -80,7 +86,8 @@ test('emits page-size changes using the component payload', () => {
     />
   );
 
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: '25' } });
+  fireEvent.click(screen.getByRole('button', { name: /Itens por página/i }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: '25/página' }));
 
   expect(onItemsPerPageChange).toHaveBeenCalledWith('25');
 });

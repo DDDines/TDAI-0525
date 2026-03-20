@@ -1,7 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import ImportCatalogWizard from '../ImportCatalogWizard.jsx';
+
+jest.mock('react-router-dom', () => ({
+  ...jest.requireActual('react-router-dom'),
+  useNavigate: () => jest.fn(),
+}));
 
 jest.mock('pdfjs-dist/legacy/build/pdf.worker.js?url', () => 'worker-src-stub', { virtual: true });
 jest.mock(
@@ -105,11 +110,16 @@ describe('ImportCatalogWizard', () => {
     return file;
   };
 
-  const uploadAndGeneratePreview = async () => {
+  const selectPreviewMode = async (interaction = userEvent) => {
+    await interaction.click(screen.getByRole('button', { name: /OCR/i }));
+  };
+
+  const uploadAndGeneratePreview = async (interaction = userEvent) => {
     const fileInput = document.querySelector('input[type="file"]');
     const file = createPdfFile();
-    await userEvent.upload(fileInput, file);
-    await userEvent.click(screen.getByText('Gerar Preview'));
+    await interaction.upload(fileInput, file);
+    await selectPreviewMode(interaction);
+    await interaction.click(screen.getByText('Gerar Preview'));
     return file;
   };
 
@@ -131,14 +141,11 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
-    await userEvent.upload(fileInput, file);
-    await userEvent.click(screen.getByText('Gerar Preview'));
+    const file = await uploadAndGeneratePreview();
 
     await screen.findByRole('img', { name: /1/ });
     expect(fornecedorService.previewCatalogo).toHaveBeenCalledWith(file, 15, 1, 1);
-    expect(screen.getByText(/Escopo atual:/i)).toHaveTextContent(/somente p[aá]gina 1/i);
+    expect(screen.getByText(/Escopo atual:/i)).toHaveTextContent(/somente página 1/i);
   });
 
   test('starts import with selected page by default', async () => {
@@ -179,10 +186,7 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
-    await userEvent.upload(fileInput, file);
-    await userEvent.click(screen.getByText('Gerar Preview'));
+    await uploadAndGeneratePreview();
     await screen.findByRole('img', { name: /1/ });
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
@@ -242,12 +246,12 @@ describe('ImportCatalogWizard', () => {
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
     await userEvent.upload(fileInput, file);
-    await userEvent.click(screen.getByText('Gerar Preview'));
-    await screen.findByRole('img', { name: /1/ });
 
+    // Select IA Local mode on step 1 (the mode cards are shown before preview)
+    await userEvent.click(screen.getByRole('button', { name: /IA Local/i }));
+    // Product type selector now visible for direct modes
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: /modo de extracao/i }), 'ia');
-    await userEvent.click(screen.getByText('Iniciar Processamento'));
+    await userEvent.click(screen.getByText('Iniciar Importação'));
 
     await waitFor(() => {
       expect(fornecedorService.finalizarImportacaoCatalogo).toHaveBeenCalledWith(
@@ -282,7 +286,7 @@ describe('ImportCatalogWizard', () => {
     const startButton = screen.getByRole('button', { name: /Iniciar Processamento/i });
     expect(startButton).toBeDisabled();
     expect(
-      screen.getByText(/Selecione o tipo de produto para habilitar a importação final/i)
+      screen.getByText(/Selecione o tipo de produto para habilitar a importação/i)
     ).toBeInTheDocument();
     expect(fornecedorService.finalizarImportacaoCatalogo).not.toHaveBeenCalled();
   });
@@ -326,7 +330,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await screen.findByText(/Colunas detectadas/i);
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
     fireEvent.change(screen.getByLabelText(/Página para seleção/i), { target: { value: '0' } });
     expect(screen.getByLabelText(/Página para seleção/i)).toHaveValue(1);
@@ -396,10 +400,7 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = new File(['a'], 'test.pdf', { type: 'application/pdf' });
-    await userEvent.upload(fileInput, file);
-    await userEvent.click(screen.getByText('Gerar Preview'));
+    await uploadAndGeneratePreview();
     await screen.findByRole('img', { name: /1/ });
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
@@ -578,6 +579,7 @@ describe('ImportCatalogWizard', () => {
     const fileInput = document.querySelector('input[type="file"]');
     const file = createPdfFile();
     await userEvent.upload(fileInput, file);
+    await selectPreviewMode();
     fireEvent.change(screen.getByLabelText(/Página inicial/i), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText(/Quantidade de páginas/i), { target: { value: '1' } });
     await userEvent.click(screen.getByText('Gerar Preview'));
@@ -608,6 +610,7 @@ describe('ImportCatalogWizard', () => {
     const fileInput = document.querySelector('input[type="file"]');
     const file = createPdfFile();
     await userEvent.upload(fileInput, file);
+    await selectPreviewMode();
     fireEvent.change(screen.getByLabelText(/Página inicial/i), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText(/Quantidade de páginas/i), { target: { value: '' } });
     await userEvent.click(screen.getByText('Gerar Preview'));
@@ -736,7 +739,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await screen.findByText(/Colunas detectadas/i);
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
     await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
 
@@ -812,7 +815,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await screen.findByText(/Colunas detectadas/i);
     await userEvent.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
 
     const startButton = screen.getByRole('button', { name: /Iniciar Processamento/i });
@@ -858,7 +861,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via das colunas detectadas/i);
+    await screen.findByText(/Colunas detectadas/i);
 
     await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
     await screen.findByText('Mapear Colunas');
@@ -895,7 +898,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Prévia das colunas detectadas/i);
+    await screen.findByText(/Colunas detectadas/i);
     await userEvent.click(screen.getByRole('button', { name: /Definir mapeamento/i }));
     await screen.findByText('Mapear Colunas');
     await userEvent.selectOptions(
@@ -935,7 +938,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via de p[áa]ginas/i);
+    await screen.findByText(/Prévia de páginas/i);
 
     await userEvent.click(screen.getByRole('button', { name: /Selecionar regi/i }));
     await userEvent.click(screen.getByRole('button', { name: /P.*2/i }));
@@ -1004,7 +1007,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via de p[áa]ginas/i);
+    await screen.findByText(/Prévia de páginas/i);
     await userEvent.click(screen.getByRole('button', { name: /Selecionar regi/i }));
     await screen.findByTestId('pdf-region-selector');
     await userEvent.click(screen.getByRole('button', { name: /Confirmar regiao/i }));
@@ -1033,7 +1036,7 @@ describe('ImportCatalogWizard', () => {
     );
 
     await uploadAndGeneratePreview();
-    await screen.findByText(/Pr[ée]via de p[áa]ginas/i);
+    await screen.findByText(/Prévia de páginas/i);
 
     fornecedorService.selecionarRegiaoProduto.mockResolvedValueOnce({});
     await userEvent.click(screen.getByRole('button', { name: /Selecionar regi/i }));
@@ -1084,7 +1087,7 @@ describe('ImportCatalogWizard', () => {
     await userEvent.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
 
     expect(await screen.findByText('Falha ao iniciar processamento.')).toBeInTheDocument();
-    expect(screen.getByText(/Passo 2: Revisar e mapear dados/i)).toBeInTheDocument();
+    expect(screen.getByText(/Revisar e mapear dados/i)).toBeInTheDocument();
   });
 
   test('stops processing when status polling fails', async () => {
@@ -1262,10 +1265,7 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = createPdfFile();
-    await localUser.upload(fileInput, file);
-    await localUser.click(screen.getByText('Gerar Preview'));
+    await uploadAndGeneratePreview(localUser);
     await screen.findByRole('img', { name: /1/ });
     await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
     await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
@@ -1318,10 +1318,7 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = createPdfFile();
-    await localUser.upload(fileInput, file);
-    await localUser.click(screen.getByText('Gerar Preview'));
+    await uploadAndGeneratePreview(localUser);
     await screen.findByRole('img', { name: /1/ });
     await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
     await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
@@ -1372,10 +1369,7 @@ describe('ImportCatalogWizard', () => {
       />
     );
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const file = createPdfFile();
-    await localUser.upload(fileInput, file);
-    await localUser.click(screen.getByText('Gerar Preview'));
+    await uploadAndGeneratePreview(localUser);
     await screen.findByRole('img', { name: /1/ });
     await localUser.selectOptions(screen.getByRole('combobox', { name: /tipo de produto/i }), '4');
     await localUser.click(screen.getByRole('button', { name: /Iniciar Processamento/i }));
@@ -1561,7 +1555,9 @@ describe('ImportCatalogWizard', () => {
     );
 
     expect(screen.getByRole('img', { name: /1/ })).toBeInTheDocument();
-    expect(screen.getByText(/Passo 2:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Revisar e mapear dados/i)).toBeInTheDocument();
   });
 });
+
+
 

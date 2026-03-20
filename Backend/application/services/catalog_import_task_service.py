@@ -210,7 +210,7 @@ class CatalogImportTaskWorkflow:
         self.mapping: Optional[Dict[str, str]] = None
         self.pages: Optional[List[int]] = None
         self.region: Optional[List[float]] = None
-        self.extraction_mode: str = "ocr"
+        self.extraction_mode: str = "vision"
 
         self.created: List[Any] = []
         self.updated: List[Any] = []
@@ -640,7 +640,7 @@ class CatalogImportTaskWorkflow:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
-        extraction_mode: str = "ocr",
+        extraction_mode: str = "vision",
     ) -> None:
         """Handle run within the catalog import workflow."""
         if self._session_provider is None:
@@ -754,7 +754,7 @@ class CatalogImportTaskService:
         mapping: Optional[Dict[str, str]] = None,
         pages: Optional[List[int]] = None,
         region: Optional[List[float]] = None,
-        extraction_mode: str = "ocr",
+        extraction_mode: str = "vision",
     ):
         """Handle execute within the catalog import workflow."""
         workflow = CatalogImportTaskWorkflow(**self._deps)

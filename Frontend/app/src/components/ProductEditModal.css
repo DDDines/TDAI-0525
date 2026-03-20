@@ -115,6 +115,14 @@
     padding: 0;
 }
 
+.btn-remove-dynamic-attribute {
+    padding: 5px;
+    border: none;
+    background: transparent;
+    color: var(--danger);
+    cursor: pointer;
+}
+
 /* --- NOVOS ESTILOS PARA A ABA DE SUGESTÕES --- */
 
 .suggestion-action-box {
@@ -202,6 +210,12 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-bottom: 1rem;
+}
+
+.product-edit-content-toolbar--generation {
+    padding: 0.85rem 0 0.15rem;
+    margin-bottom: 1.1rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .product-edit-inline-toggle {

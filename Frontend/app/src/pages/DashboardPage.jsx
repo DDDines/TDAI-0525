@@ -23,21 +23,22 @@ import authService from '../services/authService';
 import dashboardService from '../services/dashboardService';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import { showErrorToast } from '../utils/notifications';
+import { extractErrorMessage } from '../utils/errorDetails';
 import './DashboardPage.css';
 
 const STATUS_META = {
-  NAO_INICIADO: { label: 'Nao iniciado', tone: 'muted' },
+  NAO_INICIADO: { label: 'Não iniciado', tone: 'muted' },
   PENDENTE: { label: 'Pendente', tone: 'warn' },
   EM_PROGRESSO: { label: 'Em progresso', tone: 'info' },
-  CONCLUIDO: { label: 'Concluido', tone: 'success' },
-  CONCLUIDO_SUCESSO: { label: 'Concluido', tone: 'success' },
-  CONCLUIDO_COM_DADOS_PARCIAIS: { label: 'Concluido com dados parciais', tone: 'warn' },
+  CONCLUIDO: { label: 'Concluído', tone: 'success' },
+  CONCLUIDO_SUCESSO: { label: 'Concluído', tone: 'success' },
+  CONCLUIDO_COM_DADOS_PARCIAIS: { label: 'Concluído com dados parciais', tone: 'warn' },
   FALHA: { label: 'Falha', tone: 'danger' },
   FALHOU: { label: 'Falha', tone: 'danger' },
   FALHA_API_EXTERNA: { label: 'Falha de API externa', tone: 'danger' },
-  FALHA_CONFIGURACAO_API_EXTERNA: { label: 'Falha de configuracao', tone: 'danger' },
+  FALHA_CONFIGURACAO_API_EXTERNA: { label: 'Falha de configuração', tone: 'danger' },
   NENHUMA_FONTE_ENCONTRADA: { label: 'Nenhuma fonte encontrada', tone: 'muted' },
-  NAO_APLICAVEL: { label: 'Nao aplicavel', tone: 'muted' },
+  NAO_APLICAVEL: { label: 'Não aplicável', tone: 'muted' },
 };
 
 const ENTITY_LABELS = {
@@ -45,8 +46,8 @@ const ENTITY_LABELS = {
   produtos: 'Produtos',
   fornecedor: 'Fornecedor',
   fornecedores: 'Fornecedores',
-  usuario: 'Usuario',
-  user: 'Usuario',
+  usuario: 'Usuário',
+  user: 'Usuário',
   tipo: 'Tipo de produto',
   product_type: 'Tipo de produto',
   tipo_de_produto: 'Tipo de produto',
@@ -87,10 +88,6 @@ function getTotalByStatus(items, ...keys) {
   return normalizedItems.reduce((total, item) => (
     keys.includes(normalizeStatusKey(item?.status)) ? total + Number(item?.total || 0) : total
   ), 0);
-}
-
-function formatModeLabel(mode) {
-  return String(mode || '').trim().toLowerCase() === 'complete' ? 'Completo' : 'Basico';
 }
 
 function formatActivityTimestamp(value) {
@@ -138,14 +135,14 @@ function buildAdminHighlights(statusCounts) {
     {
       title: 'Em processamento',
       value: getTotal('EM_PROGRESSO', 'PENDENTE'),
-      helper: 'Itens aguardando conclusao',
+      helper: 'Itens aguardando conclusão',
       tone: 'info',
       icon: <LuWorkflow />,
       route: '/produtos',
       actionLabel: 'Abrir fila',
     },
     {
-      title: 'Concluidos',
+      title: 'Concluídos',
       value: getTotal('CONCLUIDO', 'CONCLUIDO_SUCESSO'),
       helper: 'Produtos finalizados',
       tone: 'success',
@@ -174,18 +171,18 @@ function buildUserHighlights(userDashboard) {
 
   return [
     {
-      title: 'Espaco de catalogo',
+      title: 'Espaço de catálogo',
       value: Math.max(productLimit - Number(userDashboard?.totais?.produtos ?? 0), 0),
-      helper: 'Produtos ainda disponiveis no plano',
+      helper: 'Produtos ainda disponíveis no plano',
       tone: 'info',
       icon: <LuBox />,
       route: '/produtos',
-      actionLabel: 'Ver catalogo',
+      actionLabel: 'Ver catálogo',
     },
     {
       title: 'Busca web restante',
       value: Math.max(webLimit - webUsage, 0),
-      helper: 'Enriquecimentos restantes neste mes',
+      helper: 'Enriquecimentos restantes neste mês',
       tone: webUsage >= webLimit && webLimit > 0 ? 'danger' : 'success',
       icon: <LuSearch />,
       route: '/enriquecimento',
@@ -194,7 +191,7 @@ function buildUserHighlights(userDashboard) {
     {
       title: 'IA restante',
       value: Math.max(aiLimit - aiUsage, 0),
-      helper: 'Geracoes disponiveis neste mes',
+      helper: 'Gerações disponíveis neste mês',
       tone: aiUsage >= aiLimit && aiLimit > 0 ? 'warn' : 'success',
       icon: <LuZap />,
       route: '/plano',
@@ -216,10 +213,10 @@ function buildAdminSummaryLine(statusCounts) {
   const notStarted = getTotalByStatus(statusCounts, 'NAO_INICIADO');
 
   return [
-    `${failures} ${pluralize(failures, 'falha pede', 'falhas pedem')} revisao imediata`,
-    `${partial} ${pluralize(partial, 'produto esta', 'produtos estao')} com dados incompletos`,
+    `${failures} ${pluralize(failures, 'falha pede', 'falhas pedem')} revisão imediata`,
+    `${partial} ${pluralize(partial, 'produto está', 'produtos estão')} com dados incompletos`,
     `${pending} ${pluralize(pending, 'item segue', 'itens seguem')} em andamento`,
-    `${notStarted} ${pluralize(notStarted, 'produto ainda nao foi iniciado', 'produtos ainda nao foram iniciados')}`,
+    `${notStarted} ${pluralize(notStarted, 'produto ainda não foi iniciado', 'produtos ainda não foram iniciados')}`,
   ].join('. ');
 }
 
@@ -236,7 +233,7 @@ function buildUserSummaryLine(userDashboard, currentUser) {
     `Plano ${planName}`,
     `${Math.max(productLimit - totalProducts, 0)} vagas livres para produtos`,
     `${Math.max(webLimit - webUsage, 0)} buscas web restantes`,
-    `${Math.max(aiLimit - aiUsage, 0)} geracoes IA restantes`,
+    `${Math.max(aiLimit - aiUsage, 0)} gerações IA restantes`,
   ].join('. ');
 }
 
@@ -245,9 +242,9 @@ function buildAdminHeroStats(adminStats) {
     return [];
   }
   return [
-    { label: 'Usuarios', value: adminStats.total_usuarios || 0 },
+    { label: 'Usuários', value: adminStats.total_usuarios || 0 },
     { label: 'Fornecedores', value: adminStats.total_fornecedores || 0 },
-    { label: 'Enriquecimentos no mes', value: adminStats.total_enriquecimentos_mes || 0 },
+    { label: 'Enriquecimentos no mês', value: adminStats.total_enriquecimentos_mes || 0 },
   ];
 }
 
@@ -436,7 +433,7 @@ function PlanUsagePanel({ userDashboard, className = '' }) {
       icon: <LuSearch />,
     },
     {
-      label: 'Geracao IA',
+      label: 'Geração IA',
       used: Number(userDashboard?.uso_mes_atual?.geracao_ia ?? 0),
       limit: Number(userDashboard?.limites?.geracao_ia ?? 0),
       icon: <LuZap />,
@@ -448,7 +445,7 @@ function PlanUsagePanel({ userDashboard, className = '' }) {
       <div className="dashboard-section-head">
         <div>
           <h3>Limites do plano</h3>
-          <p>Uso atual para acompanhar espaco, busca e geracao.</p>
+          <p>Uso atual para acompanhar espaço, busca e geração.</p>
         </div>
       </div>
       <div className="dashboard-plan-list">
@@ -480,13 +477,16 @@ function DashboardPage() {
   const [adminStats, setAdminStats] = useState(null);
   const [userDashboard, setUserDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadErrorMessage, setLoadErrorMessage] = useState('');
   const [statusCounts, setStatusCounts] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     async function fetchData() {
       setLoading(true);
+      setLoadErrorMessage('');
       try {
         const user = await authService.getCurrentUser();
         if (cancelled) return;
@@ -515,7 +515,8 @@ function DashboardPage() {
         if (cancelled) return;
         setUserDashboard(dashboardPayload);
       } catch (err) {
-        const errorMsg = err.message || err.detail || 'Falha ao carregar dados do dashboard.';
+        const errorMsg = extractErrorMessage(err, 'Falha ao carregar dados do dashboard.');
+        setLoadErrorMessage(errorMsg);
         showErrorToast(errorMsg);
         console.error('Erro ao carregar dados do dashboard:', err);
       } finally {
@@ -529,7 +530,7 @@ function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   const adminCounts = useMemo(() => ({
     notStarted: getTotalByStatus(statusCounts, 'NAO_INICIADO'),
@@ -550,8 +551,8 @@ function DashboardPage() {
       },
       {
         value: adminCounts.notStarted?.toString() || '0',
-        label: 'Aguardando inicio',
-        helper: 'Fila bruta do catalogo',
+        label: 'Aguardando início',
+        helper: 'Fila bruta do catálogo',
         icon: <LuClock3 />,
         barColor: '#2563eb',
         tone: 'info',
@@ -566,7 +567,7 @@ function DashboardPage() {
       },
       {
         value: adminStats.total_geracoes_ia_mes?.toString() || '0',
-        label: 'Geracoes IA no mes',
+        label: 'Gerações IA no mês',
         helper: 'Consumo atual',
         icon: <LuSparkles />,
         barColor: '#d97706',
@@ -602,7 +603,7 @@ function DashboardPage() {
       {
         value: productsRemaining.toString(),
         label: 'Produtos restantes',
-        helper: 'Espaco ainda disponivel',
+        helper: 'Espaço ainda disponível',
         icon: <LuLayers />,
         barColor: '#2563eb',
         tone: 'info',
@@ -626,7 +627,6 @@ function DashboardPage() {
     ];
   }, [userDashboard]);
 
-  const dashboardMode = userDashboard?.product_experience_mode || currentUser?.product_experience_mode || 'basic';
   const userStatusCounts = useMemo(
     () => (userDashboard?.status_produtos || []).map((item) => ({
       status: item.status,
@@ -645,6 +645,21 @@ function DashboardPage() {
 
   if (loading) {
     return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
+  }
+
+  if (loadErrorMessage && !currentUser && !adminStats && !userDashboard) {
+    return (
+      <div className="dashboard-error-state" role="alert">
+        <p>{loadErrorMessage}</p>
+        <button
+          type="button"
+          className="dashboard-error-retry"
+          onClick={() => setReloadToken((value) => value + 1)}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -672,8 +687,8 @@ function DashboardPage() {
           title="Status dos produtos"
           helper={
             currentUser?.is_superuser
-              ? 'Distribuicao atual do pipeline e do backlog do catalogo.'
-              : 'Como seus produtos estao distribuidos no fluxo atual.'
+              ? 'Distribuição atual do pipeline e do backlog do catálogo.'
+              : 'Como seus produtos estão distribuídos no fluxo atual.'
           }
           items={currentUser?.is_superuser ? statusCounts : userStatusCounts}
           emptyMessage="Sem dados de status para mostrar."
@@ -684,11 +699,11 @@ function DashboardPage() {
           title={currentUser?.is_superuser ? 'Prioridades do dia' : 'Onde agir agora'}
           helper={
             currentUser?.is_superuser
-              ? 'Cards com leitura direta e atalho para as areas que precisam de acao.'
-              : 'Pontos do plano e do catalogo que valem sua proxima acao.'
+              ? 'Cards com leitura direta e atalho para as áreas que precisam de ação.'
+              : 'Pontos do plano e do catálogo que valem sua próxima ação.'
           }
           items={currentUser?.is_superuser ? adminHighlights : userHighlights}
-          emptyMessage="Ainda nao ha indicadores suficientes para destacar."
+          emptyMessage="Ainda não há indicadores suficientes para destacar."
           onNavigate={navigate}
           className="dashboard-grid-panel dashboard-panel-priorities"
         />

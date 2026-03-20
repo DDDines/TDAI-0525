@@ -103,6 +103,7 @@ jest.mock('../../components/common/LoadingOverlay.jsx', () => ({
 }));
 
 describe('TiposProdutoPage', () => {
+  const clickTypeCard = (name) => fireEvent.click(screen.getByText(name, { selector: 'strong' }));
   const refreshProductTypes = jest.fn();
   const updateProductType = jest.fn();
   const baseProductTypes = [
@@ -167,7 +168,7 @@ describe('TiposProdutoPage', () => {
   test('creates and updates product types through the page handlers', async () => {
     render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('+ Novo Tipo de Produto'));
+    fireEvent.click(screen.getByRole('button', { name: /Novo Tipo/i }));
     expect(screen.getByTestId('new-type-modal')).toBeInTheDocument();
     fireEvent.click(screen.getByText('complete-new-type'));
 
@@ -187,13 +188,80 @@ describe('TiposProdutoPage', () => {
     expect(refreshProductTypes).toHaveBeenCalledTimes(2);
   });
 
+  test('keeps a newly created type selected after the refreshed list arrives', async () => {
+    const rerenderedTypes = [
+      ...baseProductTypes,
+      {
+        id: 99,
+        key_name: 'novo_tipo',
+        friendly_name: 'Novo Tipo',
+        attribute_templates: [],
+      },
+    ];
+
+    const { rerender } = render(<TiposProdutoPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Novo Tipo/i }));
+    fireEvent.click(screen.getByText('complete-new-type'));
+
+    useProductTypes.mockReturnValue({
+      productTypes: rerenderedTypes,
+      isLoading: false,
+      error: null,
+      refreshProductTypes,
+      updateProductType,
+    });
+
+    rerender(<TiposProdutoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Novo Tipo' })).toBeInTheDocument();
+    });
+  });
+
+  test('seleciona automaticamente o primeiro tipo disponivel ao carregar a tela', async () => {
+    render(<TiposProdutoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Pecas' })).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
+  });
+
+  test('does not repeat the key badge when key_name matches the friendly name semantically', async () => {
+    useProductTypes.mockReturnValueOnce({
+      productTypes: [
+        {
+          id: 1,
+          key_name: 'asdasd',
+          friendly_name: 'asdasd',
+          attribute_templates: [],
+        },
+      ],
+      isLoading: false,
+      error: null,
+      refreshProductTypes,
+      updateProductType,
+    });
+
+    render(<TiposProdutoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
+    });
+
+    expect(document.querySelector('.tipos-produto-list-item-key')).toBeNull();
+    expect(document.querySelector('.tipos-produto-key-badge')).toBeNull();
+  });
+
   test('deletes product types and manages attributes for the selected type', async () => {
     render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('Pecas'));
+    clickTypeCard('Pecas');
     expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('+ Novo Atributo'));
+    fireEvent.click(screen.getByRole('button', { name: /Novo Atributo/i }));
     fireEvent.click(screen.getByText('save-new-attribute'));
     await waitFor(() => {
       expect(productTypeService.addAttributeToType).toHaveBeenCalledWith(1, {
@@ -233,7 +301,7 @@ describe('TiposProdutoPage', () => {
   test('clears the current selection when deleting the selected type', async () => {
     render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('Pecas'));
+    clickTypeCard('Pecas');
     expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Deletar tipo'));
@@ -282,8 +350,8 @@ describe('TiposProdutoPage', () => {
   test('warns when an attribute save is attempted after the selected type disappears', async () => {
     const { rerender } = render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('Pecas'));
-    fireEvent.click(screen.getByText('+ Novo Atributo'));
+    clickTypeCard('Pecas');
+    fireEvent.click(screen.getByRole('button', { name: /Novo Atributo/i }));
     expect(screen.getByTestId('attribute-modal')).toBeInTheDocument();
 
     useProductTypes.mockReturnValue({
@@ -307,8 +375,8 @@ describe('TiposProdutoPage', () => {
 
     render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('Pecas'));
-    fireEvent.click(screen.getByText('+ Novo Atributo'));
+    clickTypeCard('Pecas');
+    fireEvent.click(screen.getByRole('button', { name: /Novo Atributo/i }));
     fireEvent.click(screen.getByText('save-new-attribute'));
 
     await waitFor(() => {
@@ -349,9 +417,9 @@ describe('TiposProdutoPage', () => {
 
     render(<TiposProdutoPage />);
 
-    expect(screen.getByText(/Sem atributos/)).toHaveTextContent('(0 atrib.)');
+    expect(screen.getByText(/Sem atributos/).closest('li')).toHaveTextContent('0 atributos');
 
-    fireEvent.click(screen.getByText('Pecas'));
+    clickTypeCard('Pecas');
     await waitFor(() => {
       expect(screen.getAllByTitle('Deletar tipo')).toHaveLength(2);
     });
@@ -383,7 +451,7 @@ describe('TiposProdutoPage', () => {
 
     render(<TiposProdutoPage />);
 
-    fireEvent.click(screen.getByText('Pecas'));
+    clickTypeCard('Pecas');
     expect(screen.getByTestId('attribute-list')).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByTitle('Deletar tipo')[1]);

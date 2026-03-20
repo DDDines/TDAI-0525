@@ -64,6 +64,31 @@ describe('productService', () => {
     await expect(productService.getProdutos()).rejects.toThrow('Falha ao buscar produtos');
   });
 
+  test('getProdutosIds returns the API payload and forwards params', async () => {
+    apiClient.get.mockResolvedValueOnce({ data: { ids: [1, 2, 3] } });
+
+    const result = await productService.getProdutosIds({ search: 'abc', limit: 5 });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/produtos/ids', {
+      params: { search: 'abc', limit: 5 },
+    });
+    expect(result).toEqual({ ids: [1, 2, 3] });
+  });
+
+  test('getProdutosIds rethrows backend payload when available', async () => {
+    apiClient.get.mockRejectedValueOnce({ response: { data: { detail: 'boom' } } });
+
+    await expect(productService.getProdutosIds()).rejects.toEqual({ detail: 'boom' });
+  });
+
+  test('getProdutosIds throws a fallback error when request has no response payload', async () => {
+    apiClient.get.mockRejectedValueOnce(new Error('network down'));
+
+    await expect(productService.getProdutosIds()).rejects.toThrow(
+      'Falha ao buscar IDs de produtos'
+    );
+  });
+
   test('getProdutoById throws a fallback error when request has no response payload', async () => {
     apiClient.get.mockRejectedValueOnce(new Error('network down'));
 

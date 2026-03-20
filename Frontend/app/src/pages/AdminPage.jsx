@@ -9,7 +9,6 @@ import { toast } from 'react-toastify';
 import {
   LuShieldCheck,
   LuUsers,
-  LuBarChart2,
   LuLayoutDashboard,
   LuRefreshCw,
 } from 'react-icons/lu';
@@ -19,7 +18,7 @@ import './AdminPage.css';
 const TABS = [
   { id: 'overview', label: 'Visão Geral', icon: <LuLayoutDashboard /> },
   { id: 'users', label: 'Usuários', icon: <LuUsers /> },
-  { id: 'usage', label: 'Uso por Plano', icon: <LuBarChart2 /> },
+  { id: 'usage', label: 'Uso por Plano', icon: <LuShieldCheck /> },
 ];
 
 function StatCard({ label, value, color }) {

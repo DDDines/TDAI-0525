@@ -37,7 +37,7 @@ describe('usoIAService', () => {
       params: { skip: 0, limit: 5 },
     });
     expect(apiClient.get).toHaveBeenNthCalledWith(2, '/uso-ia/', {
-      params: { tipo_acao: 'geracao' },
+      params: { tipo_geracao: 'geracao' },
     });
   });
 

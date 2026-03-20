@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from starlette.requests import Request
 
 from Backend import schemas
 from Backend.routers import password_recovery as password_module
@@ -123,7 +124,7 @@ async def test_password_recovery_route_wrappers_delegate():
 
     recover_response = await password_module.recover_password(
         email="user@test.com",
-        request="request",
+        request=Request({"type": "http", "method": "POST", "path": "/auth/password-recovery", "headers": []}),
         request_service=FakeRequestService(),
     )
     reset_response = password_module.reset_password(
@@ -133,5 +134,7 @@ async def test_password_recovery_route_wrappers_delegate():
 
     assert recover_response.msg == "recover"
     assert reset_response.msg == "reset"
-    assert called[0] == ("recover", "user@test.com", "request")
+    assert called[0][0] == "recover"
+    assert called[0][1] == "user@test.com"
+    assert isinstance(called[0][2], Request)
     assert called[1][0] == "reset"

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -54,6 +55,11 @@ class ProductRepository:
                     produto_data[field_name] = json.loads(produto_data[field_name])
                 except json.JSONDecodeError as exc:
                     raise ValueError(f"{field_name} nao e um JSON string valido.") from exc
+
+    @staticmethod
+    def _apply_active_filter(query):
+        """Hide soft-deleted products from active read/list flows."""
+        return query.filter(Produto.is_deleted.is_(False))
 
     @staticmethod
     def _apply_search_filter(query, search: Optional[str]):
@@ -173,7 +179,11 @@ class ProductRepository:
         if sku:
             existing_sku = (
                 self._db.query(Produto)
-                .filter(Produto.user_id == user_id, Produto.sku == sku)
+                .filter(
+                    Produto.user_id == user_id,
+                    Produto.sku == sku,
+                    Produto.is_deleted.is_(False),
+                )
                 .first()
             )
             if existing_sku:
@@ -185,7 +195,11 @@ class ProductRepository:
         if ean:
             existing_ean = (
                 self._db.query(Produto)
-                .filter(Produto.user_id == user_id, Produto.ean == ean)
+                .filter(
+                    Produto.user_id == user_id,
+                    Produto.ean == ean,
+                    Produto.is_deleted.is_(False),
+                )
                 .first()
             )
             if existing_ean:
@@ -194,12 +208,64 @@ class ProductRepository:
                     detail=f"Ja existe um produto com o EAN '{ean}'.",
                 )
 
+    def _find_deleted_produto_by_identity(
+        self,
+        *,
+        user_id: int,
+        sku: Optional[str],
+        ean: Optional[str],
+    ) -> Optional[Produto]:
+        """Resolve a soft-deleted product that can be revived by SKU/EAN identity."""
+        identity_filters = []
+        if sku:
+            identity_filters.append(Produto.sku == sku)
+        if ean:
+            identity_filters.append(Produto.ean == ean)
+        if not identity_filters:
+            return None
+        return (
+            self._db.query(Produto)
+            .filter(
+                Produto.user_id == user_id,
+                Produto.is_deleted.is_(True),
+                or_(*identity_filters),
+            )
+            .order_by(desc(Produto.deleted_at), desc(Produto.id))
+            .first()
+        )
+
+    def _restore_deleted_produto(
+        self,
+        *,
+        db_produto: Produto,
+        produto_data: Dict[str, Any],
+    ) -> Produto:
+        """Revive a soft-deleted record instead of creating a duplicate row."""
+        for key, value in produto_data.items():
+            setattr(db_produto, key, value)
+        db_produto.is_deleted = False
+        db_produto.deleted_at = None
+        self._db.commit()
+        self._db.refresh(db_produto)
+        return db_produto
+
     def create_produto(self, *, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
         """Create produto and return the resulting payload or entity."""
         produto_data = produto.model_dump(exclude_unset=True)
         self._normalize_identifier_fields(produto_data)
         self._validate_unique_identifiers(user_id=user_id, produto_data=produto_data)
         self._parse_json_fields(produto_data, list(self._JSON_FIELDS))
+
+        deleted_match = self._find_deleted_produto_by_identity(
+            user_id=user_id,
+            sku=produto_data.get("sku"),
+            ean=produto_data.get("ean"),
+        )
+        if deleted_match is not None:
+            return self._restore_deleted_produto(
+                db_produto=deleted_match,
+                produto_data=produto_data,
+            )
 
         db_produto = Produto(**produto_data, user_id=user_id)
         self._db.add(db_produto)
@@ -230,11 +296,22 @@ class ProductRepository:
                 .filter(or_(Produto.sku.in_(skus), Produto.ean.in_(eans)))
                 .all()
             )
+            deleted_sku_map: Dict[str, Produto] = {}
+            deleted_ean_map: Dict[str, Produto] = {}
             for existing_produto in existing:
-                if existing_produto.sku:
-                    sku_map[existing_produto.sku] = existing_produto
-                if existing_produto.ean:
-                    ean_map[existing_produto.ean] = existing_produto
+                if existing_produto.is_deleted:
+                    if existing_produto.sku:
+                        deleted_sku_map[existing_produto.sku] = existing_produto
+                    if existing_produto.ean:
+                        deleted_ean_map[existing_produto.ean] = existing_produto
+                else:
+                    if existing_produto.sku:
+                        sku_map[existing_produto.sku] = existing_produto
+                    if existing_produto.ean:
+                        ean_map[existing_produto.ean] = existing_produto
+        else:
+            deleted_sku_map = {}
+            deleted_ean_map = {}
 
         new_skus: Set[str] = set()
         new_eans: Set[str] = set()
@@ -268,9 +345,26 @@ class ProductRepository:
                     setattr(existing_produto, key, value)
                 updated_produtos.append(existing_produto)
             else:
-                db_produto = Produto(**data, user_id=user_id)
-                self._db.add(db_produto)
-                created_produtos.append(db_produto)
+                deleted_produto = None
+                if sku and sku in deleted_sku_map:
+                    deleted_produto = deleted_sku_map[sku]
+                elif ean and ean in deleted_ean_map:
+                    deleted_produto = deleted_ean_map[ean]
+
+                if deleted_produto:
+                    for key, value in data.items():
+                        setattr(deleted_produto, key, value)
+                    deleted_produto.is_deleted = False
+                    deleted_produto.deleted_at = None
+                    updated_produtos.append(deleted_produto)
+                    if deleted_produto.sku:
+                        sku_map[deleted_produto.sku] = deleted_produto
+                    if deleted_produto.ean:
+                        ean_map[deleted_produto.ean] = deleted_produto
+                else:
+                    db_produto = Produto(**data, user_id=user_id)
+                    self._db.add(db_produto)
+                    created_produtos.append(db_produto)
 
             if sku:
                 new_skus.add(sku)
@@ -298,6 +392,7 @@ class ProductRepository:
             )
             .filter(Produto.id == produto_id)
         )
+        query = self._apply_active_filter(query)
         if user_id is not None:
             query = query.filter(Produto.user_id == user_id)
         return query.first()
@@ -308,6 +403,7 @@ class ProductRepository:
         When *user_id* is provided the result is filtered to that owner.
         """
         query = self._db.query(Produto).filter(Produto.id == produto_id)
+        query = self._apply_active_filter(query)
         if user_id is not None:
             query = query.filter(Produto.user_id == user_id)
         engine = self._db.get_bind()
@@ -365,6 +461,7 @@ class ProductRepository:
             selectinload(Produto.fornecedor),
             selectinload(Produto.product_type),
         )
+        query = self._apply_active_filter(query)
 
         if not is_admin:
             if user_id is None:
@@ -401,6 +498,7 @@ class ProductRepository:
     ) -> int:
         """Execute count produtos by user as part of this module workflow."""
         query = self._db.query(func.count(Produto.id))
+        query = self._apply_active_filter(query)
 
         if not is_admin:
             if user_id is None:
@@ -438,6 +536,7 @@ class ProductRepository:
     ) -> List[int]:
         """Return all product IDs for the current filtered result set."""
         query = self._db.query(Produto.id)
+        query = self._apply_active_filter(query)
         if not is_admin:
             if user_id is None:
                 return []
@@ -456,6 +555,51 @@ class ProductRepository:
         query = self._apply_ordering(query, "id", "asc")
         return [produto_id for (produto_id,) in query.all()]
 
+    def get_produtos_for_export(
+        self,
+        *,
+        user_id: Optional[int],
+        is_admin: bool,
+        ids: Optional[List[int]] = None,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        product_type_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Optional[StatusEnriquecimentoEnum] = None,
+        status_titulo_ia: Optional[StatusGeracaoIAEnum] = None,
+        status_descricao_ia: Optional[StatusGeracaoIAEnum] = None,
+        enrichment_scope: Optional[str] = None,
+        max_rows: int = 10000,
+    ) -> List[Produto]:
+        """Fetch products for spreadsheet export — no pagination, optional ID filter."""
+        query = self._db.query(Produto).options(
+            selectinload(Produto.fornecedor),
+            selectinload(Produto.product_type),
+        )
+        query = self._apply_active_filter(query)
+
+        if not is_admin:
+            if user_id is None:
+                return []
+            query = query.filter(Produto.user_id == user_id)
+
+        if ids:
+            query = query.filter(Produto.id.in_(ids))
+        else:
+            query = self._apply_search_filter(query, search)
+            query = self._apply_optional_filters(
+                query=query,
+                fornecedor_id=fornecedor_id,
+                product_type_id=product_type_id,
+                categoria=categoria,
+                status_enriquecimento_web=status_enriquecimento_web,
+                status_titulo_ia=status_titulo_ia,
+                status_descricao_ia=status_descricao_ia,
+                enrichment_scope=enrichment_scope,
+            )
+
+        return query.order_by(Produto.id.asc()).limit(max_rows).all()
+
     def search_produtos_for_index(
         self,
         *,
@@ -466,6 +610,7 @@ class ProductRepository:
     ) -> List[Tuple[int, str, Any]]:
         """Return lightweight product rows for search endpoint rendering."""
         query = self._db.query(Produto.id, Produto.nome_base, Produto.created_at)
+        query = self._apply_active_filter(query)
         if query_text:
             term = f"%{query_text.lower()}%"
             query = query.filter(func.lower(Produto.nome_base).ilike(term))
@@ -500,8 +645,10 @@ class ProductRepository:
 
     def delete_produto(self, *, db_produto: Produto) -> Produto:
         """Execute delete produto as part of this module workflow."""
-        self._db.delete(db_produto)
+        db_produto.is_deleted = True
+        db_produto.deleted_at = datetime.now(timezone.utc)
         self._db.commit()
+        self._db.refresh(db_produto)
         return db_produto
 
     async def save_produto_image(self, *, produto_id: int, file: UploadFile) -> str:
@@ -534,7 +681,10 @@ class ProductRepository:
 
     def get_or_create_produto(self, *, produto: schemas.ProdutoCreate, user_id: int) -> Produto:
         """Retrieve or create produto using the current service dependencies."""
-        base_query = self._db.query(Produto).filter(Produto.user_id == user_id)
+        base_query = (
+            self._db.query(Produto)
+            .filter(Produto.user_id == user_id, Produto.is_deleted.is_(False))
+        )
         existing: Optional[Produto] = None
 
         if produto.sku:
@@ -548,5 +698,19 @@ class ProductRepository:
             self._db.commit()
             self._db.refresh(existing)
             return existing
+
+        deleted_match = self._find_deleted_produto_by_identity(
+            user_id=user_id,
+            sku=produto.sku,
+            ean=produto.ean,
+        )
+        if deleted_match is not None:
+            produto_data = produto.model_dump(exclude_unset=True)
+            self._normalize_identifier_fields(produto_data)
+            self._parse_json_fields(produto_data, list(self._JSON_FIELDS))
+            return self._restore_deleted_produto(
+                db_produto=deleted_match,
+                produto_data=produto_data,
+            )
 
         return self.create_produto(produto=produto, user_id=user_id)

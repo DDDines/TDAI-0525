@@ -371,14 +371,13 @@ class _TopLevelFunctionSurface:
         request_service._parse_google_id_token = fake_parse_google_id_token
         request_service._get_userinfo = fake_get_userinfo
 
-        token = await request_service.google_callback(request=object())
+        response = await request_service.google_callback(request=object())
 
-        assert token.access_token == "access.jwt"
-        assert token.token_type == "bearer"
+        assert response.headers["location"].endswith("/auth/oauth-callback?access_token=access.jwt")
         assert called[0] == ("authorize_access_token", "google")
         assert called[1][0] == "parse_google_id_token"
         assert called[2][0] == "process_google_login"
-        assert called[4][0] == "create_refresh_token"
+        assert called[3][0] == "create_access_token"
 
     @pytest.mark.asyncio
     async def test_generation_workflow_tarefa_processar_delega_runtime():

@@ -21,7 +21,6 @@ import {
   buildProductFormState,
   buildInitialDynamicAttributes,
   coerceFormFieldValue,
-  extractGeneratedTitles,
   handleContentViewNavigation,
   logAsyncPollError,
   resolveProductFormStage,
@@ -34,11 +33,19 @@ import './ProductEditModal.css';
 
 // Campos base que não devem aparecer como atributos dinâmicos
 
-function clearRefreshTimeout(timeoutRef) {
-  if (!timeoutRef.current) return;
-  clearTimeout(timeoutRef.current);
-  timeoutRef.current = null;
-}
+const GENERATION_POLL_INTERVAL_MS = 3000;
+const GENERATION_MAX_POLLS = 40;
+const GENERATION_TERMINAL_STATUSES = new Set([
+  'CONCLUIDO',
+  'CONCLUIDO_SUCESSO',
+  'FALHA',
+  'FALHOU',
+  'NAO_APLICAVEL',
+]);
+const ACTIVE_PROCESS_STATUSES = new Set([
+  'PENDENTE',
+  'EM_PROGRESSO',
+]);
 
 function ProductEditModal(
 
@@ -71,8 +78,10 @@ function ProductEditModal(
     const [newAttrKey, setNewAttrKey] = useState('');
     const [isNewTypeModalOpen, setIsNewTypeModalOpen] = useState(false);
     const enrichmentPollRunRef = React.useRef(0);
-    const titleRefreshTimeoutRef = React.useRef(null);
-    const descriptionRefreshTimeoutRef = React.useRef(null);
+    const generationPollRunsRef = React.useRef({
+      status_titulo_ia: 0,
+      status_descricao_ia: 0,
+    });
     const isMountedRef = React.useRef(false);
     const isOpenRef = React.useRef(isOpen);
 
@@ -139,14 +148,14 @@ function ProductEditModal(
       isOpenRef.current = isOpen;
       if (!isOpen) {
         enrichmentPollRunRef.current += 1;
+        generationPollRunsRef.current.status_titulo_ia += 1;
+        generationPollRunsRef.current.status_descricao_ia += 1;
         setIsEnrichingWeb(false);
-        clearRefreshTimeout(titleRefreshTimeoutRef);
-        clearRefreshTimeout(descriptionRefreshTimeoutRef);
       }
       return () => {
         enrichmentPollRunRef.current += 1;
-        clearRefreshTimeout(titleRefreshTimeoutRef);
-        clearRefreshTimeout(descriptionRefreshTimeoutRef);
+        generationPollRunsRef.current.status_titulo_ia += 1;
+        generationPollRunsRef.current.status_descricao_ia += 1;
       };
     }, [isOpen]);
 
@@ -315,8 +324,43 @@ function ProductEditModal(
       return null;
     };
 
+    const pollGenerationUntilTerminal = async (produtoId, statusField, runId) => {
+      for (let attempt = 1; attempt <= GENERATION_MAX_POLLS; attempt += 1) {
+        if (generationPollRunsRef.current[statusField] !== runId) return null;
+        try {
+          const refreshedProduct = await productService.getProdutoById(produtoId);
+          if (generationPollRunsRef.current[statusField] !== runId) return null;
+
+          const currentStatus = String(refreshedProduct?.[statusField] || '').toUpperCase();
+          if (currentStatus && GENERATION_TERMINAL_STATUSES.has(currentStatus)) {
+            populateFormData(refreshedProduct);
+            onProductUpdated?.(refreshedProduct);
+            return refreshedProduct;
+          }
+        } catch {
+          if (generationPollRunsRef.current[statusField] !== runId) return null;
+          throw new Error(
+            statusField === 'status_titulo_ia'
+              ? 'Não foi possível atualizar os títulos gerados.'
+              : 'Não foi possível atualizar a descrição gerada.'
+          );
+        }
+
+        if (attempt < GENERATION_MAX_POLLS) {
+          await new Promise((resolve) =>
+          setTimeout(resolve, GENERATION_POLL_INTERVAL_MS)
+          );
+        }
+      }
+      return null;
+    };
+
 
     const _handleEnrichWeb = async () => {
+      const currentStatus = String(formData?.status_enriquecimento_web || '').toUpperCase();
+      if (ACTIVE_PROCESS_STATUSES.has(currentStatus)) {
+        return;
+      }
       if (showAiFeatures && usarIAEnriquecimentoWeb && !formData.product_type_id) {
         showWarningToast('Defina um tipo de produto antes de usar IA no enriquecimento web.');
         return;
@@ -327,7 +371,7 @@ function ProductEditModal(
       setIsEnrichingWeb(true);
       setError(null);
       showInfoToast(
-        `Processo de enriquecimento web ${showAiFeatures && usarIAEnriquecimentoWeb ? 'com IA' : 'basico'} iniciado. Isso pode levar alguns minutos e atualizar o log e as sugestoes.`
+        `Processo de enriquecimento web ${showAiFeatures && usarIAEnriquecimentoWeb ? 'com IA' : 'básico'} iniciado. Isso pode levar alguns minutos e atualizar o log e as sugestões.`
       );
       try {
         if (showAiFeatures && usarIAEnriquecimentoWeb) {
@@ -362,9 +406,13 @@ function ProductEditModal(
             const ignoredTotal = Number(summary?.ignorados_total || 0);
             const statusFinal = String(refreshed.status_enriquecimento_web).toUpperCase();
 
-            if (statusFinal === 'CONCLUIDO_SUCESSO' || statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
+            if (statusFinal === 'CONCLUIDO' || statusFinal === 'CONCLUIDO_SUCESSO') {
               showSuccessToast(
                 `Enriquecimento finalizado (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
+              );
+            } else if (statusFinal === 'CONCLUIDO_COM_DADOS_PARCIAIS') {
+              showWarningToast(
+                `Enriquecimento finalizado com pendências (${statusFinal}). Aplicados: ${appliedTotal}. Ignorados: ${ignoredTotal}.`
               );
             } else {
               showWarningToast(`Enriquecimento finalizado com status ${statusFinal}.`);
@@ -424,7 +472,7 @@ function ProductEditModal(
         }
       } catch (err) {
         console.error("Erro ao buscar sugestões Gemini:", err);
-        const errorDetail = err.response?.data?.detail || err.message || "Falha ao carregar sugestões da IA (Gemini).";
+        const errorDetail = resolveServiceErrorDetail(err, "Falha ao carregar sugestões da IA (Gemini).");
         setError(errorDetail);
         showErrorToast(errorDetail);
         setIaAttributeSuggestions({});
@@ -459,7 +507,7 @@ function ProductEditModal(
         if (onProductUpdated) onProductUpdated(responseProduct);
         onClose();
       } catch (err) {
-        const errorDetail = err.response?.data?.detail || err.message || "Erro ao salvar produto.";
+        const errorDetail = resolveServiceErrorDetail(err, "Erro ao salvar produto.");
         setError(errorDetail);
         showErrorToast(errorDetail);
       } finally {
@@ -468,45 +516,48 @@ function ProductEditModal(
     };
 
     const handleGenerateTitles = async () => {
+      const currentStatus = String(formData?.status_titulo_ia || '').toUpperCase();
+      if (ACTIVE_PROCESS_STATUSES.has(currentStatus)) {
+        return;
+      }
+      const runId = Date.now();
+      generationPollRunsRef.current.status_titulo_ia = runId;
       setIsGeneratingIA(true);
+      setFormData((prev) => ({
+        ...prev,
+        status_titulo_ia: 'PENDENTE',
+      }));
       try {
         if (showAiFeatures && usarIAConteudo) {
           await productService.gerarTitulosProduto(product.id);
         } else {
           await productService.gerarTitulosProdutoModoBasico(product.id);
         }
-        clearRefreshTimeout(titleRefreshTimeoutRef);
-        titleRefreshTimeoutRef.current = setTimeout(() => {
-          void (async () => {
-            try {
-              const updatedProduct = await productService.getProdutoById(product.id);
-              if (!isMountedRef.current || !isOpenRef.current) {
-                return;
-              }
-              setFormData((prev) => ({
-                ...prev,
-                nome_chat_api: updatedProduct.nome_chat_api,
-                dados_brutos_web:
-                updatedProduct.dados_brutos_web && typeof updatedProduct.dados_brutos_web === 'object' ?
-                updatedProduct.dados_brutos_web :
-                prev.dados_brutos_web,
-                titulos_sugeridos: extractGeneratedTitles(updatedProduct)
-              }));
-              onProductUpdated?.(updatedProduct);
-            } catch (refreshErr) {
-              if (!isMountedRef.current || !isOpenRef.current) {
-                return;
-              }
-              console.error("Erro ao atualizar títulos gerados:", refreshErr);
-              showErrorToast("Nao foi possivel atualizar os titulos gerados.");
-            } finally {
-              titleRefreshTimeoutRef.current = null;
-            }
-          })();
-        }, 7000);
+        if (generationPollRunsRef.current.status_titulo_ia !== runId) {
+          return;
+        }
+        setFormData((prev) => ({
+          ...prev,
+          status_titulo_ia: 'EM_PROGRESSO',
+        }));
+        const updatedProduct = await pollGenerationUntilTerminal(
+          product.id,
+          'status_titulo_ia',
+          runId
+        );
+        if (generationPollRunsRef.current.status_titulo_ia !== runId || !isMountedRef.current || !isOpenRef.current) {
+          return;
+        }
+        if (!updatedProduct) {
+          showWarningToast("A geração de títulos continua em segundo plano. Reabra o produto em instantes.");
+        }
       } catch (err) {
         console.error("Erro ao gerar títulos:", err);
-        showErrorToast(err.response?.data?.detail || "Erro ao gerar títulos.");
+        showErrorToast(resolveServiceErrorDetail(err, "Erro ao gerar títulos."));
+        setFormData((prev) => ({
+          ...prev,
+          status_titulo_ia: 'FALHA',
+        }));
       } finally {
         setIsGeneratingIA(false);
       }
@@ -522,40 +573,48 @@ function ProductEditModal(
     };
 
     const handleGenerateDescription = async () => {
+      const currentStatus = String(formData?.status_descricao_ia || '').toUpperCase();
+      if (ACTIVE_PROCESS_STATUSES.has(currentStatus)) {
+        return;
+      }
+      const runId = Date.now();
+      generationPollRunsRef.current.status_descricao_ia = runId;
       setIsGeneratingIA(true);
+      setFormData((prev) => ({
+        ...prev,
+        status_descricao_ia: 'PENDENTE',
+      }));
       try {
         if (showAiFeatures && usarIAConteudo) {
           await productService.gerarDescricaoProduto(product.id);
         } else {
           await productService.gerarDescricaoProdutoModoBasico(product.id);
         }
-        clearRefreshTimeout(descriptionRefreshTimeoutRef);
-        descriptionRefreshTimeoutRef.current = setTimeout(() => {
-          void (async () => {
-            try {
-              const updatedProduct = await productService.getProdutoById(product.id);
-              if (!isMountedRef.current || !isOpenRef.current) {
-                return;
-              }
-              setFormData((prev) => ({
-                ...prev,
-                descricao_chat_api: updatedProduct.descricao_chat_api
-              }));
-              onProductUpdated?.(updatedProduct);
-            } catch (refreshErr) {
-              if (!isMountedRef.current || !isOpenRef.current) {
-                return;
-              }
-              console.error("Erro ao atualizar descrição gerada:", refreshErr);
-              showErrorToast("Nao foi possivel atualizar a descricao gerada.");
-            } finally {
-              descriptionRefreshTimeoutRef.current = null;
-            }
-          })();
-        }, 7000);
+        if (generationPollRunsRef.current.status_descricao_ia !== runId) {
+          return;
+        }
+        setFormData((prev) => ({
+          ...prev,
+          status_descricao_ia: 'EM_PROGRESSO',
+        }));
+        const updatedProduct = await pollGenerationUntilTerminal(
+          product.id,
+          'status_descricao_ia',
+          runId
+        );
+        if (generationPollRunsRef.current.status_descricao_ia !== runId || !isMountedRef.current || !isOpenRef.current) {
+          return;
+        }
+        if (!updatedProduct) {
+          showWarningToast("A geração da descrição continua em segundo plano. Reabra o produto em instantes.");
+        }
       } catch (err) {
         console.error("Erro ao gerar descrição:", err);
-        showErrorToast(err.response?.data?.detail || "Erro ao gerar descrição.");
+        showErrorToast(resolveServiceErrorDetail(err, "Erro ao gerar descrição."));
+        setFormData((prev) => ({
+          ...prev,
+          status_descricao_ia: 'FALHA',
+        }));
       } finally {
         setIsGeneratingIA(false);
       }
@@ -569,6 +628,13 @@ function ProductEditModal(
     const appliedDetails = Array.isArray(enrichmentSummary?.campos_alterados_detalhe) ?
     enrichmentSummary.campos_alterados_detalhe :
     [];
+    const webEnrichmentProcessing =
+      isEnrichingWeb || ACTIVE_PROCESS_STATUSES.has(String(formData?.status_enriquecimento_web || '').toUpperCase());
+    const titleGenerationProcessing =
+      isGeneratingIA || ACTIVE_PROCESS_STATUSES.has(String(formData?.status_titulo_ia || '').toUpperCase());
+    const descriptionGenerationProcessing =
+      isGeneratingIA || ACTIVE_PROCESS_STATUSES.has(String(formData?.status_descricao_ia || '').toUpperCase());
+    const contentGenerationProcessing = titleGenerationProcessing || descriptionGenerationProcessing;
 
     return (
       <>
@@ -686,11 +752,11 @@ function ProductEditModal(
                 <div key={key} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '5px' }}>
                                          <input type="text" value={key} disabled style={{ flex: '1', backgroundColor: '#f0f0f0' }} />
                                          <input type="text" value={value || ''} onChange={(e) => handleDynamicAttributeChange(key, e.target.value)} style={{ flex: '2' }} />
-                                         <button type="button" onClick={() => {
+                                         <button type="button" className="btn-remove-dynamic-attribute" onClick={() => {
                     const { [key]: _, ...rest } = formData.dynamic_attributes;
                     setFormData((prev) => ({ ...prev, dynamic_attributes: rest }));
                     showInfoToast(`Atributo manual "${key}" removido.`);
-                  }} title="Remover este atributo manual" style={{ padding: '5px', color: 'red', border: 'none', background: 'transparent', cursor: 'pointer' }}>🗑️</button>
+                  }} title="Remover este atributo manual">🗑️</button>
                                      </div>
                 )}
                               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
@@ -712,8 +778,8 @@ function ProductEditModal(
               <div className="form-section">
                             <h3>{showAiFeatures ? 'Conteúdo Gerado com IA ou Básico' : 'Conteúdo Gerado'}</h3>
                             <div className="product-edit-content-toolbar">
-                              <button type="button" onClick={_handleEnrichWeb} disabled={isEnrichingWeb || isNewProduct}>
-                                {isEnrichingWeb ? 'Enriquecendo Web...' : showAiFeatures && usarIAEnriquecimentoWeb ? 'Enriquecer Web + IA' : 'Enriquecer Web'}
+                              <button type="button" onClick={_handleEnrichWeb} disabled={webEnrichmentProcessing || isNewProduct}>
+                                {webEnrichmentProcessing ? 'Enriquecendo Web...' : showAiFeatures && usarIAEnriquecimentoWeb ? 'Enriquecer Web + IA' : 'Enriquecer Web'}
                               </button>
                               {showAiFeatures &&
                                 <label className="product-edit-inline-toggle">
@@ -727,7 +793,7 @@ function ProductEditModal(
                                       }
                                       setUsarIAEnriquecimentoWeb(event.target.checked);
                                     }}
-                                    disabled={isEnrichingWeb || isNewProduct}
+                                    disabled={webEnrichmentProcessing || isNewProduct}
                                   />
                                   <span>Usar IA no enriquecimento web</span>
                                 </label>
@@ -738,6 +804,49 @@ function ProductEditModal(
                                 Defina um tipo de produto para habilitar coleta de atributos relevantes com IA no enriquecimento e nas sugestões.
                               </p> :
                               null}
+                            <div className="product-edit-content-toolbar product-edit-content-toolbar--generation">
+                              <button
+                                type="button"
+                                onClick={handleGenerateTitles}
+                                disabled={contentGenerationProcessing || isNewProduct}
+                              >
+                                {titleGenerationProcessing ?
+                                  'Gerando...' :
+                                  showAiFeatures && usarIAConteudo ?
+                                    'Gerar títulos com IA' :
+                                    'Gerar títulos no básico'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleGenerateDescription}
+                                disabled={contentGenerationProcessing || isNewProduct}
+                              >
+                                {descriptionGenerationProcessing ?
+                                  'Gerando...' :
+                                  showAiFeatures && usarIAConteudo ?
+                                    'Gerar descrição com IA' :
+                                    'Gerar descrição no básico'}
+                              </button>
+                              {showAiFeatures &&
+                                <label className="product-edit-inline-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={usarIAConteudo}
+                                    onChange={(event) => setUsarIAConteudo(event.target.checked)}
+                                    disabled={contentGenerationProcessing || isNewProduct}
+                                  />
+                                  <span>Usar IA</span>
+                                </label>
+                              }
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={handleOpenContentView}
+                                disabled={isNewProduct}
+                              >
+                                Abrir tela dedicada
+                              </button>
+                            </div>
                             <ProductContentWorkspace
                               titles={formData.titulos_sugeridos}
                               description={formData.descricao_chat_api}
@@ -750,16 +859,6 @@ function ProductEditModal(
                                 });
                               }}
                               onDescriptionChange={(value) => setFormData((prev) => ({ ...prev, descricao_chat_api: value }))}
-                              onGenerateTitles={handleGenerateTitles}
-                              onGenerateDescription={handleGenerateDescription}
-                              isGenerating={isGeneratingIA}
-                              disableActions={isNewProduct}
-                              showUseAiToggle={showAiFeatures}
-                              useAi={usarIAConteudo}
-                              onUseAiChange={setUsarIAConteudo}
-                              onOpenDedicatedView={handleOpenContentView}
-                              titleButtonLabel={showAiFeatures && usarIAConteudo ? 'Gerar títulos com IA' : 'Gerar títulos no básico'}
-                              descriptionButtonLabel={showAiFeatures && usarIAConteudo ? 'Gerar descrição com IA' : 'Gerar descrição no básico'}
                             />
                         </div>
               }
@@ -833,8 +932,8 @@ function ProductEditModal(
                 </div>
 
                 <div className="modal-actions">
-                    <button type="button" onClick={onClose} disabled={isLoading || isEnrichingWeb || isGeneratingIA || isSuggestingGemini} className="btn-secondary">Cancelar</button>
-                    <button type="submit" disabled={isLoading || isEnrichingWeb || isGeneratingIA || isSuggestingGemini} className="btn-success">{isLoading ? 'Salvando...' : 'Salvar Produto'}</button>
+                    <button type="button" onClick={onClose} disabled={isLoading || webEnrichmentProcessing || contentGenerationProcessing || isSuggestingGemini} className="btn-secondary">Cancelar</button>
+                    <button type="submit" disabled={isLoading || webEnrichmentProcessing || contentGenerationProcessing || isSuggestingGemini} className="btn-success">{isLoading ? 'Salvando...' : 'Salvar Produto'}</button>
                 </div>
             </form>
           }
@@ -845,10 +944,93 @@ function ProductEditModal(
           onCreated={handleNewTypeCreated} />
         
         <LoadingOverlay
-          isOpen={isLoading || isEnrichingWeb || isGeneratingIA || isSuggestingGemini}
+          isOpen={isLoading || webEnrichmentProcessing || contentGenerationProcessing || isSuggestingGemini}
           message="Processando..." />
         
         </>);
 
   }
-const BASE_PRODUCT_FIELDS = new Set(['nome_base', 'nome_chat_api', 'descricao_original', 'descricao_curta_orig', 'descricao_chat_api', 'descricao_curta_gerada', 'sku', 'ean', 'ncm', 'marca', 'modelo', 'categoria_original', 'categoria_mapeada', 'preco_custo', 'preco_venda', 'preco_promocional', 'estoque_disponivel', 'peso_gramas', 'dimensoes_cm', 'imagem_principal_url', 'imagens_secundarias_urls', 'fornecedor_id', 'product_type_id', 'ativo_marketplace', 'data_publicacao_marketplace', 'status_enriquecimento_web', 'status_titulo_ia', 'status_descricao_ia', 'log_enriquecimento_web', 'titulos_sugeridos']);const initialFormData = { nome_base: '', nome_chat_api: '', descricao_original: '', descricao_curta_orig: '', descricao_chat_api: '', descricao_curta_gerada: '', sku: '', ean: '', ncm: '', marca: '', modelo: '', categoria_original: '', categoria_mapeada: '', preco_custo: '', preco_venda: '', preco_promocional: '', estoque_disponivel: '', peso_gramas: '', dimensoes_cm: '', imagem_principal_url: '', imagens_secundarias_urls: [], fornecedor_id: '', product_type_id: '', dynamic_attributes: {}, dados_brutos_web: {}, titulos_sugeridos: [], ativo_marketplace: false, data_publicacao_marketplace: null, log_enriquecimento_web: { historico_mensagens: [] }, status_enriquecimento_web: null, status_titulo_ia: null, status_descricao_ia: null };const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;const WEB_ENRICHMENT_MAX_POLLS = 40;const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set(['CONCLUIDO', 'CONCLUIDO_SUCESSO', 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA', 'FALHA', 'FALHOU', 'NAO_APLICAVEL']);export default ProductEditModal;
+
+const BASE_PRODUCT_FIELDS = new Set([
+  'nome_base',
+  'nome_chat_api',
+  'descricao_original',
+  'descricao_curta_orig',
+  'descricao_chat_api',
+  'descricao_curta_gerada',
+  'sku',
+  'ean',
+  'ncm',
+  'marca',
+  'modelo',
+  'categoria_original',
+  'categoria_mapeada',
+  'preco_custo',
+  'preco_venda',
+  'preco_promocional',
+  'estoque_disponivel',
+  'peso_gramas',
+  'dimensoes_cm',
+  'imagem_principal_url',
+  'imagens_secundarias_urls',
+  'fornecedor_id',
+  'product_type_id',
+  'ativo_marketplace',
+  'data_publicacao_marketplace',
+  'status_enriquecimento_web',
+  'status_titulo_ia',
+  'status_descricao_ia',
+  'log_enriquecimento_web',
+  'titulos_sugeridos',
+]);
+
+const initialFormData = {
+  nome_base: '',
+  nome_chat_api: '',
+  descricao_original: '',
+  descricao_curta_orig: '',
+  descricao_chat_api: '',
+  descricao_curta_gerada: '',
+  sku: '',
+  ean: '',
+  ncm: '',
+  marca: '',
+  modelo: '',
+  categoria_original: '',
+  categoria_mapeada: '',
+  preco_custo: '',
+  preco_venda: '',
+  preco_promocional: '',
+  estoque_disponivel: '',
+  peso_gramas: '',
+  dimensoes_cm: '',
+  imagem_principal_url: '',
+  imagens_secundarias_urls: [],
+  fornecedor_id: '',
+  product_type_id: '',
+  dynamic_attributes: {},
+  dados_brutos_web: {},
+  titulos_sugeridos: [],
+  ativo_marketplace: false,
+  data_publicacao_marketplace: null,
+  log_enriquecimento_web: { historico_mensagens: [] },
+  status_enriquecimento_web: null,
+  status_titulo_ia: null,
+  status_descricao_ia: null,
+};
+
+const WEB_ENRICHMENT_POLL_INTERVAL_MS = 3000;
+const WEB_ENRICHMENT_MAX_POLLS = 40;
+const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
+  'CONCLUIDO',
+  'CONCLUIDO_SUCESSO',
+  'CONCLUIDO_COM_DADOS_PARCIAIS',
+  'NENHUMA_FONTE_ENCONTRADA',
+  'FALHA_API_EXTERNA',
+  'FALHA_CONFIGURACAO_API_EXTERNA',
+  'FALHA',
+  'FALHOU',
+  'NAO_APLICAVEL',
+]);
+
+export default ProductEditModal;

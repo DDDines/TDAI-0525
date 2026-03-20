@@ -1,9 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 import PlanoPage from '../PlanoPage.jsx';
 import authService from '../../services/authService';
 import dashboardService from '../../services/dashboardService';
+import planosService from '../../services/planosService';
 import { showErrorToast, showInfoToast } from '../../utils/notifications';
 
 jest.mock('../../services/authService', () => ({
@@ -20,14 +22,32 @@ jest.mock('../../services/dashboardService', () => ({
   },
 }));
 
+jest.mock('../../services/planosService', () => ({
+  __esModule: true,
+  default: {
+    listarPlanos: jest.fn(),
+    mudarPlano: jest.fn(),
+    criarCheckout: jest.fn(),
+    abrirPortal: jest.fn(),
+  },
+}));
+
 jest.mock('../../utils/notifications', () => ({
   showErrorToast: jest.fn(),
   showInfoToast: jest.fn(),
 }));
 
 describe('PlanoPage', () => {
+  const renderPage = () =>
+    render(
+      <MemoryRouter>
+        <PlanoPage />
+      </MemoryRouter>
+    );
+
   beforeEach(() => {
     jest.clearAllMocks();
+    planosService.listarPlanos.mockResolvedValue([]);
     dashboardService.getMyDashboard.mockResolvedValue({
       plano_nome: 'Pro',
       product_experience_mode: 'complete',
@@ -61,7 +81,7 @@ describe('PlanoPage', () => {
       },
     });
 
-    render(<PlanoPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Pro' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Capacidade do plano/i })).toBeInTheDocument();
@@ -71,16 +91,12 @@ describe('PlanoPage', () => {
     expect(screen.getAllByText(/Ilimitado/).length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /Ver historico de uso/i })).toHaveAttribute('href', '/historico');
     expect(screen.getByRole('link', { name: /Configurar credenciais/i })).toHaveAttribute('href', '/configuracoes');
+    expect(screen.getByRole('button', { name: /Mudar de plano/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Conhecer upgrade/i }));
     fireEvent.click(screen.getByRole('button', { name: /Falar com suporte/i }));
 
     expect(showInfoToast).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/upgrade ainda nao foi habilitado/i)
-    );
-    expect(showInfoToast).toHaveBeenNthCalledWith(
-      2,
       expect.stringMatching(/suporte comercial ainda nao foi conectado/i)
     );
   });
@@ -89,7 +105,7 @@ describe('PlanoPage', () => {
     authService.getCurrentUser.mockReturnValueOnce(new Promise(() => {}));
     dashboardService.getMyDashboard.mockReturnValueOnce(new Promise(() => {}));
 
-    render(<PlanoPage />);
+    renderPage();
 
     expect(screen.getByText(/Preparando sua visao de capacidade/i)).toBeInTheDocument();
   });
@@ -97,7 +113,7 @@ describe('PlanoPage', () => {
   test('shows an error state when user data fails to load', async () => {
     authService.getCurrentUser.mockRejectedValueOnce(new Error('plano indisponivel'));
 
-    render(<PlanoPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('plano indisponivel');
@@ -108,7 +124,7 @@ describe('PlanoPage', () => {
   test('uses the generic load error fallback when the request fails without a message', async () => {
     authService.getCurrentUser.mockRejectedValueOnce({});
 
-    render(<PlanoPage />);
+    renderPage();
 
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith(
@@ -122,7 +138,7 @@ describe('PlanoPage', () => {
     authService.getCurrentUser.mockResolvedValueOnce({ id: 8, plano: null });
     dashboardService.getMyDashboard.mockResolvedValueOnce(null);
 
-    render(<PlanoPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Gratuito' })).toBeInTheDocument();
     expect(screen.getByText(/sem busca web incluida/i)).toBeInTheDocument();
@@ -155,7 +171,7 @@ describe('PlanoPage', () => {
       },
     });
 
-    render(<PlanoPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Gratuito' })).toBeInTheDocument();
     expect(screen.getByText(/Fluxo enxuto com geracao basica como padrao/i)).toBeInTheDocument();
@@ -174,7 +190,7 @@ describe('PlanoPage', () => {
       },
     });
 
-    render(<PlanoPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: 'N/D' })).toBeInTheDocument();
     expect(screen.queryByText(/Fila de suporte com atendimento prioritario/i)).not.toBeInTheDocument();

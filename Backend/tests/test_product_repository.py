@@ -440,7 +440,20 @@ def test_product_repository_update_delete_get_or_create_and_scalar_none():
 
         deleted = repo.delete_produto(db_produto=created)
         assert deleted.id == created.id
+        assert deleted.is_deleted is True
+        assert deleted.deleted_at is not None
         assert repo.get_produto(produto_id=created.id) is None
+        assert repo.count_produtos_by_user(user_id=user.id, is_admin=False) == 2
+        assert created.id not in repo.list_produto_ids_by_user(user_id=user.id, is_admin=False)
+
+        restored = repo.create_produto(
+            produto=schemas.ProdutoCreate(nome_base="Restaurado", ean="2222222222222"),
+            user_id=user.id,
+        )
+        assert restored.id == created.id
+        assert restored.is_deleted is False
+        assert restored.deleted_at is None
+        assert repo.get_produto(produto_id=created.id).nome_base == "Restaurado"
 
         class _QueryStub:
             def filter(self, *_args, **_kwargs):

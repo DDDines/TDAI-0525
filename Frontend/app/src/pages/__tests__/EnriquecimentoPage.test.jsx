@@ -62,6 +62,7 @@ jest.mock('../../components/produtos/ProductTable', () => ({
     onSelectAllProdutos,
     onEdit,
     onSort,
+    selectionMenuItems = [],
   }) => (
     <div>
       <div data-testid="produtos-renderizados">{produtos.map((item) => item.nome_base).join(',')}</div>
@@ -72,13 +73,15 @@ jest.mock('../../components/produtos/ProductTable', () => ({
       <button onClick={() => onSelectProduto(produtos[0]?.id)}>select-first</button>
       <button onClick={() => onSelectAllProdutos(true)}>select-all</button>
       <button onClick={() => onSelectAllProdutos(false)}>clear-all</button>
-      <label htmlFor="mock-select-page-enrichment">Selecionar pagina atual</label>
-      <input
-        id="mock-select-page-enrichment"
-        type="checkbox"
-        aria-label="Selecionar pagina atual"
-        onChange={(event) => onSelectAllProdutos(event.target.checked)}
-      />
+      {selectionMenuItems.map((item) => (
+        <button
+          key={item.key}
+          onClick={() => item.onClick?.()}
+          disabled={item.disabled}
+        >
+          {item.label}
+        </button>
+      ))}
       <button onClick={() => onEdit(produtos[0])}>row-click</button>
       <button onClick={() => onSort('nome_base')}>sort-name</button>
     </div>
@@ -211,6 +214,34 @@ describe('EnriquecimentoPage', () => {
     expect(showWarningToast).not.toHaveBeenCalled();
   });
 
+  test('shows a warning toast when enrichment finishes with partial data', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      id: 1,
+      status_enriquecimento_web: 'CONCLUIDO_COM_DADOS_PARCIAIS',
+    });
+
+    renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+    await userEvent.click(screen.getByText('select-first'));
+    await userEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(1)
+    );
+    await waitFor(() =>
+      expect(productService.getProdutoById).toHaveBeenCalledWith('1')
+    );
+    expect(showWarningToast).toHaveBeenCalledWith(
+      'Enriquecimento web finalizado com pendências para os produtos selecionados.'
+    );
+    expect(showSuccessToast).not.toHaveBeenCalledWith(
+      'Enriquecimento web finalizado para os produtos selecionados.'
+    );
+  });
+
   test('allows explicit IA opt-in in complete mode before starting enrichment', async () => {
     mockEffectiveMode = 'complete';
     renderWithQueryClient(<EnriquecimentoPage />);
@@ -236,17 +267,14 @@ describe('EnriquecimentoPage', () => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
     });
 
-    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    await userEvent.click(screen.getByRole('button', { name: /Selecionar página atual/i }));
     expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
     expect(
-      screen.getByText('1 item(ns) selecionado(s) (pagina atual)')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Selecionar todos os 25 resultados' })
+      screen.getByText('1 item(ns) selecionado(s) (página atual)')
     ).toBeInTheDocument();
 
     productService.getProdutosIds.mockResolvedValueOnce({ ids: [1, 8, 9] });
-    await userEvent.click(screen.getByRole('button', { name: 'Selecionar todos os 25 resultados' }));
+    await userEvent.click(screen.getByRole('button', { name: /Selecionar todos os resultados da pesquisa/i }));
 
     await waitFor(() => {
       expect(productService.getProdutosIds).toHaveBeenCalledWith({
@@ -261,9 +289,6 @@ describe('EnriquecimentoPage', () => {
     expect(screen.getByTestId('selecionados')).toHaveTextContent('1,8,9');
     expect(
       screen.getByText('3 item(ns) selecionado(s) (todos os resultados)')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Manter apenas os 1 itens desta pagina' })
     ).toBeInTheDocument();
     expect(showInfoToast).not.toHaveBeenCalledWith(
       '3 item(ns) selecionado(s) em todos os resultados filtrados.'
@@ -528,7 +553,7 @@ describe('EnriquecimentoPage', () => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Secundario');
     });
 
-    fireEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    fireEvent.click(screen.getByRole('button', { name: /Selecionar página atual/i }));
     fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
 
     await waitFor(() => {
@@ -562,10 +587,10 @@ describe('EnriquecimentoPage', () => {
       expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
     });
 
-    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    await userEvent.click(screen.getByRole('button', { name: /Selecionar página atual/i }));
     expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
 
-    await userEvent.click(screen.getByLabelText(/Selecionar pagina atual/i));
+    await userEvent.click(screen.getByRole('button', { name: /Limpar seleção/i }));
     expect(screen.getByTestId('selecionados')).toHaveTextContent('');
 
     await userEvent.click(screen.getByText('sort-name'));
@@ -684,7 +709,8 @@ describe('EnriquecimentoPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('falha no start');
     });
-    expect(productService.getProdutos).toHaveBeenCalledTimes(2);
+    expect(productService.getProdutos).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('status-renderizados')).toHaveTextContent('1:FALHA');
   });
 
   test('falls back to a generic start error and timed refresh when polling cannot read any product', async () => {
@@ -716,11 +742,11 @@ describe('EnriquecimentoPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('selecionados')).toHaveTextContent('1');
-      expect(screen.getByRole('button', { name: /Enriquecer Web \(1\) selecionado\(s\)/i })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /Enriquecer Web/i })).not.toBeDisabled();
     });
 
     fireEvent.click(
-      screen.getByRole('button', { name: /Enriquecer Web \(1\) selecionado\(s\)/i })
+      screen.getByRole('button', { name: /Enriquecer Web/i })
     );
 
     await waitFor(() =>
@@ -816,7 +842,46 @@ describe('EnriquecimentoPage', () => {
       await Promise.resolve();
     });
 
-    expect(productService.getProdutoById).toHaveBeenCalledTimes(3);
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(2);
+  }, 15000);
+
+  test('stops polling when the page unmounts', async () => {
+    jest.useFakeTimers();
+    productService.getProdutoById.mockResolvedValue({
+      id: 1,
+      status_enriquecimento_web: 'EM_PROGRESSO',
+    });
+
+    const { unmount } = renderWithQueryClient(<EnriquecimentoPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('produtos-renderizados')).toHaveTextContent('Produto Teste');
+    });
+
+    fireEvent.click(screen.getByText('select-first'));
+    fireEvent.click(screen.getByRole('button', { name: /Enriquecer Web/i }));
+
+    await waitFor(() =>
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledTimes(1)
+    );
+    await waitFor(() => {
+      expect(productService.getProdutoById).toHaveBeenCalledTimes(1);
+    });
+
+    unmount();
+
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(1);
+    expect(showSuccessToast).not.toHaveBeenCalledWith(
+      'Enriquecimento web finalizado para os produtos selecionados.'
+    );
+    expect(showInfoToast).not.toHaveBeenCalledWith(
+      'O enriquecimento web ainda pode estar em andamento em segundo plano. Atualizando a lista.'
+    );
   }, 15000);
 });
 

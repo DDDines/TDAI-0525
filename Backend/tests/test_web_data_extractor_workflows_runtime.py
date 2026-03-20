@@ -27,7 +27,7 @@ class _TopLevelFunctionSurface:
                 called.append(("public", query, num_results))
                 return ["https://example.com/publico"]
     
-            async def buscar_urls_google_async(self, *, query: str, num_results: int = 3):
+            async def buscar_urls_google_async(self, *, query: str, num_results: int = 3, api_key=None, search_engine_id=None):
                 """Run buscar urls google async in this workflow."""
                 called.append(("google", query, num_results))
                 return ["https://example.com/google"]

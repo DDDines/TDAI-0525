@@ -210,6 +210,32 @@ async function iniciarEnriquecimentoWebProduto(produtoId, options = null) {
   }
 }
 
+async function batchGeneration({ produtoIds, tipo, provider, numTitulos = 3, tamanhoPalavras = 150 }) {
+  try {
+    const response = await apiClient.post('/geracao/batch', {
+      produto_ids: produtoIds,
+      tipo,
+      provider,
+      num_titulos: numTitulos,
+      tamanho_palavras: tamanhoPalavras,
+    });
+    return response.data; // { agendados, ignorados, detalhes }
+  } catch (error) {
+    console.error('Erro no batch generation:', error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao agendar geração em lote.');
+  }
+}
+
+async function atualizarWorkflowStatus(produtoId, workflowStatus) {
+  try {
+    const response = await apiClient.patch(`/produtos/${produtoId}/workflow-status`, { workflow_status: workflowStatus });
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao atualizar workflow_status do produto ${produtoId}:`, error.response?.data || error.message);
+    throw error.response?.data || new Error('Falha ao atualizar status do workflow.');
+  }
+}
+
 async function batchDeleteProdutos(produtoIds) {
   try {
     const response = await apiClient.post('/produtos/batch-delete/', produtoIds);
@@ -310,6 +336,7 @@ export {
   registrarFeedbackConteudoGerado,
   exportarProdutos,
   gerarConteudoCanal,
+  atualizarWorkflowStatus,
 };
 
 export default {
@@ -332,4 +359,6 @@ export default {
   registrarFeedbackConteudoGerado,
   exportarProdutos,
   gerarConteudoCanal,
+  atualizarWorkflowStatus,
+  batchGeneration,
 };

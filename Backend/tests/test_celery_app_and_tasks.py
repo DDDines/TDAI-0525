@@ -76,6 +76,7 @@ def test_celery_task_wrappers_delegate_to_runtimes(monkeypatch):
         produto_id=8,
         tipo_geracao_principal="titulo",
         generation_provider_key="openai_title",
+        fallback_generation_provider_key="basic_title",
         num_titulos=4,
     )
     celery_tasks.run_pdf_page_extraction_task.run(import_job_id=9, page_number=10)
@@ -104,6 +105,7 @@ def test_celery_task_wrappers_delegate_to_runtimes(monkeypatch):
                 "produto_id": 8,
                 "tipo_geracao_principal": "titulo",
                 "funcao_geracao_ia_no_servico": "callable:openai_title",
+                "funcao_geracao_fallback_no_servico": "callable:basic_title",
                 "num_titulos": 4,
                 "tamanho_palavras": None,
                 "template_titulo": None,

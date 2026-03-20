@@ -201,6 +201,7 @@ class _TopLevelFunctionSurface:
                     "produto_id": 8,
                     "tipo_geracao_principal": "titulo",
                     "generation_provider_key": "openai_title",
+                    "fallback_generation_provider_key": None,
                     "num_titulos": 4,
                     "tamanho_palavras": None,
                 },
@@ -236,10 +237,47 @@ class _TopLevelFunctionSurface:
                     "produto_id": 8,
                     "tipo_geracao_principal": "descricao",
                     "generation_provider_key": "basic_description",
+                    "fallback_generation_provider_key": None,
                     "num_titulos": None,
                     "tamanho_palavras": 120,
                     "template_titulo": "titulo livre",
                     "template_descricao": "descricao livre",
+                },
+            )
+        ]
+
+    def test_enqueue_generation_task_dispatches_celery_with_fallback_provider():
+        """Preserve fallback provider metadata in Celery payloads."""
+        dispatcher = _DispatcherStub(use_celery=True)
+        service, _ = _build_service(
+            produto=SimpleNamespace(user_id=1),
+            dispatcher_cls=lambda: dispatcher,
+        )
+
+        service.enqueue_generation_task(
+            background_tasks=_BackgroundTasksStub(),
+            task_executor=lambda **kwargs: kwargs,
+            user_id=9,
+            produto_id=12,
+            generation_type="titulo",
+            generation_func=object(),
+            generation_provider_key="openai_title",
+            fallback_generation_func=object(),
+            fallback_generation_provider_key="basic_title",
+            num_titulos=3,
+        )
+
+        assert dispatcher.named_calls == [
+            (
+                "generation.run",
+                {
+                    "user_id": 9,
+                    "produto_id": 12,
+                    "tipo_geracao_principal": "titulo",
+                    "generation_provider_key": "openai_title",
+                    "fallback_generation_provider_key": "basic_title",
+                    "num_titulos": 3,
+                    "tamanho_palavras": None,
                 },
             )
         ]

@@ -463,6 +463,28 @@ describe('ProductEditModal', () => {
     expect(screen.getByRole('button', { name: /Gerar Títulos/i })).toBeInTheDocument();
   });
 
+  test('mantem as acoes de conteudo bloqueadas quando os status ja estao pendentes', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...baseProduct,
+      status_enriquecimento_web: 'PENDENTE',
+      status_titulo_ia: 'PENDENTE',
+      status_descricao_ia: 'PENDENTE',
+    });
+
+    renderModal({
+      product: { id: 10 },
+    });
+
+    await screen.findByLabelText(/Nome Base/i);
+    await user.click(screen.getByRole('button', { name: /Conte/i }));
+
+    expect(screen.getByRole('button', { name: /Enriquecendo Web/i })).toBeDisabled();
+    expect(screen.getAllByRole('button', { name: /Gerando/i })).toHaveLength(2);
+    screen.getAllByRole('button', { name: /Gerando/i }).forEach((button) => {
+      expect(button).toBeDisabled();
+    });
+  });
+
   test('fetches the supplier by id when it is missing from the initial dependency list', async () => {
     fornecedorService.getFornecedores.mockResolvedValueOnce({ items: [fornecedores[1]] });
     fornecedorService.getFornecedorById.mockResolvedValueOnce({
@@ -731,11 +753,13 @@ describe('ProductEditModal', () => {
         ...baseProduct,
         titulos_sugeridos: ['Titulo 1', 'Titulo 2'],
         nome_chat_api: 'Nome IA',
+        status_titulo_ia: 'CONCLUIDO',
       })
       .mockResolvedValueOnce({
         ...baseProduct,
         titulos_sugeridos: ['Titulo 1', 'Titulo 2'],
         descricao_chat_api: 'Descricao limpa gerada',
+        status_descricao_ia: 'CONCLUIDO',
       });
 
     renderModal({ product: { id: 10 } });
@@ -774,11 +798,13 @@ describe('ProductEditModal', () => {
         ...baseProduct,
         titulos_sugeridos: ['Titulo IA'],
         nome_chat_api: 'Nome IA',
+        status_titulo_ia: 'CONCLUIDO',
       })
       .mockResolvedValueOnce({
         ...baseProduct,
         titulos_sugeridos: ['Titulo IA'],
         descricao_chat_api: 'Descricao IA gerada',
+        status_descricao_ia: 'CONCLUIDO',
       });
 
     render(
@@ -802,7 +828,11 @@ describe('ProductEditModal', () => {
     });
     await advance(7000);
 
-    await user.click(screen.getByRole('button', { name: /Gerar D/i }));
+    const generateDescriptionButton = await screen.findByRole('button', { name: /Gerar D/i });
+    await waitFor(() => {
+      expect(generateDescriptionButton).toBeEnabled();
+    });
+    await user.click(generateDescriptionButton);
     await waitFor(() => {
       expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(10);
     });
@@ -841,10 +871,10 @@ describe('ProductEditModal', () => {
     await advance(7000);
 
     expect(showErrorToast).toHaveBeenCalledWith(
-      'Nao foi possivel atualizar os titulos gerados.'
+      'Não foi possível atualizar os títulos gerados.'
     );
     expect(showErrorToast).toHaveBeenCalledWith(
-      'Nao foi possivel atualizar a descricao gerada.'
+      'Não foi possível atualizar a descrição gerada.'
     );
   });
 
@@ -1331,8 +1361,8 @@ describe('ProductEditModal', () => {
       );
     });
     await waitFor(() => {
-      expect(showSuccessToast).toHaveBeenCalledWith(
-        'Enriquecimento finalizado (CONCLUIDO_COM_DADOS_PARCIAIS). Aplicados: 1. Ignorados: 2.'
+      expect(showWarningToast).toHaveBeenCalledWith(
+        'Enriquecimento finalizado com pendências (CONCLUIDO_COM_DADOS_PARCIAIS). Aplicados: 1. Ignorados: 2.'
       );
     });
   });
@@ -1404,6 +1434,16 @@ describe('ProductEditModal', () => {
   });
 
   test('clears pending title and description refreshes when the modal closes', async () => {
+    const descriptionRefresh = createDeferred();
+    productService.getProdutoById
+      .mockResolvedValueOnce(baseProduct)
+      .mockResolvedValueOnce({
+        ...baseProduct,
+        titulos_sugeridos: ['Titulo pronto'],
+        status_titulo_ia: 'CONCLUIDO',
+      })
+      .mockImplementationOnce(() => descriptionRefresh.promise);
+
     const { rerender } = render(
       <ProductEditModal
         isOpen={true}
@@ -1444,7 +1484,7 @@ describe('ProductEditModal', () => {
 
     await advance(8000);
 
-    expect(productService.getProdutoById).toHaveBeenCalledTimes(1);
+    expect(productService.getProdutoById).toHaveBeenCalledTimes(3);
   });
 
   test('fetchGeminiSuggestions does not crash when API returns empty object', async () => {
@@ -1801,6 +1841,7 @@ describe('ProductEditModal', () => {
         ...baseProduct,
         titulos_sugeridos: ['Titulo limpo'],
         dados_brutos_web: 'payload-invalido',
+        status_titulo_ia: 'CONCLUIDO',
       });
 
     render(
@@ -1877,7 +1918,7 @@ describe('ProductEditModal', () => {
       expect.objectContaining({ titulos_sugeridos: ['Titulo tardio'] })
     );
     expect(showErrorToast).not.toHaveBeenCalledWith(
-      'Nao foi possivel atualizar os titulos gerados.'
+      'Não foi possível atualizar os títulos gerados.'
     );
   });
 
@@ -1923,7 +1964,7 @@ describe('ProductEditModal', () => {
     });
 
     expect(showErrorToast).not.toHaveBeenCalledWith(
-      'Nao foi possivel atualizar os titulos gerados.'
+      'Não foi possível atualizar os títulos gerados.'
     );
   });
 
@@ -1975,7 +2016,7 @@ describe('ProductEditModal', () => {
       expect.objectContaining({ descricao_chat_api: 'Descricao tardia' })
     );
     expect(showErrorToast).not.toHaveBeenCalledWith(
-      'Nao foi possivel atualizar a descricao gerada.'
+      'Não foi possível atualizar a descrição gerada.'
     );
   });
 
@@ -2021,7 +2062,7 @@ describe('ProductEditModal', () => {
     });
 
     expect(showErrorToast).not.toHaveBeenCalledWith(
-      'Nao foi possivel atualizar a descricao gerada.'
+      'Não foi possível atualizar a descrição gerada.'
     );
   });
 });

@@ -153,7 +153,7 @@ function ImportProgress({ fileId, onDone }) {
   const status = statusQuery.data;
 
   if (error) {
-    return <p style={{ color: 'red' }}>{error}</p>;
+    return <p style={{ color: 'var(--danger)' }}>{error}</p>;
   }
 
   if (!status) {

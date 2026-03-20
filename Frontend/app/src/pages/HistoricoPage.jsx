@@ -1,3 +1,9 @@
+/**
+ * Module historico page.
+ *
+ * Defines responsibilities and integration points for pages.
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

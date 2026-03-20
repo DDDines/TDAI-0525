@@ -85,7 +85,7 @@
 }
 
 .sidebar-nav li {
-  margin: 0;
+  margin: 0 0 0.34rem;
 }
 
 .nav-link {
@@ -98,7 +98,8 @@
   transition: background-color 0.2s ease, color 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 12px;
+  margin: 0 0.65rem;
 }
 
 .sidebar.desktop.closed .nav-link {
@@ -115,8 +116,6 @@
   background-color: var(--sidebar-active-bg, #e0e0e0);
   color: #000;
   font-weight: bold;
-  border-radius: 12px;
-  margin: 0 0.65rem;
 }
 
 .nav-icon {

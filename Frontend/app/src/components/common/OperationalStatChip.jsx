@@ -1,3 +1,9 @@
+/**
+ * Module operational stat chip.
+ *
+ * Defines responsibilities and integration points for components common.
+ */
+
 import React from 'react';
 
 function OperationalStatChip({ icon, label, value, tone = 'neutral' }) {

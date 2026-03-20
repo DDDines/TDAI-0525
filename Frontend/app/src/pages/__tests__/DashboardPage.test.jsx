@@ -222,8 +222,8 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);
-    expect(screen.getByText('Usuarios')).toBeInTheDocument();
-    expect(screen.getByText('Geracoes IA no mes')).toBeInTheDocument();
+    expect(screen.getByText('Usuários')).toBeInTheDocument();
+    expect(screen.getByText('Gerações IA no mês')).toBeInTheDocument();
     expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
   });
 });

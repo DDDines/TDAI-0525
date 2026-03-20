@@ -78,6 +78,7 @@ class CeleryTaskRuntime:
         produto_id: int,
         tipo_geracao_principal: str,
         generation_provider_key: str,
+        fallback_generation_provider_key: str | None = None,
         num_titulos: int | None = None,
         tamanho_palavras: int | None = None,
         template_titulo: str | None = None,
@@ -86,12 +87,18 @@ class CeleryTaskRuntime:
         """Execute generation tasks through Celery using provider keys."""
         generation_service = build_generation_task_service()
         generation_callable = resolve_generation_callable(generation_provider_key)
+        fallback_generation_callable = (
+            resolve_generation_callable(fallback_generation_provider_key)
+            if fallback_generation_provider_key
+            else None
+        )
         CeleryTaskRuntime._run_async(
             generation_service.run_generation_task(
                 user_id=user_id,
                 produto_id=produto_id,
                 tipo_geracao_principal=tipo_geracao_principal,
                 funcao_geracao_ia_no_servico=generation_callable,
+                funcao_geracao_fallback_no_servico=fallback_generation_callable,
                 num_titulos=num_titulos,
                 tamanho_palavras=tamanho_palavras,
                 template_titulo=template_titulo,

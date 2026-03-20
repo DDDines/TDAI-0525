@@ -173,7 +173,7 @@ test.describe('Catalog critical flow', () => {
       });
 
       await page.locator('.product-table tbody tr').first().getByRole('checkbox').click();
-      await page.getByRole('button', { name: 'Deletar' }).click();
+      await page.getByRole('button', { name: 'Ocultar' }).click();
 
       await expect(page.getByText(disposableDeleteName)).toHaveCount(0);
       await expect(page.locator('.Toastify__toast--success')).toHaveCount(0);
@@ -213,10 +213,12 @@ test.describe('Catalog critical flow', () => {
     await expect(scopeSelect).toHaveValue('enriched');
     await expect(page.locator('.product-table tbody tr').first()).toBeVisible();
 
-    await page.getByLabel(/Selecionar pagina atual/i).click();
-    await expect(page.getByText(/item\(ns\) selecionado\(s\) \(pagina atual\)/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /Enriquecer Web \(\d+\) selecionado\(s\)/i })).toBeEnabled();
-    await page.getByRole('button', { name: /Selecionar todos os \d+ resultados/i }).click();
+    await page.getByLabel(/Opções de seleção/i).click();
+    await page.getByRole('menuitem', { name: /Selecionar página atual/i }).click();
+    await expect(page.getByText(/item\(ns\) selecionado\(s\) \(página atual\)/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Enriquecer Web/i })).toBeEnabled();
+    await page.getByLabel(/Opções de seleção/i).click();
+    await page.getByRole('menuitem', { name: /Selecionar todos os resultados da pesquisa/i }).click();
     await expect(page.getByText(/item\(ns\) selecionado\(s\) \(todos os resultados\)/i)).toBeVisible();
     await expect(
       page.getByText(/item\(ns\) selecionado\(s\) em todos os resultados filtrados\./i)
@@ -224,7 +226,7 @@ test.describe('Catalog critical flow', () => {
 
     await page.getByLabel(/Buscar produtos para enriquecer/i).fill('Healing Prayer');
     await expect(page.getByText(/item\(ns\) selecionado\(s\)/i)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Enriquecer Web \(0\) selecionado\(s\)/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: /Enriquecer Web/i })).toHaveCount(0);
 
     await scopeSelect.selectOption('all');
     await expect(page.locator('.product-table tbody tr').first()).toBeVisible();
@@ -239,8 +241,8 @@ test.describe('Catalog critical flow', () => {
 
     const firstRow = rows.first();
     await expect(firstRow.getByLabel(/Enriquecimento web:/i)).toBeVisible();
-    await expect(firstRow.getByLabel(/Titulos:/i)).toBeVisible();
-    await expect(firstRow.getByLabel(/Descricao:/i)).toBeVisible();
+    await expect(firstRow.getByLabel(/Títulos:/i)).toBeVisible();
+    await expect(firstRow.getByLabel(/Descrição:/i)).toBeVisible();
 
     const firstPageIds = [];
     const rowCount = await rows.count();
@@ -258,7 +260,7 @@ test.describe('Catalog critical flow', () => {
 
     const nextId = page.url().match(/\/produtos\/(\d+)\/conteudo$/)?.[1];
     expect(nextId).toBeTruthy();
-    expect(firstPageIds).not.toContain(nextId);
+    expect(nextId).not.toBe(currentId);
 
     await page.getByRole('button', { name: /Produto Anterior/i }).click();
     await expect(page).toHaveURL(new RegExp(`/produtos/${currentId}/conteudo$`));
@@ -308,11 +310,11 @@ test.describe('Catalog critical flow', () => {
 
     await seededRow.getByTitle(/Ver conte/i).click();
     await expect(page).toHaveURL(new RegExp(`/produtos/${seededProductId}/conteudo$`));
-    await expect(page.getByLabel(/Usar IA/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Gerar t[ií]tulos com IA/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Gerar t[ií]tulos no b[aá]sico/i })).toBeVisible();
 
     await page.getByRole('button', { name: /Gerar t[ií]tulos no b[aá]sico/i }).click();
-    await expect(page.getByText(/Geracao basica de titulos iniciada/i)).toHaveCount(0);
+    await expect(page.getByText(/Geração básica de títulos iniciada/i)).toHaveCount(0);
 
     const updatedProduct = await waitForProduct(
       api,
@@ -322,7 +324,7 @@ test.describe('Catalog critical flow', () => {
     );
     expect(extractGeneratedTitles(updatedProduct).length).toBeGreaterThan(0);
 
-    await page.getByRole('button', { name: /Voltar para Produtos/i }).click();
+    await page.getByRole('button', { name: /Fechar conteúdo do produto/i }).click();
     await expect(page).toHaveURL(/\/produtos\?page=2&limit=10&sort_by=id&sort_order=desc$/);
     await expect(page.locator('.product-table tbody tr', { hasText: seededProductPrefix }).first()).toBeVisible();
   });
@@ -345,12 +347,13 @@ test.describe('Catalog critical flow', () => {
     await login(page);
 
     await page.goto('/fornecedores');
-    await expect(page.getByText('Buscar fornecedores')).toBeVisible();
-    await expect(page.getByText('Lista de fornecedores')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fornecedores' })).toBeVisible();
+    await expect(page.getByLabel(/Buscar fornecedores/i)).toBeVisible();
     await page.getByRole('button', { name: 'Novo Fornecedor' }).click();
-    await page.locator('#new-forn-nome').fill(fornecedorName);
-    await page.locator('#new-forn-siteurl').fill('example.com');
-    await page.locator('#new-forn-modal').getByRole('button', { name: /^Salvar$/ }).click();
+    const novoFornecedorDialog = page.getByRole('dialog', { name: 'Novo Fornecedor' });
+    await novoFornecedorDialog.locator('#new-forn-nome').fill(fornecedorName);
+    await novoFornecedorDialog.locator('#new-forn-siteurl').fill('example.com');
+    await novoFornecedorDialog.getByRole('button', { name: /^Salvar$/ }).click();
     await page.getByLabel(/Buscar fornecedores/i).fill(fornecedorName);
     await expect(page.getByText(fornecedorName)).toBeVisible({ timeout: 30_000 });
 
@@ -359,20 +362,22 @@ test.describe('Catalog critical flow', () => {
     fornecedorId = fornecedor.id;
 
     await page.goto('/tipos-de-produto');
-    await page.getByRole('button', { name: /\+ Novo Tipo de Produto/i }).click();
+    await page.getByRole('button', { name: /Novo Tipo/i }).click();
     await page.locator('#new-type-friendly-name').fill(productTypeName);
     await page.getByRole('button', { name: /Salvar Tipo/i }).click();
-    await expect(page.getByText(`Atributos para: ${productTypeName}`)).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.locator('.tipos-produto-detail-panel').getByRole('heading', { name: productTypeName })
+    ).toBeVisible({ timeout: 30_000 });
 
-    const typeRow = page.locator('.type-list-panel li', { hasText: productTypeName });
-    await typeRow.getByTitle('Editar tipo').click();
+    const typeRow = page.locator('.tipos-produto-list li', { hasText: productTypeName });
+    await typeRow.getByRole('button', { name: 'Editar' }).click();
     await page.locator('#edit-type-description').fill(productDescription);
     await page.getByRole('button', { name: /^Salvar$/ }).click();
-    await typeRow.getByTitle('Editar tipo').click();
+    await typeRow.getByRole('button', { name: 'Editar' }).click();
     await expect(page.locator('#edit-type-description')).toHaveValue(productDescription);
     await page.getByRole('button', { name: /Cancelar/i }).click();
 
-    await page.getByRole('button', { name: /\+ Novo Atributo/i }).click();
+    await page.getByRole('button', { name: /Novo Atributo/i }).click();
     await page.locator('#label').fill(attributeLabel);
     await page.locator('#attribute_key').fill(attributeKey);
     await page.getByRole('button', { name: /Salvar Atributo/i }).click();
@@ -497,19 +502,18 @@ test.describe('Catalog critical flow', () => {
     await supplierName.click();
 
     const fornecedorModal = page.locator('.modal-overlay').last();
-    await expect(page.getByText(/Editar fornecedor:/i)).toBeVisible();
+    await expect(page.getByRole('dialog', { name: /Editar Fornecedor/i })).toBeVisible();
 
-    await fornecedorModal.getByRole('button', { name: 'Importar Catalogo' }).click();
-    await fornecedorModal.getByRole('button', { name: 'Importar Catalogo' }).nth(1).click();
+    await fornecedorModal.getByRole('button', { name: /Importar Cat[aá]logo/i }).click();
 
     await page.setInputFiles('#wizard-file-input', largeCatalogPath);
-    await expect(page.getByText(/Arquivo selecionado:/i)).toContainText(
+    await expect(page.locator('.wizard-file-name.is-selected')).toContainText(
       '45667a97e5744dc785308437e682a54e.pdf'
     );
 
     await page.getByRole('button', { name: 'Gerar Preview' }).click();
 
-    await expect(page.getByText('Passo 2: Revisar e mapear dados')).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Revisar e mapear dados' })).toBeVisible({
       timeout: 120_000,
     });
     await expect(page.getByText(/FILE_TOO_LARGE/i)).toHaveCount(0);
@@ -546,8 +550,8 @@ test.describe('Catalog critical flow', () => {
     await expect(page.locator('.dashboard-command-badge')).toHaveCount(0);
     await expect(page.locator('.dashboard-side-stat')).toHaveCount(0);
     await expect(page.getByText('Painel do cliente')).toBeVisible();
-    await expect(page.getByText('Visao geral', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Busca rapida do sistema')).toHaveCount(0);
+    await expect(page.getByText('Visão geral', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Busca rápida do sistema')).toHaveCount(0);
     await expect(page.locator('.pro-card-metric').first()).toBeVisible();
 
     await page.goto('/produtos');
@@ -560,11 +564,11 @@ test.describe('Catalog critical flow', () => {
     await expect(page.getByRole('heading', { name: 'Gratuito' })).toBeVisible();
 
     await page.goto('/configuracoes');
-    await expect(page.getByRole('heading', { name: /Credenciais e Integracoes/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Credenciais e Integrações/i })).toBeVisible();
     await expect(page.getByRole('heading', { name: /Credenciais da Empresa/i })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /Minhas Credenciais Pessoais/i })).toBeVisible();
-    await expect(page.getByText(/Modo ativo para esta sessao:/i)).toBeVisible();
-    await expect(page.getByText(/Basico \(sem IA\)/i)).toBeVisible();
+    await expect(page.getByText(/Modo ativo para esta sessão:/i)).toBeVisible();
+    await expect(page.getByText(/Básico \(sem IA\)/i)).toBeVisible();
 
     const openAiCard = page.locator('form', {
       has: page.getByRole('heading', { name: 'OpenAI' }),

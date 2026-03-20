@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from Backend import models
@@ -55,3 +57,19 @@ class LimitServiceAdapter:
             user_id=user_id,
             creditos_necessarios=creditos_necessarios,
         )
+
+    def verificar_limite_produtos(
+        self,
+        session: Session,
+        user: Any,
+    ) -> None:
+        """Bloqueia criacao de produtos quando o limite do plano e atingido."""
+        return self._runtime.verificar_limite_produtos(db=session, user=user)
+
+    def verificar_limite_enriquecimento(
+        self,
+        session: Session,
+        user: Any,
+    ) -> None:
+        """Bloqueia inicio de enriquecimento web quando o limite mensal e atingido."""
+        return self._runtime.verificar_limite_enriquecimento(db=session, user=user)

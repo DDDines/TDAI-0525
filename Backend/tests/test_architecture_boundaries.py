@@ -256,9 +256,14 @@ class _TopLevelFunctionSurface:
         offenders: list[str] = []
         allowed_functions = {
             ("Backend/database.py", "get_db"),
+            ("Backend/core/rate_limiter.py", "build_limiter"),
         }
     
         for path in _iter_python_files(BACKEND_ROOT):
+            if path.is_relative_to(BACKEND_ROOT / "alembic"):
+                continue
+            if path.is_relative_to(BACKEND_ROOT / "migrations"):
+                continue
             if path.is_relative_to(BACKEND_TESTS_ROOT):
                 continue
     

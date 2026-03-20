@@ -6,72 +6,75 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
+from Backend.infrastructure.adapters.ia_generation_adapter import IAGenerationServiceAdapter
+from Backend.infrastructure.repositories.product_repository import ProductRepository
 
 logger = logging.getLogger(__name__)
 
 CANAL_PROMPTS = {
     "mercado_livre": {
         "titulo": (
-            "Gere um título de produto para Mercado Livre com no MÁXIMO 60 caracteres. "
-            "Comece com a marca (se disponível), inclua o nome do produto e 1-2 atributos chave. "
-            "Use vírgulas para separar atributos. NÃO use emojis. Retorne APENAS o título, sem aspas.\n\n"
+            "Gere um titulo de produto para Mercado Livre com no MAXIMO 60 caracteres. "
+            "Comece com a marca (se disponivel), inclua o nome do produto e 1-2 atributos chave. "
+            "Use virgulas para separar atributos. Nao use emojis. Retorne apenas o titulo.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nModelo: {modelo}\nSKU: {sku}\n"
-            "Dados web: {dados_web}\nDescrição atual: {descricao_atual}"
+            "Dados web: {dados_web}\nDescricao atual: {descricao_atual}"
         ),
         "descricao": (
-            "Gere uma descrição de produto para Mercado Livre. Deve ser clara, objetiva e persuasiva. "
-            "Inclua: características principais, especificações técnicas (se disponível), benefícios. "
-            "Use bullet points com • . Máximo 800 caracteres. Retorne APENAS a descrição.\n\n"
+            "Gere uma descricao de produto para Mercado Livre. Seja clara, objetiva e persuasiva. "
+            "Inclua caracteristicas principais, especificacoes tecnicas e beneficios. "
+            "Use bullet points com •. Maximo 800 caracteres. Retorne apenas a descricao.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nSKU: {sku}\n"
-            "Dados web: {dados_web}\nTítulo gerado: {titulo_gerado}"
+            "Dados web: {dados_web}\nTitulo gerado: {titulo_gerado}"
         ),
     },
     "google_shopping": {
         "titulo": (
-            "Gere um título de produto para Google Shopping com no MÁXIMO 150 caracteres. "
+            "Gere um titulo de produto para Google Shopping com no MAXIMO 150 caracteres. "
             "Formato ideal: [Marca] [Nome do Produto] [Atributo 1] [Atributo 2]. "
-            "Inclua palavras-chave de busca relevantes. NÃO use maiúsculas em tudo. Retorne APENAS o título.\n\n"
+            "Inclua palavras-chave de busca relevantes. Retorne apenas o titulo.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nModelo: {modelo}\nSKU: {sku}\n"
             "Dados web: {dados_web}"
         ),
         "descricao": (
-            "Gere uma descrição de produto para Google Shopping. Foque em atributos técnicos e palavras-chave "
-            "que os compradores pesquisam. Seja direto e informativo. Máximo 500 caracteres. "
-            "Retorne APENAS a descrição, sem formatação especial.\n\n"
+            "Gere uma descricao de produto para Google Shopping. Foque em atributos tecnicos "
+            "e palavras-chave relevantes. Maximo 500 caracteres. Retorne apenas a descricao.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nSKU: {sku}\n"
             "Dados web: {dados_web}"
         ),
     },
     "b2b": {
         "titulo": (
-            "Gere um título técnico de produto para catálogo B2B/distribuidores. "
-            "Inclua: nome técnico, marca, código/modelo, especificações essenciais. "
-            "Seja preciso e profissional. Máximo 120 caracteres. Retorne APENAS o título.\n\n"
+            "Gere um titulo tecnico de produto para catalogo B2B/distribuidores. "
+            "Inclua nome tecnico, marca, codigo/modelo e especificacoes essenciais. "
+            "Maximo 120 caracteres. Retorne apenas o titulo.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nModelo: {modelo}\nSKU: {sku}\n"
             "Dados web: {dados_web}"
         ),
         "descricao": (
-            "Gere uma descrição técnica para catálogo B2B. Foque em: especificações técnicas, "
-            "compatibilidade, aplicações, código de referência. Linguagem profissional e técnica. "
-            "Máximo 600 caracteres. Retorne APENAS a descrição.\n\n"
+            "Gere uma descricao tecnica para catalogo B2B. Foque em especificacoes tecnicas, "
+            "compatibilidade, aplicacoes e codigo de referencia. Maximo 600 caracteres. "
+            "Retorne apenas a descricao.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nModelo: {modelo}\nSKU: {sku}\n"
             "Dados web: {dados_web}"
         ),
     },
     "ecommerce": {
         "titulo": (
-            "Gere um título atraente para e-commerce genérico. "
-            "Equilibre SEO com legibilidade: inclua marca, produto, atributo diferencial. "
-            "Máximo 100 caracteres. Retorne APENAS o título.\n\n"
+            "Gere um titulo atraente para ecommerce generico. Equilibre SEO com legibilidade: "
+            "inclua marca, produto e atributo diferencial. Maximo 100 caracteres. "
+            "Retorne apenas o titulo.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nModelo: {modelo}\nSKU: {sku}\n"
             "Dados web: {dados_web}"
         ),
         "descricao": (
-            "Gere uma descrição envolvente para e-commerce. Inclua: benefícios para o cliente, "
-            "características principais, especificações técnicas resumidas, CTA sutil. "
-            "Máximo 700 caracteres. Use parágrafos curtos. Retorne APENAS a descrição.\n\n"
+            "Gere uma descricao envolvente para ecommerce. Inclua beneficios para o cliente, "
+            "caracteristicas principais e especificacoes tecnicas resumidas. Maximo 700 caracteres. "
+            "Use paragrafos curtos e retorne apenas a descricao.\n\n"
             "Produto: {nome_base}\nMarca: {marca}\nSKU: {sku}\n"
-            "Dados web: {dados_web}\nDescrição atual: {descricao_atual}"
+            "Dados web: {dados_web}\nDescricao atual: {descricao_atual}"
         ),
     },
 }
@@ -87,23 +90,32 @@ VALID_CANAIS = set(CANAL_PROMPTS.keys())
 
 
 class ChannelContentService:
-    """Generates channel-specific title and description for a product."""
+    """Generate channel-specific title and description variants for a product."""
 
-    def __init__(self, *, db: Session, models: Any) -> None:
-        """Initialize channel content service with a DB session and models module."""
+    def __init__(
+        self,
+        *,
+        db: Session,
+        models: Any,
+        product_repository_factory: Any = ProductRepository,
+        ia_generation_adapter: Any | None = None,
+    ) -> None:
+        """Bind the service to its DB session, model module and infrastructure ports."""
         self._db = db
         self._models = models
+        self._product_repository = product_repository_factory(db)
+        self._ia_generation_adapter = ia_generation_adapter or IAGenerationServiceAdapter()
 
     def _build_prompt(self, template: str, produto: Any, titulo_gerado: str = "") -> str:
-        """Build a formatted prompt string from the template and product data."""
+        """Build a prompt string using product base data and enrichment context."""
         dados_web_str = ""
         if produto.dados_brutos_web:
             raw = produto.dados_brutos_web if isinstance(produto.dados_brutos_web, dict) else {}
             parts = []
             if raw.get("descricao_detalhada"):
-                parts.append(f"Descrição: {str(raw['descricao_detalhada'])[:400]}")
+                parts.append(f"Descricao: {str(raw['descricao_detalhada'])[:400]}")
             if raw.get("especificacoes"):
-                parts.append(f"Especificações: {str(raw['especificacoes'])[:300]}")
+                parts.append(f"Especificacoes: {str(raw['especificacoes'])[:300]}")
             dados_web_str = " | ".join(parts)
 
         return template.format(
@@ -117,23 +129,13 @@ class ChannelContentService:
         )
 
     async def _gerar_texto_simples(self, *, prompt: str, max_tokens: int, user: Any) -> str:
-        """Call OpenAI to generate a simple text completion for the given prompt."""
-        from Backend.infrastructure.runtime_modules.ia_generation_module import AiProviderWorkflow
-
-        workflow = AiProviderWorkflow()
-        api_key = await workflow.get_openai_api_key(db=self._db, user=user)
-        if not api_key:
-            raise ValueError(
-                "Chave da API OpenAI não configurada. "
-                "Configure sua chave pessoal ou a chave da empresa para usar a geração por canal."
-            )
-        messages = [{"role": "user", "content": prompt}]
-        result = await workflow.call_openai_api(
-            prompt_messages=messages,
-            api_key=api_key,
+        """Generate freeform text through the IA adapter."""
+        return await self._ia_generation_adapter.gerar_texto_livre_com_openai(
+            session=self._db,
+            user=user,
+            prompt=prompt,
             max_tokens=max_tokens,
         )
-        return result.strip()
 
     async def generate_canal_content(
         self,
@@ -144,22 +146,13 @@ class ChannelContentService:
         gerar_titulo: bool = True,
         gerar_descricao: bool = True,
     ) -> Dict[str, Any]:
-        """Generate channel-specific content for a product."""
+        """Generate and persist channel-specific content for the given product."""
         if canal not in VALID_CANAIS:
-            raise ValueError(f"Canal inválido: {canal}. Use: {', '.join(sorted(VALID_CANAIS))}")
+            raise ValueError(f"Canal invalido: {canal}. Use: {', '.join(sorted(VALID_CANAIS))}")
 
-        produto = (
-            self._db.query(self._models.Produto)
-            .filter(
-                self._models.Produto.id == produto_id,
-                self._models.Produto.user_id == user.id,
-                self._models.Produto.deleted_at.is_(None),
-            )
-            .first()
-        )
-
+        produto = self._product_repository.get_produto(produto_id=produto_id, user_id=user.id)
         if not produto:
-            raise ValueError(f"Produto {produto_id} não encontrado.")
+            raise ValueError(f"Produto {produto_id} nao encontrado.")
 
         prompts = CANAL_PROMPTS[canal]
         existing = (produto.conteudo_canais or {}).copy()
@@ -169,21 +162,19 @@ class ChannelContentService:
         descricao: Optional[str] = canal_data.get("descricao")
 
         if gerar_titulo:
-            prompt_titulo = self._build_prompt(prompts["titulo"], produto)
             titulo = await self._gerar_texto_simples(
-                prompt=prompt_titulo,
+                prompt=self._build_prompt(prompts["titulo"], produto),
                 max_tokens=200,
                 user=user,
             )
 
         if gerar_descricao:
-            prompt_desc = self._build_prompt(
-                prompts["descricao"],
-                produto,
-                titulo_gerado=titulo or "",
-            )
             descricao = await self._gerar_texto_simples(
-                prompt=prompt_desc,
+                prompt=self._build_prompt(
+                    prompts["descricao"],
+                    produto,
+                    titulo_gerado=titulo or "",
+                ),
                 max_tokens=600,
                 user=user,
             )
@@ -193,14 +184,9 @@ class ChannelContentService:
             "descricao": descricao,
             "gerado_em": datetime.now(timezone.utc).isoformat(),
         }
-
-        # Merge into conteudo_canais JSON
         all_canais = (produto.conteudo_canais or {}).copy()
         all_canais[canal] = canal_data
-
-        # SQLAlchemy needs assignment to detect JSON mutation
         produto.conteudo_canais = all_canais
-        from sqlalchemy.orm.attributes import flag_modified
         flag_modified(produto, "conteudo_canais")
         self._db.commit()
         self._db.refresh(produto)

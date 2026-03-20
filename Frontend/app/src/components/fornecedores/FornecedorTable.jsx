@@ -4,13 +4,14 @@
  * Defines responsibilities and integration points for components fornecedores.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   LuBuilding2,
   LuCalendarDays,
   LuCircleSlash,
   LuExternalLink,
   LuGlobe,
+  LuListChecks,
 } from 'react-icons/lu';
 import './FornecedorTable.css';
 
@@ -36,7 +37,7 @@ function buildSiteData(rawValue) {
       hostname,
       label: pathLabel,
     };
-  } catch (error) {
+  } catch {
     return {
       href,
       hostname: raw.replace(/^https?:\/\//i, '').replace(/^www\./i, ''),
@@ -96,31 +97,94 @@ function FornecedorTable({
   onSelectRow,
   selectedIds,
   onSelectAllRows,
+  selectionMenuItems = [],
   isLoading,
 }) {
   const safeFornecedores = Array.isArray(fornecedores) ? fornecedores : [];
   const selectedList = Array.isArray(selectedIds) ? selectedIds : [];
   const pageSelected =
     safeFornecedores.length > 0 && selectedList.length === safeFornecedores.length;
+  const hasSelectionMenu = Array.isArray(selectionMenuItems) && selectionMenuItems.length > 0;
+  const [isSelectionMenuOpen, setIsSelectionMenuOpen] = useState(false);
+  const selectionMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!isSelectionMenuOpen) {
+      return undefined;
+    }
+
+    const handleOutsideClick = (event) => {
+      if (!selectionMenuRef.current?.contains(event.target)) {
+        setIsSelectionMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsSelectionMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSelectionMenuOpen]);
 
   return (
     <table className="fornecedor-table" id="forn-table">
       <thead>
         <tr>
           <th className="select fornecedor-select-header">
-            <div className="fornecedor-selection-header">
-              <label className="fornecedor-selection-toggle" title="Selecionar pagina atual">
-                <input
-                  type="checkbox"
-                  id="select-all-forn"
-                  aria-label="Selecionar pagina atual"
-                  onChange={(event) => onSelectAllRows(event.target.checked)}
-                  checked={pageSelected}
-                  disabled={safeFornecedores.length === 0}
-                />
-                <span>Pagina</span>
-              </label>
-            </div>
+            {hasSelectionMenu ? (
+              <div className="fornecedor-selection-menu" ref={selectionMenuRef}>
+                <button
+                  type="button"
+                  className={`fornecedor-selection-menu-trigger${isSelectionMenuOpen ? ' is-active' : ''}`}
+                  aria-label="Opcoes de selecao"
+                  aria-haspopup="menu"
+                  aria-expanded={isSelectionMenuOpen}
+                  onClick={() => setIsSelectionMenuOpen((currentValue) => !currentValue)}
+                  disabled={safeFornecedores.length === 0 && selectedList.length === 0}
+                >
+                  <LuListChecks />
+                </button>
+                {isSelectionMenuOpen ? (
+                  <div className="fornecedor-selection-menu-dropdown" role="menu">
+                    {selectionMenuItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        role="menuitem"
+                        className={`fornecedor-selection-menu-item${item.variant === 'danger' ? ' is-danger' : ''}`}
+                        onClick={() => {
+                          item.onClick?.();
+                          setIsSelectionMenuOpen(false);
+                        }}
+                        disabled={item.disabled}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="fornecedor-selection-header">
+                <label className="fornecedor-selection-toggle" title="Selecionar pagina atual">
+                  <input
+                    type="checkbox"
+                    id="select-all-forn"
+                    aria-label="Selecionar pagina atual"
+                    onChange={(event) => onSelectAllRows(event.target.checked)}
+                    checked={pageSelected}
+                    disabled={safeFornecedores.length === 0}
+                  />
+                </label>
+              </div>
+            )}
           </th>
           <th>Fornecedor</th>
           <th>Site</th>

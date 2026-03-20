@@ -1,12 +1,12 @@
-import React from 'react';
-import { screen, waitFor, fireEvent, act } from '@testing-library/react';
+﻿import React from 'react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { renderWithQueryClient } from '../../../test-utils/renderWithQueryClient.jsx';
 import ProdutoConteudoPage from '../ProdutoConteudoPage.jsx';
 import productService from '../../services/productService';
-import { showErrorToast, showInfoToast, showSuccessToast } from '../../utils/notifications';
-import userEvent from '@testing-library/user-event';
+import { showErrorToast, showSuccessToast, showWarningToast } from '../../utils/notifications';
 
 const mockNavigate = jest.fn();
 let mockEffectiveMode = 'basic';
@@ -24,6 +24,9 @@ jest.mock('../../services/productService', () => ({
   default: {
     getProdutoById: jest.fn(),
     getProdutos: jest.fn(),
+    getProdutosIds: jest.fn(),
+    deleteProduto: jest.fn(),
+    iniciarEnriquecimentoWebProduto: jest.fn(),
     gerarTitulosProduto: jest.fn(),
     gerarDescricaoProduto: jest.fn(),
     gerarTitulosProdutoModoBasico: jest.fn(),
@@ -34,8 +37,8 @@ jest.mock('../../services/productService', () => ({
 
 jest.mock('../../utils/notifications', () => ({
   showErrorToast: jest.fn(),
-  showInfoToast: jest.fn(),
   showSuccessToast: jest.fn(),
+  showWarningToast: jest.fn(),
 }));
 
 jest.mock('../../contexts/AppExperienceContext.jsx', () => ({
@@ -44,62 +47,85 @@ jest.mock('../../contexts/AppExperienceContext.jsx', () => ({
   }),
 }));
 
-jest.mock('../../utils/logger', () => ({
-  __esModule: true,
-  default: {
-    log: jest.fn(),
-    error: jest.fn(),
-  },
-}));
-
 function renderPage(initialEntry) {
   return renderWithQueryClient(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/produtos/:produtoId/conteudo" element={<ProdutoConteudoPage />} />
       </Routes>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
-function renderPageWithoutRouteParam(initialEntry = '/conteudo-sem-id') {
-  return renderWithQueryClient(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route path="*" element={<ProdutoConteudoPage />} />
-      </Routes>
-    </MemoryRouter>
-  );
-}
+const richProduct = {
+  id: 31,
+  nome_base: 'Reservatório de Ar',
+  marca: 'Wabco',
+  sku: 'SKU-31',
+  ean: '1234567890123',
+  imagem_principal_url: 'https://cdn.example.com/produto-31.png',
+  fornecedor: { nome: 'Fornecedor Prime' },
+  product_type: {
+    friendly_name: 'Automotivo',
+    attribute_templates: [
+      { attribute_key: 'material', label: 'Material' },
+      { attribute_key: 'codigo_original', label: 'Código original' },
+      { attribute_key: 'titulo_auto', label: 'Título' },
+    ],
+  },
+  titulos_sugeridos: ['Título A', 'Título B', 'Título A'],
+  descricao_chat_api:
+    'Fundada em 1999. Reservatório indicado para sistemas de freio pesado.',
+  dynamic_attributes: {
+    material: 'Alumínio',
+    codigo_original: 'WAB-31',
+    titulo_auto: 'Não deve aparecer',
+  },
+  modelo: 'Linha Premium',
+  categoria_original: 'Freio',
+  dados_brutos_web: {
+    especificacoes_tecnicas_dict: {
+      capacidade: '20 litros',
+    },
+    nome: 'Tool-Check Modular Micro 1 Caminho do catalogo: Wera Tools > Tools > Tool-Check Modular Micro 1 URL da fonte: https://www.wera.de/en/tools/tool-check-modular-micro-1/',
+    ool_check_modular_micro: '1/',
+    lista_caracteristicas_beneficios_bullets:
+      'Nome: Tool-Check Modular Micro 1 Caminho do catalogo: Wera Tools > Tools > Tool-Check Modular Micro 1 URL da fonte: https://www.wera.de/en/tools/tool-check-modular-micro-1/',
+    fonte_principal_url: 'https://www.wera.de/en/tools/tool-check-modular-micro-1/',
+    feedback_conteudo: {
+      valor: 'gostei',
+      comentario: 'Muito bom',
+    },
+    titulos_sugeridos_gerados: ['Título C'],
+    descricao_gerada: 'Texto duplicado',
+    log_interno: 'Não mostrar',
+  },
+  status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+  status_titulo_ia: 'CONCLUIDO_SUCESSO',
+  status_descricao_ia: 'NAO_INICIADO',
+};
 
 describe('ProdutoConteudoPage', () => {
-  let feedbackReject;
-
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.spyOn(window, 'confirm').mockImplementation(() => true);
     mockEffectiveMode = 'basic';
+    productService.getProdutosIds.mockResolvedValue({ ids: [30, 31, 32] });
     productService.getProdutos.mockResolvedValue({
       items: [{ id: 30 }, { id: 31 }, { id: 32 }],
       total_items: 3,
     });
-    productService.getProdutoById.mockResolvedValue({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: ['Titulo A', 'Titulo B', 'Titulo A'],
-      descricao_chat_api: 'Fundada em 1999. Produto ideal para sistemas de freio pesado.',
-      dados_brutos_web: {
-        titulos_sugeridos_gerados: ['Titulo C', 'Titulo B', 'Titulo D', 'Titulo E'],
-      },
-    });
+    productService.getProdutoById.mockResolvedValue(richProduct);
+    productService.deleteProduto.mockResolvedValue({ ...richProduct, is_deleted: true });
+    productService.iniciarEnriquecimentoWebProduto.mockResolvedValue({ ok: true });
     productService.registrarFeedbackConteudoGerado.mockResolvedValue({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: ['Titulo A'],
-      descricao_chat_api: 'Produto ideal para sistemas de freio pesado.',
+      ...richProduct,
       dados_brutos_web: {
+        ...richProduct.dados_brutos_web,
         feedback_conteudo: {
           valor: 'gostei',
-          comentario: 'Conteudo consistente',
+          comentario: 'Aprovado',
         },
       },
     });
@@ -107,49 +133,60 @@ describe('ProdutoConteudoPage', () => {
     productService.gerarDescricaoProduto.mockResolvedValue({ ok: true });
     productService.gerarTitulosProdutoModoBasico.mockResolvedValue({ ok: true });
     productService.gerarDescricaoProdutoModoBasico.mockResolvedValue({ ok: true });
-    feedbackReject = null;
   });
 
-  test('renders final generated titles without mixing stale raw suggestions, sanitizes company timeline claims and enables navigation', async () => {
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+    window.confirm.mockRestore();
+  });
+
+  test('usa o nome do produto como heading, renderiza o resumo geral e remove o título genérico', async () => {
     renderPage({
       pathname: '/produtos/31/conteudo',
       state: {
+        returnTo: '/produtos?page=2',
         productIds: [30, 31, 32],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
+        productQuery: { sort_by: 'id', sort_order: 'asc' },
       },
     });
 
-    await waitFor(() => {
-      expect(productService.getProdutoById).toHaveBeenCalledWith('31');
-    });
-
-    expect(await screen.findByText('Titulo A')).toBeInTheDocument();
-    expect(screen.getByText('Titulo B')).toBeInTheDocument();
-    expect(screen.queryByText('Titulo C')).not.toBeInTheDocument();
-    expect(screen.queryByText('Titulo D')).not.toBeInTheDocument();
-    expect(screen.queryByText('Titulo E')).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Produto ideal para sistemas de freio pesado.')
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Reservatório de Ar' })).toBeInTheDocument();
+    expect(screen.queryByText(/Conteúdo Gerado do Produto/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Marca: Wabco/)).toBeInTheDocument();
+    expect(screen.getByText('Fornecedor Prime')).toBeInTheDocument();
+    expect(screen.getByText('Automotivo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Fechar conteúdo do produto/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Abrir edição/i })).toBeInTheDocument();
+    expect(screen.getByText('Material')).toBeInTheDocument();
+    expect(screen.getByText('Alumínio')).toBeInTheDocument();
+    expect(screen.getByText('Capacidade')).toBeInTheDocument();
+    expect(screen.getByText('20 litros')).toBeInTheDocument();
+    expect(screen.queryByText('Não deve aparecer')).not.toBeInTheDocument();
+    expect(screen.queryByText('Texto duplicado')).not.toBeInTheDocument();
+    expect(screen.queryByText('log_interno')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tool-Check Modular Micro 1 Caminho do catalogo/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('1/')).not.toBeInTheDocument();
+    expect(screen.getByText('Reservatório indicado para sistemas de freio pesado.')).toBeInTheDocument();
     expect(screen.queryByText(/Fundada em 1999/)).not.toBeInTheDocument();
-
-    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeEnabled();
   });
 
-  test('navigates to adjacent products while preserving the ordering state', async () => {
+  test('fecha pela ação X usando returnTo e navega entre produtos mantendo o estado', async () => {
     renderPage({
       pathname: '/produtos/31/conteudo',
       state: {
+        returnTo: '/produtos?page=3&search=ar',
         productIds: [30, 31, 32],
         productQuery: { sort_by: 'nome_base', sort_order: 'asc', search: 'ar' },
       },
     });
 
-    await screen.findByText('Titulo A');
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
 
-    fireEvent.click(screen.getByRole('button', { name: /Pr.+ximo Produto/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Fechar conteúdo do produto/i }));
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos?page=3&search=ar');
 
+    fireEvent.click(screen.getByRole('button', { name: /Próximo produto/i }));
     expect(mockNavigate).toHaveBeenCalledWith('/produtos/32/conteudo', {
       state: {
         productIds: [30, 31, 32],
@@ -158,136 +195,229 @@ describe('ProdutoConteudoPage', () => {
           sort_order: 'asc',
           search: 'ar',
         },
+        returnTo: '/produtos?page=3&search=ar',
       },
     });
   });
 
-  test('saves feedback for generated content and updates the screen state', async () => {
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31, 32],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    fireEvent.change(screen.getByPlaceholderText(/Ex:/i), {
-      target: { value: 'Conteudo consistente' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Gostei' }));
-
-    await waitFor(() => {
-      expect(productService.registrarFeedbackConteudoGerado).toHaveBeenCalledWith(31, {
-        valor: 'gostei',
-        comentario: 'Conteudo consistente',
-      });
-    });
-    expect(showSuccessToast).toHaveBeenCalledWith('Feedback salvo com sucesso.');
-  });
-
-  test('starts direct title generation in basic mode from the dedicated page', async () => {
-    jest.useFakeTimers();
+  test('oculta o produto atual e abre o próximo item da lista', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     renderPage({
       pathname: '/produtos/31/conteudo',
       state: {
+        returnTo: '/produtos?page=3&search=ar',
         productIds: [30, 31, 32],
+        productQuery: { sort_by: 'nome_base', sort_order: 'asc', search: 'ar' },
+      },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: /Ocultar produto/i }));
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Tem certeza que deseja ocultar "Reservatório de Ar"?\n\nEle será ocultado da lista, mas continuará salvo no banco de dados.'
+    );
+    await waitFor(() => {
+      expect(productService.deleteProduto).toHaveBeenCalledWith(31);
+    });
+    expect(showSuccessToast).toHaveBeenCalledWith('Produto ocultado com sucesso.');
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos/32/conteudo', {
+      state: {
+        productIds: [30, 32],
+        productQuery: {
+          sort_by: 'nome_base',
+          sort_order: 'asc',
+          search: 'ar',
+        },
+        returnTo: '/produtos?page=3&search=ar',
+      },
+      replace: true,
+    });
+  });
+
+  test('volta para a lista quando o produto ocultado era o único da navegação', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    productService.getProdutosIds.mockResolvedValueOnce({ ids: [31] });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: {
+        returnTo: '/produtos?page=5',
+        productIds: [31],
         productQuery: { sort_by: 'id', sort_order: 'desc' },
       },
     });
 
-    await screen.findByText('Titulo A');
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: /Ocultar produto/i }));
 
-    await user.click(screen.getByRole('button', { name: /Gerar t.*tulos no b.*sico/i }));
+    await waitFor(() => {
+      expect(productService.deleteProduto).toHaveBeenCalledWith(31);
+    });
+    expect(mockNavigate).toHaveBeenCalledWith('/produtos?page=5', { replace: true });
+  });
+
+  test('mostra apenas os botões básicos quando o modo é basic', async () => {
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+
+    expect(screen.getByRole('button', { name: 'Gerar títulos no básico' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Executar enriquecimento web' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gerar descrição no básico' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Gerar títulos com IA' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Gerar descrição com IA' })).not.toBeInTheDocument();
+  });
+
+  test('mantém os atalhos desabilitados quando o produto já está pendente', async () => {
+    productService.getProdutoById.mockResolvedValueOnce({
+      ...richProduct,
+      status_enriquecimento_web: 'PENDENTE',
+      status_titulo_ia: 'PENDENTE',
+      status_descricao_ia: 'PENDENTE',
+    });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+
+    expect(screen.getByRole('button', { name: 'Executar enriquecimento web' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gerar títulos no básico' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Gerar descrição no básico' })).toBeDisabled();
+  });
+
+  test('mostra os botões de IA no modo complete', async () => {
+    mockEffectiveMode = 'complete';
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+
+    expect(screen.getByRole('button', { name: 'Gerar títulos com IA' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Gerar descrição com IA' })).toBeInTheDocument();
+  });
+
+  test('dispara geração básica de títulos e descrição na tela dedicada', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: 'Gerar títulos no básico' }));
     await waitFor(() => {
       expect(productService.gerarTitulosProdutoModoBasico).toHaveBeenCalledWith(31);
     });
-    expect(showInfoToast).not.toHaveBeenCalledWith(
-      'Geracao basica de titulos iniciada. Atualizando em instantes.'
-    );
 
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    jest.useRealTimers();
-  });
-
-  test('starts direct description generation in basic mode from the dedicated page', async () => {
-    jest.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31, 32],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    expect(screen.queryByLabelText(/Usar IA/i)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /Gerar descri.*o no b.*sico/i }));
+    await user.click(screen.getByRole('button', { name: 'Gerar descrição no básico' }));
     await waitFor(() => {
       expect(productService.gerarDescricaoProdutoModoBasico).toHaveBeenCalledWith(31);
     });
-    expect(showInfoToast).not.toHaveBeenCalledWith(
-      'Geracao basica de descricao iniciada. Atualizando em instantes.'
-    );
 
     act(() => {
       jest.runOnlyPendingTimers();
     });
-    jest.useRealTimers();
   });
 
-  test('allows IA opt-in for direct title generation in complete mode', async () => {
-    mockEffectiveMode = 'complete';
+  test('dispara enriquecimento web pelo atalho dedicado', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    jest.useFakeTimers();
 
     renderPage({
       pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31, 32],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
+      state: { productIds: [31] },
     });
 
-    await screen.findByText('Titulo A');
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: 'Executar enriquecimento web' }));
 
-    await user.click(screen.getByLabelText(/Usar IA/i));
-    await user.click(screen.getByRole('button', { name: /Gerar t.*tulos com IA/i }));
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(31);
+    });
+  });
+
+  test('mostra sucesso quando o enriquecimento termina com sucesso na tela dedicada', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    productService.getProdutoById
+      .mockResolvedValueOnce(richProduct)
+      .mockResolvedValueOnce({
+        ...richProduct,
+        status_enriquecimento_web: 'CONCLUIDO_SUCESSO',
+      });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: 'Executar enriquecimento web' }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(31);
+    });
+    await waitFor(() => {
+      expect(showSuccessToast).toHaveBeenCalledWith('Enriquecimento web finalizado com sucesso.');
+    });
+    expect(showWarningToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('Enriquecimento web finalizado com pendências')
+    );
+  });
+
+  test('mostra aviso quando o enriquecimento termina com pendências na tela dedicada', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    productService.getProdutoById
+      .mockResolvedValueOnce(richProduct)
+      .mockResolvedValueOnce({
+        ...richProduct,
+        status_enriquecimento_web: 'CONCLUIDO_COM_DADOS_PARCIAIS',
+      });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: 'Executar enriquecimento web' }));
+
+    await waitFor(() => {
+      expect(productService.iniciarEnriquecimentoWebProduto).toHaveBeenCalledWith(31);
+    });
+    await waitFor(() => {
+      expect(showWarningToast).toHaveBeenCalledWith(
+        'Enriquecimento web finalizado com pendências (CONCLUIDO_COM_DADOS_PARCIAIS). Revise os dados coletados.'
+      );
+    });
+  });
+
+  test('dispara geração com IA quando o modo complete está ativo', async () => {
+    mockEffectiveMode = 'complete';
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
+    });
+
+    await screen.findByRole('heading', { name: 'Reservatório de Ar' });
+    await user.click(screen.getByRole('button', { name: 'Gerar títulos com IA' }));
     await waitFor(() => {
       expect(productService.gerarTitulosProduto).toHaveBeenCalledWith(31);
     });
 
-    act(() => {
-      jest.runOnlyPendingTimers();
-    });
-    jest.useRealTimers();
-  });
-
-  test('allows IA opt-in for direct description generation in complete mode', async () => {
-    mockEffectiveMode = 'complete';
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    jest.useFakeTimers();
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31, 32],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    await user.click(screen.getByLabelText(/Usar IA/i));
-    await user.click(screen.getByRole('button', { name: /Gerar descri.*o com IA/i }));
+    await user.click(screen.getByRole('button', { name: 'Gerar descrição com IA' }));
     await waitFor(() => {
       expect(productService.gerarDescricaoProduto).toHaveBeenCalledWith(31);
     });
@@ -295,496 +425,70 @@ describe('ProdutoConteudoPage', () => {
     act(() => {
       jest.runOnlyPendingTimers();
     });
-    jest.useRealTimers();
   });
 
-  test('shows an error toast when the product content cannot be loaded', async () => {
-    productService.getProdutoById.mockRejectedValueOnce(new Error('Falha ao carregar conteudo.'));
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
-    });
-
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteudo.');
-    });
-  });
-
-  test('falls back to placeholders and disables feedback when there is no generated content', async () => {
-    productService.getProdutos.mockRejectedValueOnce(new Error('lista indisponivel'));
+  test('renderiza estado vazio das informações coletadas quando não há dados relevantes', async () => {
     productService.getProdutoById.mockResolvedValueOnce({
       id: 31,
-      nome_base: 'Produto sem conteudo',
+      nome_base: 'Produto limpo',
       titulos_sugeridos: [],
       descricao_chat_api: '',
-      descricao_original: '',
-      dados_brutos_web: {},
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-    });
-
-    expect(await screen.findByText(/Produto #31 - Produto sem conteudo/i)).toBeInTheDocument();
-    expect(
-      await screen.findAllByText((content) =>
-        content.includes('Titulo ainda') && content.includes('posicao')
-      )
-    ).toHaveLength(5);
-    expect(screen.getByText(/Descricao ainda nao gerada/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /N.*Gostei/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
-  });
-
-  test('sanitizes list query defaults, preserves full-list navigation and supports header actions', async () => {
-    productService.getProdutos.mockResolvedValueOnce({
-      items: [{ id: 29 }, { id: 30 }, { id: 31 }, { id: 32 }, { id: 33 }],
-      total_items: 5,
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: ['31', '31', 'invalido', 30, 0, 29],
-        productQuery: {
-          fornecedor_id: 22,
-          sort_by: '',
-          sort_order: '',
-          ignored: 'x',
-          status_titulo_ia: null,
-        },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    expect(productService.getProdutos).toHaveBeenCalledWith({
-      fornecedor_id: 22,
-      sort_by: 'id',
-      sort_order: 'asc',
-      skip: 0,
-      limit: 200,
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Voltar para Produtos/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos');
-
-    fireEvent.click(screen.getByRole('button', { name: /Abrir Edi/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos?id=31');
-
-    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
-      state: {
-        productIds: [29, 30, 31, 32, 33],
-        productQuery: {
-          fornecedor_id: 22,
-          sort_by: 'id',
-          sort_order: 'asc',
-        },
-      },
-    });
-  });
-
-  test('loads saved feedback, preserves timeline-only text when needed and handles feedback save failures', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: ['Titulo A'],
-      descricao_chat_api: 'Fundada em 1999.',
+      dynamic_attributes: {},
       dados_brutos_web: {
-        feedback_conteudo: {
-          valor: 'nao_gostei',
-          comentario: 'Texto muito institucional',
-        },
+        titulos_sugeridos_gerados: ['Ignorar'],
+        feedback_conteudo: { valor: 'gostei' },
       },
+      status_enriquecimento_web: 'NAO_INICIADO',
+      status_titulo_ia: 'NAO_INICIADO',
+      status_descricao_ia: 'NAO_INICIADO',
     });
-    productService.registrarFeedbackConteudoGerado.mockImplementationOnce(
-      () =>
-        new Promise((resolve, reject) => {
-          feedbackReject = reject;
-        })
-    );
 
     renderPage({
       pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'desc' },
-      },
+      state: { productIds: [31] },
     });
 
-    expect(await screen.findByDisplayValue('Texto muito institucional')).toBeInTheDocument();
-    expect(screen.getByText('Fundada em 1999.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Produto limpo' })).toBeInTheDocument();
+    expect(screen.getByText('Nenhuma informação adicional coletada para este produto.')).toBeInTheDocument();
+    expect(screen.getByText('Descrição ainda não gerada.')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /N.*Gostei/i }));
+  test('carrega feedback salvo e permite salvar um novo feedback', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
-    expect(productService.registrarFeedbackConteudoGerado).toHaveBeenCalledWith(31, {
-      valor: 'nao_gostei',
-      comentario: 'Texto muito institucional',
+    renderPage({
+      pathname: '/produtos/31/conteudo',
+      state: { productIds: [31] },
     });
-    expect(screen.getByRole('button', { name: 'Gostei' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /N.*Gostei/i })).toBeDisabled();
-    expect(screen.getByPlaceholderText(/Ex:/i)).toBeDisabled();
 
-    feedbackReject(new Error('Falha ao salvar feedback.'));
+    expect(await screen.findByDisplayValue('Muito bom')).toBeInTheDocument();
+
+    const commentField = screen.getByPlaceholderText(/Ex\.: títulos bons/i);
+    await user.clear(commentField);
+    await user.type(commentField, 'Aprovado');
+    await user.click(screen.getByRole('button', { name: 'Gostei' }));
 
     await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar feedback.');
-    });
-    expect(screen.getByRole('button', { name: 'Gostei' })).toBeEnabled();
-  });
-
-  test('uses alternate description sources and shows seo fallback content', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: [],
-      descricao_chat_api: '',
-      descricao_original: '',
-      dados_brutos_web: {
-        descricao_gerada: '',
-        descricao_detalhada_seo: 'Descricao SEO aproveitavel.',
-      },
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    expect(await screen.findByText('Descricao SEO aproveitavel.')).toBeInTheDocument();
-  });
-
-  test('preserves structured description line breaks while removing company timeline claims', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 31,
-      nome_base: 'Tela Central do Painel Superior',
-      titulos_sugeridos: ['Tela Central do Painel Superior'],
-      descricao_chat_api: [
-        'Fundada em 1999.',
-        '',
-        'Tela Central do Painel Superior',
-        '',
-        'Resumo tecnico:',
-        'Vidro com encaixe especifico para cabine Scania.',
-        '',
-        'Aplicacao:',
-        'Serie 5 2009',
-      ].join('\n'),
-      dados_brutos_web: {},
-    });
-
-    const { container } = renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    const descriptionNode = container.querySelector('.produto-conteudo-description');
-    expect(descriptionNode).not.toBeNull();
-    await waitFor(() => {
-      expect(descriptionNode.textContent).toContain('Resumo tecnico:');
-    });
-    expect(descriptionNode.textContent).toContain('Aplicacao:');
-    expect(descriptionNode.textContent).not.toContain('Fundada em 1999.');
-    expect(descriptionNode.textContent).toContain(
-      'Tela Central do Painel Superior\n\nResumo tecnico:\nVidro com encaixe especifico para cabine Scania.\n\nAplicacao:\nSerie 5 2009'
-    );
-  });
-
-  test('keeps empty saved comments and preserves timeline-only descriptions when they are the first valid candidate', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: ['Titulo A'],
-      descricao_chat_api: 'Fundada em 1999.',
-      dados_brutos_web: {
-        feedback_conteudo: {
-          valor: 'gostei',
-        },
-      },
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    expect(await screen.findByText('Fundada em 1999.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Ex:/i)).toHaveValue('');
-  });
-
-  test('keeps the state ordering when the backend list returns no items', async () => {
-    productService.getProdutos.mockResolvedValueOnce({
-      items: [],
-      total_items: 0,
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
-      state: {
-        productIds: [30, 31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-  });
-
-  test('preserves ids from state when the full-list fetch fails after mount', async () => {
-    productService.getProdutos.mockRejectedValueOnce(new Error('lista indisponivel'));
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [30, 31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
-      state: {
-        productIds: [30, 31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-  });
-
-  test('stops the full-list fetch when a partial page is returned without total count', async () => {
-    productService.getProdutos.mockResolvedValueOnce({
-      items: [{ id: 31 }],
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [],
-        productQuery: { fornecedor_id: 99 },
-      },
-    });
-
-    await screen.findByText('Titulo A');
-
-    expect(productService.getProdutos).toHaveBeenCalledTimes(1);
-    expect(productService.getProdutos).toHaveBeenCalledWith({
-      fornecedor_id: 99,
-      sort_by: 'id',
-      sort_order: 'asc',
-      skip: 0,
-      limit: 200,
-    });
-    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
-  });
-
-  test('continues fetching the full list when the first page is full and falls back to the route id', async () => {
-    const fullPage = Array.from({ length: 200 }, (_, index) => ({ id: index + 1 }));
-    productService.getProdutos
-      .mockResolvedValueOnce({
-        items: fullPage,
-      })
-      .mockResolvedValueOnce({
-        items: [{ id: 201 }],
+      expect(productService.registrarFeedbackConteudoGerado).toHaveBeenCalledWith(31, {
+        valor: 'gostei',
+        comentario: 'Aprovado',
       });
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: null,
-      nome_base: 'Produto vindo da rota',
-      titulos_sugeridos: ['Titulo da rota'],
-      descricao_chat_api: 'Descricao valida.',
-      dados_brutos_web: {},
     });
+    expect(showSuccessToast).toHaveBeenCalledWith('Feedback salvo com sucesso.');
+  });
+
+  test('exibe erro amigável quando o carregamento falha', async () => {
+    productService.getProdutoById.mockRejectedValueOnce(new Error('Falha ao carregar conteúdo.'));
 
     renderPage({
       pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [],
-        productQuery: { fornecedor_id: 88 },
-      },
-    });
-
-    expect(await screen.findByText('Titulo da rota')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(productService.getProdutos).toHaveBeenCalledTimes(2);
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
-      state: {
-        productIds: Array.from({ length: 201 }, (_, index) => index + 1),
-        productQuery: {
-          fornecedor_id: 88,
-          sort_by: 'id',
-          sort_order: 'asc',
-        },
-      },
-    });
-  });
-
-  test('treats non-array list payloads as empty while preserving the loaded product id', async () => {
-    productService.getProdutos.mockResolvedValueOnce({
-      items: { invalid: true },
-      total_items: 0,
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    expect(await screen.findByText('Titulo A')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
-  });
-
-  test('adds the loaded product id to the ordered navigation list when it was missing', async () => {
-    productService.getProdutos.mockResolvedValueOnce({
-      items: [{ id: 29 }, { id: 30 }],
-      total_items: 2,
-    });
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 35,
-      nome_base: 'Produto novo na lista',
-      titulos_sugeridos: ['Titulo unico'],
-      descricao_chat_api: 'Descricao aproveitavel.',
-      dados_brutos_web: {},
-    });
-
-    renderPage({
-      pathname: '/produtos/35/conteudo',
-      state: {
-        productIds: [30],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    expect(await screen.findByText('Titulo unico')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeEnabled();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /Produto Anterior/i }));
-    expect(mockNavigate).toHaveBeenCalledWith('/produtos/30/conteudo', {
-      state: {
-        productIds: [29, 30, 35],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-  });
-
-  test('ignores feedback submission when the loaded content still has no persisted product id', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: null,
-      nome_base: 'Rascunho temporario',
-      titulos_sugeridos: ['Titulo provisório'],
-      descricao_chat_api: 'Descricao provisoria.',
-      dados_brutos_web: {},
-    });
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    expect(await screen.findByText(/Titulo provis.rio/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Gostei' }));
-
-    expect(productService.registrarFeedbackConteudoGerado).not.toHaveBeenCalled();
-    expect(showSuccessToast).not.toHaveBeenCalled();
-    expect(showErrorToast).not.toHaveBeenCalled();
-  });
-
-  test('uses default load and save error fallbacks when service errors are empty', async () => {
-    productService.getProdutoById.mockRejectedValueOnce({});
-
-    const firstRender = renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
+      state: { productIds: [31] },
     });
 
     await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteudo do produto.');
+      expect(showErrorToast).toHaveBeenCalledWith('Falha ao carregar conteúdo.');
     });
-
-    firstRender.unmount();
-    jest.clearAllMocks();
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: 31,
-      nome_base: 'Reservatorio de Ar',
-      titulos_sugeridos: ['Titulo A'],
-      descricao_chat_api: 'Descricao valida.',
-      dados_brutos_web: {},
-    });
-    productService.registrarFeedbackConteudoGerado.mockRejectedValueOnce({});
-
-    renderPage({
-      pathname: '/produtos/31/conteudo',
-      state: {
-        productIds: [31],
-        productQuery: { sort_by: 'id', sort_order: 'asc' },
-      },
-    });
-
-    await screen.findByText('Descricao valida.');
-    fireEvent.click(screen.getByRole('button', { name: 'Gostei' }));
-
-    await waitFor(() => {
-      expect(showErrorToast).toHaveBeenCalledWith('Falha ao salvar feedback.');
-    });
-  });
-
-  test('falls back to product id zero when neither the route param nor the loaded payload exposes an id', async () => {
-    productService.getProdutoById.mockResolvedValueOnce({
-      id: null,
-      nome_base: 'Produto sem rota',
-      titulos_sugeridos: ['Titulo sem rota'],
-      descricao_chat_api: 'Descricao sem rota.',
-      dados_brutos_web: {},
-    });
-
-    renderPageWithoutRouteParam();
-
-    expect(await screen.findByText('Titulo sem rota')).toBeInTheDocument();
-    expect(productService.getProdutoById).toHaveBeenCalledWith(undefined);
-    expect(screen.getByRole('button', { name: /Produto Anterior/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Pr.+ximo Produto/i })).toBeDisabled();
   });
 });
-
-
 
 

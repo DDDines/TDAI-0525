@@ -10,119 +10,151 @@ import LoadingPopup from '../common/LoadingPopup';
 import PaginationControls from '../common/PaginationControls';
 import fornecedorService from '../../services/fornecedorService';
 import { showErrorToast, showSuccessToast } from '../../utils/notifications';
+import { extractErrorMessage } from '../../utils/errorDetails';
 
-function formatCellValue(
+function formatCellValue(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
 
-  value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
+function normalizeReviewData(data) {
+  if (Array.isArray(data?.items)) {
+    return {
+      items: data.items,
+      totalItems: data.total_items ?? data.items.length,
+    };
   }
 
-function ImportReview(
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      totalItems: data.length,
+    };
+  }
 
-  { jobId, isOpen, onClose }) {
-    const [items, setItems] = useState([]);
-    const [totalItems, setTotalItems] = useState(0);
-    const [page, setPage] = useState(0);
-    const [limit] = useState(10);
-    const [loading, setLoading] = useState(false);
-    const [committing, setCommitting] = useState(false);
+  return {
+    items: [],
+    totalItems: typeof data?.total_items === 'number' ? data.total_items : 0,
+  };
+}
 
-    useEffect(() => {
-      if (!isOpen || !jobId) return;
+function ImportReview({ jobId, isOpen, onClose }) {
+  const [items, setItems] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [page, setPage] = useState(0);
+  const [limit] = useState(10);
+  const [loading, setLoading] = useState(false);
+  const [committing, setCommitting] = useState(false);
 
-      const fetchData = async () => {
-        setLoading(true);
-        try {
-          const data = await fornecedorService.getReviewData(jobId, {
-            skip: page * limit,
-            limit
-          });
-          if (data?.items) {
-            const nextItems = Array.isArray(data.items) ? data.items : [];
-            setItems(nextItems);
-            setTotalItems(data.total_items ?? nextItems.length);
-          } else {
-            const nextItems = Array.isArray(data) ? data : [];
-            setItems(nextItems);
-            setTotalItems(nextItems.length);
-          }
-        } catch (err) {
-          console.error('Erro ao obter dados de revisão:', err);
-          const msg = err?.detail || err.message || 'Falha ao carregar dados.';
-          showErrorToast(msg);
-        } finally {
+  useEffect(() => {
+    if (!isOpen || !jobId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const data = await fornecedorService.getReviewData(jobId, {
+          skip: page * limit,
+          limit,
+        });
+        if (cancelled) {
+          return;
+        }
+        const normalized = normalizeReviewData(data);
+        setItems(normalized.items);
+        setTotalItems(normalized.totalItems);
+      } catch (error) {
+        if (!cancelled) {
+          showErrorToast(extractErrorMessage(error, 'Falha ao carregar dados.'));
+        }
+      } finally {
+        if (!cancelled) {
           setLoading(false);
         }
-      };
-
-      fetchData();
-    }, [jobId, page, limit, isOpen]);
-
-    const headers = items.length > 0 ? Object.keys(items[0]) : [];
-    const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 1;
-
-    const handleCommit = async () => {
-      setCommitting(true);
-      try {
-        await fornecedorService.commitImport(jobId);
-        showSuccessToast('Importação confirmada com sucesso!');
-        if (onClose) onClose();
-      } catch (err) {
-        console.error('Erro ao confirmar importação:', err);
-        const msg = err?.detail || err.message || 'Falha ao confirmar importação.';
-        showErrorToast(msg);
-      } finally {
-        setCommitting(false);
       }
     };
 
-    if (!isOpen) return null;
+    void fetchData();
 
-    return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Revisar Importação">
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, page, limit, isOpen]);
+
+  const headers = items.length > 0 ? Object.keys(items[0]) : [];
+  const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 1;
+
+  const handleCommit = async () => {
+    setCommitting(true);
+    try {
+      await fornecedorService.commitImport(jobId);
+      showSuccessToast('Importação confirmada com sucesso!');
+      onClose?.();
+    } catch (error) {
+      showErrorToast(extractErrorMessage(error, 'Falha ao confirmar importação.'));
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Revisar importação">
       <LoadingPopup isOpen={loading} message="Carregando revisão..." />
       <p>Serão criados {totalItems} produtos.</p>
       <div className="table-responsive">
         <table className="fornecedor-review-table">
           <thead>
             <tr>
-              {headers.map((h) =>
-                <th key={h}>{h}</th>
-                )}
+              {headers.map((header) => (
+                <th key={header}>{header}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {items.map((row, idx) =>
-              <tr key={idx}>
-                {headers.map((h) =>
-                <td key={h}>{formatCellValue(row[h])}</td>
-                )}
+            {items.map((row, index) => (
+              <tr key={index}>
+                {headers.map((header) => (
+                  <td key={header}>{formatCellValue(row[header])}</td>
+                ))}
               </tr>
-              )}
+            ))}
           </tbody>
         </table>
       </div>
       <PaginationControls
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          isLoading={loading} />
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        isLoading={loading}
+      />
 
       <div style={{ marginTop: '1rem' }}>
-        <button onClick={onClose} disabled={loading || committing}>
+        <button type="button" onClick={onClose} disabled={loading || committing}>
           Fechar
         </button>
         <button
-            onClick={handleCommit}
-            disabled={loading || committing}
-            style={{ marginLeft: '0.5em' }}>
-
-          {committing ? 'Salvando...' : 'Confirmar e Salvar Tudo'}
+          type="button"
+          onClick={handleCommit}
+          disabled={loading || committing}
+          style={{ marginLeft: '0.5em' }}
+        >
+          {committing ? 'Salvando...' : 'Confirmar e salvar tudo'}
         </button>
       </div>
-    </Modal>);
+    </Modal>
+  );
+}
 
-  }
 export default ImportReview;

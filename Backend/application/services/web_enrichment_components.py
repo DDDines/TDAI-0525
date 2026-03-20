@@ -353,9 +353,9 @@ class WebEnrichmentQueryPlanner:
                 updated_items.append((key, value))
 
         if replaced:
-            return urlunparse(
-                parsed._replace(query=urlencode(updated_items, doseq=True))
-            )
+            parts = list(parsed)
+            parts[4] = urlencode(updated_items, doseq=True)
+            return urlunparse(parts)
         return None
 
     def _build_supplier_direct_urls(

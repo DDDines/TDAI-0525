@@ -1165,10 +1165,14 @@ class AdminChangePlanoRequest(BaseModel):
 
 
 class WorkspaceInviteCreate(BaseModel):
+    """Payload used to invite a new email address into the current workspace."""
+
     email: EmailStr
 
 
 class WorkspaceInviteResponse(BaseModel):
+    """Serialized representation of a pending or accepted workspace invite."""
+
     id: int
     company_id: int
     email: str

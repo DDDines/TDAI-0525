@@ -119,6 +119,13 @@ class BackgroundRuntimeFactories:
         session_provider: Any | None = None,
     ) -> CatalogImportTaskRunner:
         """Compose the catalog import runner used by background backends."""
+        from Backend.application.services.file_processing.vision_extraction_service import (
+            VisionExtractionService,
+        )
+        from Backend.infrastructure.adapters.vision_extraction_adapter import (
+            VisionExtractionServiceAdapter,
+        )
+
         service_container = ServiceContainer()
         quality_service = CatalogImportQualityService()
         sanitization_service = CatalogImportSanitizationService(
@@ -130,6 +137,7 @@ class BackgroundRuntimeFactories:
             sanitization_service=sanitization_service,
         )
         validator_crew = ValidatorCrewService(logger=logger)
+        vision_service = VisionExtractionService(VisionExtractionServiceAdapter())
         return CatalogImportTaskRunner(
             session_provider=session_provider or background_session_provider(),
             logger=logger,
@@ -153,6 +161,7 @@ class BackgroundRuntimeFactories:
             classificar_qualidade_linha_produto=quality_service.classify_product_row_quality,
             write_catalog_import_report=diagnostics_service.write_catalog_import_report,
             normalize_import_text=sanitization_service.normalize_import_text,
+            vision_service=vision_service,
         )
 
     @staticmethod

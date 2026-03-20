@@ -637,6 +637,8 @@ function ProdutoConteudoPage() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [pendingAction, setPendingAction] = useState('');
   const [channelLoading, setChannelLoading] = useState({});
+  const [workflowStatus, setWorkflowStatus] = useState(null);
+  const [workflowUpdating, setWorkflowUpdating] = useState(false);
   const processPollRunsRef = useRef({
     status_enriquecimento_web: 0,
     status_titulo_ia: 0,
@@ -691,6 +693,26 @@ function ProdutoConteudoPage() {
     setFeedback('');
     setFeedbackComment('');
   }, [produto]);
+
+  useEffect(() => {
+    if (produto?.workflow_status) {
+      setWorkflowStatus(produto.workflow_status);
+    }
+  }, [produto?.workflow_status]);
+
+  const handleWorkflowChange = useCallback(async (newStatus) => {
+    if (!produto?.id || workflowUpdating) return;
+    setWorkflowUpdating(true);
+    try {
+      await productService.atualizarWorkflowStatus(produto.id, newStatus);
+      setWorkflowStatus(newStatus);
+      showSuccessToast(`Status atualizado para "${newStatus.replace(/_/g, ' ')}".`);
+    } catch (err) {
+      showErrorToast(err?.detail || err?.message || 'Erro ao atualizar status.');
+    } finally {
+      setWorkflowUpdating(false);
+    }
+  }, [produto?.id, workflowUpdating]);
 
   const orderedProductIds = useMemo(() => {
     const merged = Array.isArray(orderedIdsQuery.data) ? [...orderedIdsQuery.data] : [];
@@ -1122,6 +1144,23 @@ function ProdutoConteudoPage() {
                   </div>
                 );
               })()}
+
+              <div className="pcc-workflow-row">
+                <span className="pcc-workflow-label">Workflow:</span>
+                <select
+                  className="pcc-workflow-select"
+                  value={workflowStatus || produto?.workflow_status || 'rascunho'}
+                  onChange={(e) => handleWorkflowChange(e.target.value)}
+                  disabled={workflowUpdating}
+                >
+                  <option value="rascunho">Rascunho</option>
+                  <option value="em_revisao">Em revisão</option>
+                  <option value="aprovado">Aprovado</option>
+                  <option value="pronto_para_exportar">Pronto para exportar</option>
+                  <option value="exportado">Exportado</option>
+                </select>
+                {workflowUpdating && <span className="pcc-workflow-saving">Salvando...</span>}
+              </div>
 
               <div className="produto-conteudo-actions-row">
                 {/* Left: action shortcuts */}

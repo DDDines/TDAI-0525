@@ -19,9 +19,10 @@ import NewFornecedorModal from '../components/fornecedores/NewFornecedorModal';
 import EditFornecedorModal from '../components/fornecedores/EditFornecedorModal';
 import PaginationControls from '../components/common/PaginationControls';
 import OperationalStatChip from '../components/common/OperationalStatChip.jsx';
-import { showSuccessToast, showErrorToast } from '../utils/notifications';
+import { showErrorToast } from '../utils/notifications';
 import { extractErrorMessage } from '../utils/errorDetails';
 import { queryKeys } from '../lib/queryKeys.js';
+import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import './FornecedoresPage.css';
 
 function normalizeFornecedoresPayload(responseData) {
@@ -43,23 +44,9 @@ function formatSelectionSummary(selectedIds, selectionScope) {
     return `${selectedIds.length} fornecedor(es) selecionado(s) em todos os resultados filtrados.`;
   }
   if (selectionScope === 'page') {
-    return `${selectedIds.length} fornecedor(es) selecionado(s) na pagina atual.`;
+    return `${selectedIds.length} fornecedor(es) selecionado(s) na página atual.`;
   }
-  return `${selectedIds.length} fornecedor(es) selecionado(s) em selecao manual.`;
-}
-
-function buildResultsSummary(totalItems, visibleItems, searchTerm) {
-  if (!visibleItems && !totalItems) {
-    return searchTerm
-      ? `Nenhum fornecedor encontrado para "${searchTerm}".`
-      : 'Nenhum fornecedor cadastrado na base atual.';
-  }
-
-  if (searchTerm) {
-    return `Exibindo ${visibleItems} resultado(s) para "${searchTerm}" dentro de uma base com ${totalItems} fornecedor(es).`;
-  }
-
-  return `Base com ${totalItems} fornecedor(es) cadastrados e ${visibleItems} visivel(is) na pagina atual.`;
+  return `${selectedIds.length} fornecedor(es) selecionado(s) em seleção manual.`;
 }
 
 function FornecedoresPage() {
@@ -92,7 +79,9 @@ function FornecedoresPage() {
 
   useEffect(() => {
     if (fornecedoresQuery.error) {
-      showErrorToast(fornecedoresQuery.error?.message || 'Falha ao buscar fornecedores.');
+      showErrorToast(
+        extractErrorMessage(fornecedoresQuery.error, 'Falha ao buscar fornecedores.')
+      );
     }
   }, [fornecedoresQuery.error]);
 
@@ -105,14 +94,10 @@ function FornecedoresPage() {
   const totalPages = Math.ceil(totalFornecedoresCount / limitPerPage);
   const fornecedoresComSiteNaPagina = fornecedores.filter((item) => String(item?.site_url || '').trim()).length;
   const selectionSummary = formatSelectionSummary(selectedIds, selectionScope);
-  const canSelectAllFilteredResults =
-    selectedIds.length > 0
-    && selectionScope !== 'all'
-    && totalFornecedoresCount > selectedIds.length;
-  const canReduceSelectionToPage =
-    selectionScope === 'all'
-    && fornecedores.length > 0;
-  const resultsSummary = buildResultsSummary(totalFornecedoresCount, fornecedores.length, termoBusca.trim());
+  const loadingInitial = fornecedoresQuery.isLoading;
+  const fornecedoresErrorMessage = fornecedoresQuery.isError
+    ? extractErrorMessage(fornecedoresQuery.error, 'Falha ao buscar fornecedores.')
+    : '';
 
   const clearSelectionState = () => {
     setSelectedIds([]);
@@ -138,7 +123,6 @@ function FornecedoresPage() {
     setModalLoading(true);
     try {
       await fornecedorService.createFornecedor(data);
-      showSuccessToast('Fornecedor criado com sucesso!');
       setIsNewModalOpen(false);
       if (!termoBusca) {
         setCurrentPage(0);
@@ -147,7 +131,6 @@ function FornecedoresPage() {
       clearSelectionState();
       return Promise.resolve();
     } catch (errThrownByService) {
-      console.error('Objeto de erro recebido em handleSaveNew (FornecedoresPage):', errThrownByService);
       const errorMessage = extractErrorMessage(
         errThrownByService,
         'Erro desconhecido ao criar fornecedor.'
@@ -163,14 +146,12 @@ function FornecedoresPage() {
     setModalLoading(true);
     try {
       await fornecedorService.updateFornecedor(id, data);
-      showSuccessToast('Fornecedor atualizado com sucesso!');
       setIsEditModalOpen(false);
       setEditingFornecedor(null);
       await invalidateFornecedores();
       clearSelectionState();
       return Promise.resolve();
     } catch (errThrownByService) {
-      console.error('Objeto de erro recebido em handleSaveUpdate (FornecedoresPage):', errThrownByService);
       const errorMessage = extractErrorMessage(
         errThrownByService,
         'Erro desconhecido ao atualizar fornecedor.'
@@ -197,14 +178,13 @@ function FornecedoresPage() {
         await fornecedorService.deleteFornecedor(id);
         successCount += 1;
         successIds.push(id);
-      } catch (singleDeleteError) {
-        console.error(`Falha ao deletar fornecedor ID ${id}:`, singleDeleteError);
+      } catch {
         errorOccurred = true;
       }
     }
 
     if (errorOccurred) {
-      showErrorToast('Alguns fornecedores nao puderam ser deletados. Verifique o console.');
+      showErrorToast('Alguns fornecedores não puderam ser deletados. Tente novamente.');
     }
 
     const removedIds = new Set(successIds);
@@ -263,98 +243,91 @@ function FornecedoresPage() {
       setSelectedIds(ids);
       setSelectionScope('all');
     } catch (error) {
-      showErrorToast(error?.message || 'Falha ao selecionar todos os fornecedores filtrados.');
+      showErrorToast(
+        extractErrorMessage(error, 'Falha ao selecionar todos os fornecedores filtrados.')
+      );
     }
   };
-
-  const handleSelectCurrentPageOnly = () => {
-    if (!fornecedores.length) {
-      clearSelectionState();
-      return;
-    }
-    setSelectedIds(fornecedores.map((fornecedor) => fornecedor.id));
-    setSelectionScope('page');
-  };
+  const fornecedorSelectionMenuItems = useMemo(() => ([
+    {
+      key: 'page',
+      label: 'Selecionar página atual',
+      onClick: () => handleSelectAllRows(true),
+      disabled: fornecedores.length === 0,
+    },
+    {
+      key: 'all',
+      label: 'Selecionar todos os resultados da pesquisa',
+      onClick: () => void handleSelectAllResults(true),
+      disabled: totalFornecedoresCount === 0,
+    },
+    {
+      key: 'clear',
+      label: 'Limpar seleção',
+      onClick: clearSelectionState,
+      disabled: selectedIds.length === 0,
+    },
+  ]), [clearSelectionState, fornecedores.length, selectedIds.length, totalFornecedoresCount]);
 
   return (
     <div className="app-page-shell ops-page-shell fornecedores-page-shell">
-      <div className="app-page-header fornecedores-page-header">
-        <h2 className="app-page-heading">Meus Fornecedores</h2>
-        <button
-          type="button"
-          className="ops-primary-btn"
-          onClick={() => setIsNewModalOpen(true)}
-          disabled={loading || modalLoading}
-        >
-          <LuPlus />
-          Novo Fornecedor
-        </button>
-      </div>
-
-      <section className="ops-card ops-toolbar-card fornecedores-control-card">
-        <div className="ops-toolbar-main">
-          <div className="ops-toolbar-copy">
-            <div className="ops-toolbar-header">
-              <span className="ops-inline-eyebrow">Base operacional</span>
-              <p>{resultsSummary}</p>
-            </div>
-
-            <div className="ops-search-field fornecedores-search-field">
-              <label htmlFor="search-forn">Buscar fornecedores</label>
-              <div className="ops-search-input-wrap">
-                <LuSearch />
-                <input
-                  type="text"
-                  id="search-forn"
-                  placeholder="Nome do fornecedor ou dominio do site..."
-                  value={termoBusca}
-                  onChange={handleSearchChange}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="ops-metrics-row">
-              <OperationalStatChip
-                icon={<LuBuilding2 />}
-                label="Na base"
-                value={totalFornecedoresCount}
-                tone="neutral"
-              />
+      <section className="ops-card ops-toolbar-card fornecedores-stats-card">
+        <div className="fornecedores-stats-header">
+          <div className="ops-metrics-row fornecedores-metrics-row">
+            <OperationalStatChip
+              icon={<LuBuilding2 />}
+              label="Na base"
+              value={totalFornecedoresCount}
+              tone="neutral"
+            />
+            <OperationalStatChip
+              icon={<LuUsers />}
+              label="Na página"
+              value={fornecedores.length}
+              tone="info"
+            />
+            <OperationalStatChip
+              icon={<LuGlobe />}
+              label="Com site"
+              value={fornecedoresComSiteNaPagina}
+              tone={fornecedoresComSiteNaPagina > 0 ? 'success' : 'neutral'}
+            />
+            {selectedIds.length > 0 ? (
               <OperationalStatChip
                 icon={<LuUsers />}
-                label="Visiveis"
-                value={fornecedores.length}
-                tone="info"
+                label="Selecionados"
+                value={selectedIds.length}
+                tone="warn"
               />
-              <OperationalStatChip
-                icon={<LuGlobe />}
-                label="Com site"
-                value={fornecedoresComSiteNaPagina}
-                tone="success"
-              />
-              {selectedIds.length > 0 ? (
-                <OperationalStatChip
-                  icon={<LuUsers />}
-                  label="Selecionados"
-                  value={selectedIds.length}
-                  tone="warn"
-                />
-              ) : null}
-            </div>
+            ) : null}
           </div>
+          <button
+            type="button"
+            className="ops-primary-btn"
+            onClick={() => setIsNewModalOpen(true)}
+            disabled={loading || modalLoading}
+          >
+            <LuPlus />
+            Novo Fornecedor
+          </button>
         </div>
       </section>
 
       <section className="ops-card ops-table-card fornecedores-table-card">
-        <div className="ops-table-head">
-          <div>
-            <h3>Lista de fornecedores</h3>
-            <p>Clique em uma linha para editar e use os checkboxes apenas quando precisar agir em lote.</p>
-          </div>
-          <div className="ops-table-meta">
-            <span>{fornecedores.length} na pagina</span>
-            <span>Pagina {Math.min(currentPage + 1, Math.max(totalPages, 1))}</span>
+        <div className="fornecedores-list-toolbar">
+          <div className="ops-search-field fornecedores-search-field">
+            <div className="ops-search-input-wrap">
+              <LuSearch />
+              <input
+                type="text"
+                id="search-forn"
+                aria-label="Buscar fornecedores"
+                placeholder="Nome do fornecedor ou domínio do site..."
+                value={termoBusca}
+                onChange={handleSearchChange}
+                disabled={loading}
+              />
+            </div>
           </div>
         </div>
 
@@ -362,24 +335,6 @@ function FornecedoresPage() {
           <div className="ops-selection-bar fornecedores-selection-bar">
             <div className="ops-selection-copy">
               <p className="ops-selection-summary">{selectionSummary}</p>
-              {canSelectAllFilteredResults ? (
-                <button
-                  type="button"
-                  className="ops-selection-inline-action"
-                  onClick={() => void handleSelectAllResults(true)}
-                >
-                  Selecionar todos os {totalFornecedoresCount} resultados
-                </button>
-              ) : null}
-              {canReduceSelectionToPage ? (
-                <button
-                  type="button"
-                  className="ops-selection-inline-action"
-                  onClick={handleSelectCurrentPageOnly}
-                >
-                  Manter apenas os {fornecedores.length} itens desta pagina
-                </button>
-              ) : null}
             </div>
             <div className="ops-selection-actions">
               <button
@@ -387,22 +342,38 @@ function FornecedoresPage() {
                 disabled={loading || modalLoading || isDeleting || selectedIds.length === 0}
                 className="btn-danger btn-sm fornecedores-danger-action"
               >
-                Deletar selecionado(s)
+                Excluir selecionado(s)
               </button>
             </div>
           </div>
         ) : null}
 
-        <FornecedorTable
-          fornecedores={fornecedores}
-          selectedIds={selectedIds}
-          onSelectRow={handleSelectRow}
-          onSelectAllRows={handleSelectAllRows}
-          onRowClick={handleRowClick}
-          isLoading={loading}
-        />
+        {loadingInitial && (!fornecedores || fornecedores.length === 0) ? (
+          <LoadingOverlay isOpen={true} message="Carregando fornecedores..." />
+        ) : fornecedoresQuery.isError && fornecedores.length === 0 ? (
+          <div className="fornecedores-inline-error" role="alert">
+            <p>{fornecedoresErrorMessage}</p>
+            <button
+              type="button"
+              className="ops-secondary-btn fornecedores-retry-btn"
+              onClick={() => void fornecedoresQuery.refetch()}
+            >
+              Tentar novamente
+            </button>
+          </div>
+        ) : (
+          <FornecedorTable
+            fornecedores={fornecedores}
+            selectedIds={selectedIds}
+            onSelectRow={handleSelectRow}
+            onSelectAllRows={handleSelectAllRows}
+            selectionMenuItems={fornecedorSelectionMenuItems}
+            onRowClick={handleRowClick}
+            isLoading={loading}
+          />
+        )}
 
-        {totalPages > 0 ? (
+        {!loadingInitial && totalPages > 0 ? (
           <PaginationControls
             currentPage={currentPage}
             totalPages={totalPages}

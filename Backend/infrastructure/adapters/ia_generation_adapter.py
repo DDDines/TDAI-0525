@@ -94,3 +94,26 @@ class IAGenerationServiceAdapter:
             produto_id=produto_id,
             user=user,
         )
+
+    async def gerar_texto_livre_com_openai(
+        self,
+        *,
+        session: Session,
+        user: models.User,
+        prompt: str,
+        max_tokens: int,
+    ) -> str:
+        """Generate freeform text with OpenAI using the user's configured credentials."""
+        provider_workflow = self._runtime.ai_provider_workflow
+        api_key = await provider_workflow.get_openai_api_key(db=session, user=user)
+        if not api_key:
+            raise ValueError(
+                "Chave da API OpenAI nao configurada. "
+                "Configure sua chave pessoal ou a chave da empresa para usar a geracao por canal."
+            )
+        result = await provider_workflow.call_openai_api(
+            prompt_messages=[{"role": "user", "content": prompt}],
+            api_key=api_key,
+            max_tokens=max_tokens,
+        )
+        return result.strip()

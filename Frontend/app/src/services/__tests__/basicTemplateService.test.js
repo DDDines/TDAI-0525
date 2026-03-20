@@ -1,146 +1,266 @@
 import basicTemplateService, {
   DEFAULT_BASIC_GENERATION_TEMPLATES,
+  clearBasicGenerationTemplateCache,
 } from '../basicTemplateService';
+import apiClient from '../apiClient';
+
+jest.mock('../apiClient', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+  },
+}));
 
 const STORAGE_KEY = 'catalogai_basic_generation_templates_v1';
 
+function buildApiOverview(overrides = {}) {
+  const systemDefaults = overrides.systemDefaults || {
+    title_template: DEFAULT_BASIC_GENERATION_TEMPLATES.titleTemplate,
+    description_template: DEFAULT_BASIC_GENERATION_TEMPLATES.descriptionTemplate,
+  };
+
+  return {
+    company_identifier: overrides.companyIdentifier || 'catalogai',
+    system_defaults: systemDefaults,
+    company_config: overrides.companyConfig ?? null,
+    user_config: overrides.userConfig ?? null,
+    effective_config:
+      overrides.effectiveConfig || {
+        source: 'system',
+        source_label: 'Sistema',
+        is_custom: false,
+        title_template: systemDefaults.title_template,
+        description_template: systemDefaults.description_template,
+      },
+  };
+}
+
 describe('basicTemplateService', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+    clearBasicGenerationTemplateCache();
     window.localStorage.clear();
   });
 
-  test('returns default templates when storage is empty', () => {
-    const templates = basicTemplateService.getBasicGenerationTemplates();
-
-    expect(templates).toEqual(DEFAULT_BASIC_GENERATION_TEMPLATES);
-  });
-
-  test('returns defaults when localStorage is unavailable', () => {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
-
-    Object.defineProperty(window, 'localStorage', {
-      value: undefined,
-      configurable: true,
-      writable: true,
+  test('loads the normalized overview from the backend and caches subsequent reads', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: buildApiOverview({
+        userConfig: {
+          scope_type: 'user',
+          title_template: '{nome_base} {marca}',
+          description_template: 'Resumo: {technical_summary}',
+        },
+        effectiveConfig: {
+          source: 'user',
+          source_label: 'Pessoal',
+          is_custom: true,
+          title_template: '{nome_base} {marca}',
+          description_template: 'Resumo: {technical_summary}',
+        },
+      }),
     });
 
-    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
+    const overview = await basicTemplateService.getBasicGenerationTemplateOverview();
+    const templates = await basicTemplateService.getBasicGenerationTemplates();
 
-    Object.defineProperty(window, 'localStorage', originalDescriptor);
+    expect(overview).toEqual({
+      companyIdentifier: 'catalogai',
+      systemDefaults: DEFAULT_BASIC_GENERATION_TEMPLATES,
+      companyConfig: null,
+      userConfig: {
+        scope_type: 'user',
+        title_template: '{nome_base} {marca}',
+        description_template: 'Resumo: {technical_summary}',
+        titleTemplate: '{nome_base} {marca}',
+        descriptionTemplate: 'Resumo: {technical_summary}',
+      },
+      effectiveConfig: {
+        source: 'user',
+        sourceLabel: 'Pessoal',
+        isCustom: true,
+        titleTemplate: '{nome_base} {marca}',
+        descriptionTemplate: 'Resumo: {technical_summary}',
+      },
+    });
+
+    expect(templates).toEqual({
+      source: 'user',
+      sourceLabel: 'Pessoal',
+      isCustom: true,
+      titleTemplate: '{nome_base} {marca}',
+      descriptionTemplate: 'Resumo: {technical_summary}',
+    });
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
   });
 
-  test('falls back to defaults when storage contains invalid or empty values', () => {
+  test('migrates legacy localStorage templates to the backend once when no override exists', async () => {
     window.localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        titleTemplate: '   ',
-        descriptionTemplate: '',
+        titleTemplate: '{nome_base} {sku}',
+        descriptionTemplate: 'Resumo legado',
       })
     );
 
-    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
-
-    window.localStorage.setItem(STORAGE_KEY, '{invalid-json');
-    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
-
-    window.localStorage.setItem(STORAGE_KEY, '[]');
-    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
-  });
-
-  test('persists merged templates and trims overlong values', () => {
-    const longDescription = 'x'.repeat(2505);
-
-    basicTemplateService.saveBasicGenerationTemplates({
-      titleTemplate: '{nome_base} {sku}',
-      descriptionTemplate: longDescription,
-    });
-
-    const templates = basicTemplateService.getBasicGenerationTemplates();
-    expect(templates.titleTemplate).toBe('{nome_base} {sku}');
-    expect(templates.descriptionTemplate).toHaveLength(2000);
-
-    const merged = basicTemplateService.saveBasicGenerationTemplates({
-      titleTemplate: '   ',
-    });
-
-    expect(merged.titleTemplate).toBe(DEFAULT_BASIC_GENERATION_TEMPLATES.titleTemplate);
-    expect(merged.descriptionTemplate).toHaveLength(2000);
-  });
-
-  test('supports empty saves, stringified payloads and environments without localStorage setters', () => {
-    expect(basicTemplateService.saveBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify('invalid-type'));
-    expect(basicTemplateService.getBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
-    );
-
-    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
-    Object.defineProperty(window, 'localStorage', {
-      value: undefined,
-      configurable: true,
-      writable: true,
-    });
-
-    expect(
-      basicTemplateService.saveBasicGenerationTemplates({
-        titleTemplate: '{nome_base}',
+    apiClient.get
+      .mockResolvedValueOnce({
+        data: buildApiOverview(),
       })
-    ).toEqual({
-      titleTemplate: '{nome_base}',
-      descriptionTemplate: DEFAULT_BASIC_GENERATION_TEMPLATES.descriptionTemplate,
+      .mockResolvedValueOnce({
+        data: buildApiOverview({
+          userConfig: {
+            scope_type: 'user',
+            title_template: '{nome_base} {sku}',
+            description_template: 'Resumo legado',
+          },
+          effectiveConfig: {
+            source: 'user',
+            source_label: 'Pessoal',
+            is_custom: true,
+            title_template: '{nome_base} {sku}',
+            description_template: 'Resumo legado',
+          },
+        }),
+      });
+    apiClient.put.mockResolvedValueOnce({});
+
+    const overview = await basicTemplateService.getBasicGenerationTemplateOverview({
+      preferFresh: true,
     });
 
-    Object.defineProperty(window, 'localStorage', originalDescriptor);
-  });
-
-  test('resets persisted templates and resolves request-specific overrides', () => {
-    basicTemplateService.saveBasicGenerationTemplates({
-      titleTemplate: '{nome_base} {sku}',
-      descriptionTemplate: 'Resumo: {descricao_web}',
+    expect(apiClient.put).toHaveBeenCalledWith('/templates-basicos', {
+      scope_type: 'user',
+      title_template: '{nome_base} {sku}',
+      description_template: 'Resumo legado',
+      is_active: true,
     });
-
-    expect(
-      basicTemplateService.resolveCustomTemplateForRequest('title', '  {titulo_explicito}  ')
-    ).toBe('{titulo_explicito}');
-    expect(basicTemplateService.resolveCustomTemplateForRequest('title')).toBe(
-      '{nome_base} {sku}'
-    );
-    expect(basicTemplateService.resolveCustomTemplateForRequest('description')).toBe(
-      'Resumo: {descricao_web}'
-    );
-
-    const resetTemplates = basicTemplateService.resetBasicGenerationTemplates();
-    expect(resetTemplates).toEqual(DEFAULT_BASIC_GENERATION_TEMPLATES);
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
-    expect(basicTemplateService.resolveCustomTemplateForRequest('title')).toBeNull();
-    expect(basicTemplateService.resolveCustomTemplateForRequest('unknown')).toBeNull();
-    expect(basicTemplateService.resolveCustomTemplateForRequest('description', '  ')).toBeNull();
+    expect(overview.effectiveConfig.titleTemplate).toBe('{nome_base} {sku}');
+    expect(overview.effectiveConfig.source).toBe('user');
   });
 
-  test('resets templates cleanly when localStorage is unavailable', () => {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
+  test('saves templates for the selected scope and returns the refreshed overview', async () => {
+    apiClient.get
+      .mockResolvedValueOnce({
+        data: buildApiOverview({
+          companyConfig: {
+            scope_type: 'company',
+            title_template: '{titulo_base}',
+            description_template: DEFAULT_BASIC_GENERATION_TEMPLATES.descriptionTemplate,
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        data: buildApiOverview({
+          companyConfig: {
+            scope_type: 'company',
+            title_template: '{nome_base} {marca}',
+            description_template: 'Descricao corporativa',
+          },
+        }),
+      });
+    apiClient.put.mockResolvedValueOnce({});
 
-    Object.defineProperty(window, 'localStorage', {
-      value: undefined,
-      configurable: true,
-      writable: true,
-    });
-
-    expect(basicTemplateService.resetBasicGenerationTemplates()).toEqual(
-      DEFAULT_BASIC_GENERATION_TEMPLATES
+    const result = await basicTemplateService.saveBasicGenerationTemplates(
+      {
+        titleTemplate: '{nome_base} {marca}',
+        descriptionTemplate: 'Descricao corporativa',
+      },
+      { scope: 'company' }
     );
 
-    Object.defineProperty(window, 'localStorage', originalDescriptor);
+    expect(apiClient.put).toHaveBeenCalledWith('/templates-basicos', {
+      scope_type: 'company',
+      title_template: '{nome_base} {marca}',
+      description_template: 'Descricao corporativa',
+      is_active: true,
+    });
+    expect(result.scope).toBe('company');
+    expect(result.titleTemplate).toBe('{nome_base} {marca}');
+    expect(result.descriptionTemplate).toBe('Descricao corporativa');
+    expect(result.overview.companyConfig.titleTemplate).toBe('{nome_base} {marca}');
+  });
+
+  test('resets templates without calling delete when the selected scope has no stored config', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: buildApiOverview(),
+    });
+
+    const result = await basicTemplateService.resetBasicGenerationTemplates({
+      scope: 'company',
+    });
+
+    expect(apiClient.delete).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ...DEFAULT_BASIC_GENERATION_TEMPLATES,
+      overview: {
+        companyIdentifier: 'catalogai',
+        systemDefaults: DEFAULT_BASIC_GENERATION_TEMPLATES,
+        companyConfig: null,
+        userConfig: null,
+        effectiveConfig: {
+          source: 'system',
+          sourceLabel: 'Sistema',
+          isCustom: false,
+          titleTemplate: DEFAULT_BASIC_GENERATION_TEMPLATES.titleTemplate,
+          descriptionTemplate: DEFAULT_BASIC_GENERATION_TEMPLATES.descriptionTemplate,
+        },
+      },
+      scope: 'company',
+    });
+  });
+
+  test('resolveCustomTemplateForRequest prefers explicit templates and effective overrides', async () => {
+    expect(
+      await basicTemplateService.resolveCustomTemplateForRequest('title', '  {titulo_explicito}  ')
+    ).toBe('{titulo_explicito}');
+    expect(apiClient.get).not.toHaveBeenCalled();
+
+    apiClient.get.mockResolvedValueOnce({
+      data: buildApiOverview({
+        effectiveConfig: {
+          source: 'user',
+          source_label: 'Pessoal',
+          is_custom: true,
+          title_template: '{nome_base} {sku}',
+          description_template: 'Resumo customizado',
+        },
+      }),
+    });
+
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('title')
+    ).resolves.toBe('{nome_base} {sku}');
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('description')
+    ).resolves.toBe('Resumo customizado');
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('unknown')
+    ).resolves.toBeNull();
+  });
+
+  test('falls back to legacy templates when the backend is unavailable', async () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        titleTemplate: '{nome_base} {sku}',
+        descriptionTemplate: 'Resumo legado',
+      })
+    );
+    apiClient.get.mockRejectedValueOnce(new Error('offline'));
+    apiClient.get.mockRejectedValueOnce(new Error('offline'));
+    apiClient.get.mockRejectedValueOnce(new Error('offline'));
+
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('title')
+    ).resolves.toBe('{nome_base} {sku}');
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('description')
+    ).resolves.toBe('Resumo legado');
+    await expect(
+      basicTemplateService.resolveCustomTemplateForRequest('unknown')
+    ).resolves.toBeNull();
   });
 });

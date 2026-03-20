@@ -60,7 +60,7 @@ test('logs polling errors and supports payloads that only expose progress', asyn
   });
 
   expect(consoleErrorSpy).toHaveBeenCalledWith(
-    'Erro ao consultar progresso de importacao:',
+    'Erro ao consultar progresso de importação:',
     expect.any(Error)
   );
   consoleErrorSpy.mockRestore();

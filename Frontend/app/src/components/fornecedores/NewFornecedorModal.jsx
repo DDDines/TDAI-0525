@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { showErrorToast, showWarningToast } from '../../utils/notifications';
 import fornecedorService from '../../services/fornecedorService';
-import '../common/Modal.css';
+import Modal from '../common/Modal.jsx';
 import './FornecedorModal.css';
 
 function normalizeOptionalUrl(value) {
@@ -44,13 +44,13 @@ function getLogoSourceLabel(source) {
     case 'meta-image':
       return 'Imagem institucional do site';
     case 'link-icon':
-      return 'Icone do site';
+      return 'Ícone do site';
     case 'favicon-default':
-      return 'Favicon padrao do dominio';
+      return 'Favicon padrão do domínio';
     case 'manual':
       return 'URL definida manualmente';
     default:
-      return 'Logo ainda nao definida';
+      return 'Logo ainda não definida';
   }
 }
 
@@ -59,14 +59,14 @@ function getLogoSourceHint(source) {
     case 'css-logo':
     case 'inline-logo':
     case 'img-logo':
-      return 'A marca foi localizada no proprio layout do fornecedor. Ajuste manualmente apenas se quiser trocar.';
+      return 'A marca foi localizada no próprio layout do fornecedor. Ajuste manualmente apenas se quiser trocar.';
     case 'meta-image':
-      return 'O site nao expôs uma logo clara no HTML; usamos a imagem institucional mais confiavel encontrada.';
+      return 'O site não expôs uma logo clara no HTML; usamos a imagem institucional mais confiável encontrada.';
     case 'link-icon':
     case 'favicon-default':
-      return 'O site nao forneceu uma logo melhor. Se quiser, troque manualmente por uma imagem oficial da marca.';
+      return 'O site não forneceu uma logo melhor. Se quiser, troque manualmente por uma imagem oficial da marca.';
     case 'manual':
-      return 'Essa logo foi informada manualmente e sera usada na lista e nos detalhes do fornecedor.';
+      return 'Essa logo foi informada manualmente e será usada na lista e nos detalhes do fornecedor.';
     default:
       return 'Busque a marca oficial no site ou informe uma URL manualmente.';
   }
@@ -89,7 +89,7 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   const handleSubmit = () => {
     const trimmedNome = nome.trim();
     if (!trimmedNome) {
-      showWarningToast('Nome e obrigatorio.');
+      showWarningToast('Nome é obrigatório.');
       return;
     }
     if (trimmedNome.length < 2) {
@@ -115,7 +115,7 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
   const handleResolveLogo = async () => {
     const normalizedSiteUrl = normalizeOptionalUrl(siteUrl);
     if (!normalizedSiteUrl) {
-      showWarningToast('Informe o site do fornecedor antes de buscar o logo.');
+      showWarningToast('Informe o site do fornecedor antes de buscar a logo.');
       return;
     }
 
@@ -127,7 +127,7 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
       setLogoSource(resolved?.source || '');
     } catch (error) {
       console.error('Falha ao resolver logo do fornecedor:', error);
-      showErrorToast(error?.detail || error?.message || 'Falha ao buscar o logo do site.');
+      showErrorToast(error?.detail || error?.message || 'Falha ao buscar a logo do site.');
     } finally {
       setIsResolvingLogo(false);
     }
@@ -139,106 +139,117 @@ function NewFornecedorModal({ isOpen, onClose, onSave, isLoading }) {
     }
   }, [isOpen]);
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div className="modal-overlay" id="new-forn-modal">
-      <div className="modal-content">
-        <button
-          type="button"
-          className="modal-close-button"
-          aria-label="Fechar"
-          onClick={onClose}
-          disabled={isLoading}
-        >
-          ×
-        </button>
-        <h3>Novo Fornecedor</h3>
-        <div className="form-section">
-          <label htmlFor="new-forn-nome">Nome*</label>
-          <input
-            id="new-forn-nome"
-            type="text"
-            value={nome}
-            onChange={(event) => setNome(event.target.value)}
-            disabled={isLoading}
-          />
-        </div>
-        <div className="form-section">
-          <label htmlFor="new-forn-siteurl">Site URL</label>
-          <input
-            id="new-forn-siteurl"
-            type="text"
-            value={siteUrl}
-            onChange={(event) => setSiteUrl(event.target.value)}
-            placeholder="www.exemplo.com"
-            disabled={isLoading || isResolvingLogo}
-          />
-        </div>
-        <div className="form-section fornecedor-logo-panel">
-          <div className="fornecedor-logo-preview-column">
-            <div className="fornecedor-logo-preview">
-              {logoUrl ? (
-                <img src={logoUrl} alt={`Logo de ${nome || 'fornecedor'}`} />
-              ) : (
-                <span>{buildInitials(nome)}</span>
-              )}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      closeDisabled={isLoading}
+      title="Novo Fornecedor"
+      subtitle="Cadastre a base do fornecedor e prepare o site e a identidade visual para o restante da operação."
+      size="lg"
+      className="fornecedor-modal-shell"
+      bodyClassName="fornecedor-modal-body"
+    >
+      <div className="modal-workspace">
+        <section className="modal-section-card fornecedor-modal-section-card fornecedor-modal-section-card--fields">
+          <div className="modal-section-head">
+            <div className="modal-section-copy">
+              <h3>Informações básicas</h3>
+              <p>Preencha os dados principais e, se quiser, deixe o sistema buscar a logo automaticamente no site.</p>
             </div>
-            <span className="fornecedor-logo-preview-caption">
-              {getLogoSourceLabel(logoSource)}
-            </span>
           </div>
-          <div className="fornecedor-logo-controls">
-            <div className="fornecedor-logo-meta-head">
-              <div>
-                <h4>Identidade visual</h4>
-                <p>
-                  Tente localizar a marca oficial no site do fornecedor. Se precisar,
-                  ajuste a URL manualmente.
-                </p>
-              </div>
-              {logoSource ? (
-                <span className={`fornecedor-logo-source fornecedor-logo-source--${logoSource}`}>
-                  {getLogoSourceLabel(logoSource)}
-                </span>
-              ) : null}
+
+          <div className="fornecedor-modal-field-grid">
+            <div className="fornecedor-modal-field">
+              <label htmlFor="new-forn-nome">Nome*</label>
+              <input
+                id="new-forn-nome"
+                type="text"
+                value={nome}
+                onChange={(event) => setNome(event.target.value)}
+                disabled={isLoading}
+              />
             </div>
-            <div className="fornecedor-logo-field-row">
-              <div className="fornecedor-logo-url-group">
-                <label htmlFor="new-forn-logourl">Logo URL</label>
-                <input
-                  id="new-forn-logourl"
-                  type="text"
-                  value={logoUrl}
-                  onChange={(event) => {
-                    setLogoUrl(event.target.value);
-                    setLogoSource(event.target.value.trim() ? 'manual' : '');
-                  }}
-                  placeholder="https://site.com/logo.png"
-                  disabled={isLoading || isResolvingLogo}
-                />
-              </div>
-              <button
-                type="button"
-                className="fornecedor-logo-action"
-                onClick={handleResolveLogo}
+            <div className="fornecedor-modal-field">
+              <label htmlFor="new-forn-siteurl">Site URL</label>
+              <input
+                id="new-forn-siteurl"
+                type="text"
+                value={siteUrl}
+                onChange={(event) => setSiteUrl(event.target.value)}
+                placeholder="www.exemplo.com"
                 disabled={isLoading || isResolvingLogo}
-              >
-                {isResolvingLogo ? 'Buscando logo...' : 'Buscar do site'}
-              </button>
+              />
             </div>
-            <p className="fornecedor-logo-helper">{getLogoSourceHint(logoSource)}</p>
           </div>
-        </div>
-        <div className="modal-actions">
-          <button onClick={handleSubmit} disabled={isLoading}>
+
+          <div className="fornecedor-logo-panel">
+            <div className="fornecedor-logo-preview-column">
+              <div className="fornecedor-logo-preview">
+                {logoUrl ? (
+                  <img src={logoUrl} alt={`Logo de ${nome || 'fornecedor'}`} />
+                ) : (
+                  <span>{buildInitials(nome)}</span>
+                )}
+              </div>
+              <span className="fornecedor-logo-preview-caption">
+                Visual usado na lista de fornecedores
+              </span>
+            </div>
+            <div className="fornecedor-logo-controls">
+              <div className="fornecedor-logo-meta-head">
+                <div>
+                  <h4>Identidade visual</h4>
+                  <p>
+                    Tente localizar a marca oficial no site do fornecedor. Se precisar,
+                    ajuste a URL manualmente.
+                  </p>
+                </div>
+                {logoSource ? (
+                  <span className={`fornecedor-logo-source fornecedor-logo-source--${logoSource}`}>
+                    {getLogoSourceLabel(logoSource)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="fornecedor-logo-field-row">
+                <div className="fornecedor-logo-url-group">
+                  <label htmlFor="new-forn-logourl">Logo URL</label>
+                  <input
+                    id="new-forn-logourl"
+                    type="text"
+                    value={logoUrl}
+                    onChange={(event) => {
+                      setLogoUrl(event.target.value);
+                      setLogoSource(event.target.value.trim() ? 'manual' : '');
+                    }}
+                    placeholder="https://site.com/logo.png"
+                    disabled={isLoading || isResolvingLogo}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="fornecedor-logo-action"
+                  onClick={handleResolveLogo}
+                  disabled={isLoading || isResolvingLogo}
+                >
+                  {isResolvingLogo ? 'Buscando logo...' : 'Buscar do site'}
+                </button>
+              </div>
+              <p className="fornecedor-logo-helper">{getLogoSourceHint(logoSource)}</p>
+            </div>
+          </div>
+        </section>
+
+        <div className="modal-actions fornecedor-modal-footer">
+          <button type="button" onClick={onClose} disabled={isLoading}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primary" onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

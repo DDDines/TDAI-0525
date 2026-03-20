@@ -11,6 +11,9 @@ from Backend.testing.runtime_apis import file_processing
 
 
 class _FakeImage:
+    width = 100
+    height = 100
+
     def save(self, destination, format=None, **kwargs):
         _ = format, kwargs
         if hasattr(destination, "write"):
@@ -20,6 +23,17 @@ class _FakeImage:
 
     def convert(self, mode):
         _ = mode
+        return self
+
+    def filter(self, filter_obj):
+        _ = filter_obj
+        return self
+
+    def getdata(self):
+        return [200] * (self.width * self.height)
+
+    def point(self, func):
+        _ = func
         return self
 
 

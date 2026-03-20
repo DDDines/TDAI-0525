@@ -152,6 +152,6 @@ class CatalogImportProcessingUseCase:
         normalized = str(raw_mode).strip().lower()
         if not normalized:
             return "ocr"
-        if normalized not in {"table", "ocr", "ia"}:
-            raise ValueError("extraction_mode deve ser um de: table, ocr, ia")
+        if normalized not in {"table", "ocr", "ia", "vision"}:
+            raise ValueError("extraction_mode deve ser um de: table, ocr, ia, vision")
         return normalized

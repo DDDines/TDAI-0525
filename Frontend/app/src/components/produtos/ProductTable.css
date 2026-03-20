@@ -539,6 +539,63 @@ body.dark .product-media-thumb.is-empty {
   white-space: nowrap;
 }
 
+.quality-score-column .quality-badge,
+.quality-score-column .content-quality-badge {
+  display: inline-block;
+  margin: 1px 2px;
+}
+
+/* Content quality badge — IA output completeness */
+.content-quality-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+.content-quality-badge--complete {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.content-quality-badge--good {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.content-quality-badge--partial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.content-quality-badge--basic {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+body.dark .content-quality-badge--complete {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+body.dark .content-quality-badge--good {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+body.dark .content-quality-badge--partial {
+  background: #451a03;
+  color: #fcd34d;
+}
+
+body.dark .content-quality-badge--basic {
+  background: #450a0a;
+  color: #fca5a5;
+}
+
 .quality-badge {
   display: inline-block;
   padding: 2px 7px;
@@ -587,4 +644,15 @@ body.dark .quality-badge--low {
 body.dark .quality-badge--none {
   background: #1e293b;
   color: #64748b;
+}
+
+.workflow-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 99px;
+  border: 1px solid;
+  margin-top: 3px;
+  white-space: nowrap;
 }

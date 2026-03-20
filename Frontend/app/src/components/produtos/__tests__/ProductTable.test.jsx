@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+﻿import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ProductTable from '../ProductTable.jsx';
 
@@ -13,6 +13,7 @@ const produtos = [
   {
     id: 1,
     nome_base: 'Produto A',
+    imagem_principal_url: 'https://cdn.example.com/produto-a.jpg',
     sku: 'SKU-A',
     fornecedor_id: 99,
     status_enriquecimento_web: { value: 'pipeline.CONCLUIDO_SUCESSO' },
@@ -59,7 +60,7 @@ describe('ProductTable', () => {
     );
 
     expect(screen.getByText('Carregando produtos...')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Selecionar pagina atual/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Selecionar página atual/i)).toBeDisabled();
   });
 
   test('shows empty state when there are no products', () => {
@@ -90,7 +91,7 @@ describe('ProductTable', () => {
     );
 
     expect(screen.getByText('Nenhum produto encontrado.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/Selecionar pagina atual/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Selecionar página atual/i)).toBeDisabled();
   });
 
   test('falls back to unknown when status objects do not expose a value field', () => {
@@ -121,6 +122,7 @@ describe('ProductTable', () => {
     const onViewContent = jest.fn();
     const onSelectProduto = jest.fn();
     const onSelectAllProdutos = jest.fn();
+    const onProcessAction = jest.fn();
 
     render(
       <ProductTable
@@ -129,6 +131,7 @@ describe('ProductTable', () => {
         onSort={onSort}
         sortConfig={{ key: 'nome_base', direction: 'ascending' }}
         onViewContent={onViewContent}
+        onProcessAction={onProcessAction}
         onSelectProduto={onSelectProduto}
         selectedProdutos={new Set([1])}
         onSelectAllProdutos={onSelectAllProdutos}
@@ -137,13 +140,17 @@ describe('ProductTable', () => {
     );
 
     expect(screen.getByText('Produto A')).toBeInTheDocument();
+    expect(screen.getByAltText(/Miniatura de Produto A/i)).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/produto-a.jpg'
+    );
     expect(screen.getByText('SKU-A')).toBeInTheDocument();
     expect(screen.getByText('ID: 99')).toBeInTheDocument();
     expect(screen.queryByText('Web')).not.toBeInTheDocument();
     expect(screen.queryByText('Tit')).not.toBeInTheDocument();
     expect(screen.queryByText('Desc')).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Enriquecimento web: Concluido/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Descricao: Falha\. Template invalido para o produto/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Enriquecimento web: Concluído/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Descrição: Falha\. Template invalido para o produto/i)).toBeInTheDocument();
     expect(
       screen.getByLabelText(/Enriquecimento web: Falha de API externa\. Tempo limite excedido ao consultar a fonte/i)
     ).toBeInTheDocument();
@@ -153,9 +160,9 @@ describe('ProductTable', () => {
       'ascending'
     );
 
-    expect(screen.getByLabelText(/Selecionar pagina atual/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Selecionar página atual/i)).not.toBeChecked();
     const rowCheckboxes = screen.getAllByRole('checkbox', { hidden: false }).filter((checkbox) =>
-      checkbox.getAttribute('aria-label') !== 'Selecionar pagina atual'
+      checkbox.getAttribute('aria-label') !== 'Selecionar página atual'
     );
     expect(rowCheckboxes[0]).toBeChecked();
 
@@ -170,6 +177,9 @@ describe('ProductTable', () => {
 
     fireEvent.click(screen.getAllByTitle('Editar produto')[0]);
     expect(onEdit).toHaveBeenCalledWith(produtos[0]);
+
+    fireEvent.click(screen.getByLabelText(/Enriquecimento web: Concluído/i));
+    expect(onProcessAction).toHaveBeenCalledWith(produtos[0], 'status_enriquecimento_web');
 
     fireEvent.click(screen.getByText('ID'));
     fireEvent.click(screen.getByText(/Fornecedor/));
@@ -191,10 +201,25 @@ describe('ProductTable', () => {
     );
 
     const row = screen.getByText('Produto A').closest('tr');
-    expect(within(row).getByLabelText(/Enriquecimento web: Concluido/i)).toBeInTheDocument();
-    expect(within(row).queryByLabelText(/Titulos:/i)).not.toBeInTheDocument();
-    expect(within(row).queryByLabelText(/Descricao:/i)).not.toBeInTheDocument();
+    expect(within(row).getByLabelText(/Enriquecimento web: Concluído/i)).toBeInTheDocument();
+    expect(within(row).queryByLabelText(/Títulos:/i)).not.toBeInTheDocument();
+    expect(within(row).queryByLabelText(/Descrição:/i)).not.toBeInTheDocument();
     expect(screen.queryByTitle('Ver conteúdo gerado')).not.toBeInTheDocument();
+  });
+
+  test('renders a placeholder thumbnail when the product has no image', () => {
+    render(
+      <ProductTable
+        produtos={[produtos[1]]}
+        onEdit={() => {}}
+        onSort={() => {}}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+      />
+    );
+
+    expect(screen.getByTitle('Produto sem miniatura')).toBeInTheDocument();
   });
 
   test('uses the header checkbox to clear the current selection when all products are selected', () => {
@@ -211,7 +236,7 @@ describe('ProductTable', () => {
       />
     );
 
-    const headerCheckbox = screen.getByLabelText(/Selecionar pagina atual/i);
+    const headerCheckbox = screen.getByLabelText(/Selecionar página atual/i);
     expect(headerCheckbox).toBeChecked();
 
     fireEvent.click(headerCheckbox);
@@ -231,7 +256,7 @@ describe('ProductTable', () => {
       />
     );
 
-    expect(screen.getByLabelText(/Selecionar pagina atual/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Selecionar página atual/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Selecionar todos os resultados/i)).not.toBeInTheDocument();
   });
 
@@ -248,19 +273,19 @@ describe('ProductTable', () => {
         selectedProdutos={new Set()}
         onSelectAllProdutos={() => {}}
         selectionMenuItems={[
-          { key: 'page', label: 'Selecionar pagina atual', onClick: handleSelectPage },
+          { key: 'page', label: 'Selecionar página atual', onClick: handleSelectPage },
           { key: 'all', label: 'Selecionar todos os resultados da pesquisa', onClick: handleSelectAll },
         ]}
       />
     );
 
-    fireEvent.click(screen.getByLabelText(/Opcoes de selecao/i));
+    fireEvent.click(screen.getByLabelText(/Opções de seleção/i));
 
     fireEvent.click(screen.getByRole('menuitem', { name: 'Selecionar todos os resultados da pesquisa' }));
 
     expect(handleSelectAll).toHaveBeenCalledTimes(1);
     expect(handleSelectPage).not.toHaveBeenCalled();
-    expect(screen.queryByRole('menuitem', { name: 'Selecionar pagina atual' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Selecionar página atual' })).not.toBeInTheDocument();
   });
 
   test('sanitizes tracebacks and internal backend details from failure tooltips', () => {
@@ -292,6 +317,39 @@ describe('ProductTable', () => {
     );
     expect(indicator).toBeInTheDocument();
     expect(indicator).not.toHaveAttribute('aria-label', expect.stringMatching(/Traceback|web_enrichment_task_service\.py/i));
+  });
+
+  test('renders web status without source as a red failure indicator with explicit tooltip', () => {
+    render(
+      <ProductTable
+        produtos={[
+          {
+            ...produtos[0],
+            id: 77,
+            nome_base: 'Produto sem fonte',
+            status_enriquecimento_web: 'NENHUMA_FONTE_ENCONTRADA',
+            log_enriquecimento_web: {
+              historico_mensagens: ['Nenhuma fonte relevante foi encontrada para este produto.'],
+            },
+          },
+        ]}
+        onEdit={() => {}}
+        onSort={() => {}}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+      />
+    );
+
+    const indicator = screen.getByLabelText(
+      /Enriquecimento web: Nenhuma fonte encontrada\. Nenhuma fonte relevante foi encontrada\./i
+    );
+    const statusIndicator = indicator.matches('.status-process-indicator')
+      ? indicator
+      : indicator.querySelector('[data-status-key="status_enriquecimento_web"]');
+
+    expect(indicator).toBeInTheDocument();
+    expect(statusIndicator).toHaveClass('red');
   });
 
   test('renders sort indicators for SKU, status and update date columns', () => {
@@ -347,4 +405,30 @@ describe('ProductTable', () => {
     expect(onSort).toHaveBeenNthCalledWith(2, 'status_enriquecimento_web');
     expect(onSort).toHaveBeenNthCalledWith(3, 'data_atualizacao');
   });
+
+  test('opens an inline zoom preview when the product thumbnail is clicked', () => {
+    render(
+      <ProductTable
+        produtos={[produtos[0]]}
+        onEdit={() => {}}
+        onSort={() => {}}
+        onSelectProduto={() => {}}
+        selectedProdutos={new Set()}
+        onSelectAllProdutos={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ampliar miniatura de Produto A/i }));
+
+    expect(screen.getByAltText(/Preview ampliado de Produto A/i)).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/produto-a.jpg'
+    );
+    fireEvent.blur(screen.getByRole('button', { name: /Ampliar miniatura de Produto A/i }));
+    expect(screen.getByAltText(/Preview ampliado de Produto A/i)).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByAltText(/Preview ampliado de Produto A/i)).not.toBeInTheDocument();
+  });
 });
+
+

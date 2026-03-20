@@ -126,11 +126,17 @@ export function normalizeImportStatus(statusRaw, expectedPages) {
     pagesTotal = expectedPages;
   }
 
+  const serverEtaSec =
+    typeof statusRaw?.result_summary?.eta_seconds === 'number'
+      ? statusRaw.result_summary.eta_seconds
+      : null;
+
   return {
     ...statusRaw,
     status: canonicalStatus,
     pages_processed: pagesProcessed,
     total_pages: pagesTotal,
+    server_eta_seconds: serverEtaSec,
   };
 }
 
@@ -260,10 +266,13 @@ export function buildWizardViewModel({
   const elapsedSec = processingStartedAt
     ? Math.max(0, Math.floor((Date.now() - processingStartedAt) / 1000))
     : 0;
-  const etaSec =
+  const clientEtaSec =
     pagesProcessed > 0 && pagesTotal > pagesProcessed
       ? Math.max(0, Math.round((elapsedSec / pagesProcessed) * (pagesTotal - pagesProcessed)))
       : 0;
+  const serverEtaSec =
+    typeof statusData?.server_eta_seconds === 'number' ? statusData.server_eta_seconds : null;
+  const etaSec = serverEtaSec !== null ? serverEtaSec : clientEtaSec;
 
   const showLoadingPopup =
     isLoading || (step === 'processing' && !error && (processingActive || waitingFinalResult));

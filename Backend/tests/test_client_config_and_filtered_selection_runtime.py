@@ -13,6 +13,9 @@ from Backend.database import Base
 from Backend.infrastructure.repositories.external_credential_repository import (
     ExternalCredentialRepository,
 )
+from Backend.infrastructure.repositories.basic_generation_template_repository import (
+    BasicGenerationTemplateRepository,
+)
 from Backend.infrastructure.repositories.fornecedor_repository import FornecedorRepository
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 
@@ -189,6 +192,69 @@ def test_external_credentials_follow_user_company_system_precedence():
         )
         assert invalid_google_cse["valid"] is False
         assert "Search Engine ID" in invalid_google_cse["errors"][0]
+    finally:
+        session.close()
+        Base.metadata.drop_all(bind=engine)
+
+
+def test_basic_generation_templates_follow_user_company_system_precedence():
+    engine, session = _build_session()
+    try:
+        plano_pro = _create_plan(session, nome="Pro")
+        user = _create_user(
+            session,
+            email="templates@example.com",
+            plano_id=plano_pro.id,
+            nome_empresa="Catalog AI LTDA",
+        )
+        repository = BasicGenerationTemplateRepository(session)
+
+        system_defaults = repository.system_defaults()
+        effective_system = repository.resolve_effective_config(current_user=user)
+        assert effective_system["source"] == "system"
+        assert effective_system["title_template"] == system_defaults["title_template"]
+
+        repository.upsert_config(
+            scope_type=models.ExternalCredentialScopeEnum.COMPANY,
+            current_user=user,
+            title_template="{nome_base} {sku}",
+            description_template="{nome_base}\n{specs}",
+            is_active=True,
+        )
+        effective_company = repository.resolve_effective_config(current_user=user)
+        assert effective_company["source"] == "company"
+        assert effective_company["title_template"] == "{nome_base} {sku}"
+
+        repository.upsert_config(
+            scope_type=models.ExternalCredentialScopeEnum.USER,
+            current_user=user,
+            title_template="{titulo_base} {reference}",
+            description_template="{nome_base}\n{bullets}",
+            is_active=True,
+        )
+        effective_user = repository.resolve_effective_config(current_user=user)
+        assert effective_user["source"] == "user"
+        assert effective_user["title_template"] == "{titulo_base} {reference}"
+
+        overview = repository.build_overview(current_user=user)
+        assert overview["company_identifier"] == "catalog-ai-ltda"
+        assert overview["company_config"]["title_template"] == "{nome_base} {sku}"
+        assert overview["user_config"]["title_template"] == "{titulo_base} {reference}"
+        assert overview["effective_config"]["source"] == "user"
+
+        repository.delete_config(
+            scope_type=models.ExternalCredentialScopeEnum.USER,
+            current_user=user,
+        )
+        fallback_company = repository.resolve_effective_config(current_user=user)
+        assert fallback_company["source"] == "company"
+
+        repository.delete_config(
+            scope_type=models.ExternalCredentialScopeEnum.COMPANY,
+            current_user=user,
+        )
+        fallback_system = repository.resolve_effective_config(current_user=user)
+        assert fallback_system["source"] == "system"
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)

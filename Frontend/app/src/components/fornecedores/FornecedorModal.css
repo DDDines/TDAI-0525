@@ -1,3 +1,84 @@
+.fornecedor-modal-shell {
+  overflow: hidden;
+}
+
+.fornecedor-modal-body {
+  padding-top: 1.1rem;
+}
+
+.fornecedor-modal-tabs {
+  margin-bottom: 0;
+}
+
+.fornecedor-modal-section-card {
+  gap: 1rem;
+}
+
+.fornecedor-modal-section-card--fields {
+  display: flex;
+  flex-direction: column;
+}
+
+.fornecedor-modal-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.fornecedor-modal-field {
+  min-width: 0;
+}
+
+.fornecedor-modal-field label,
+.fornecedor-logo-url-group label {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+.fornecedor-modal-field input,
+.fornecedor-logo-url-group input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(203, 213, 225, 0.96);
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.92);
+  color: #0f172a;
+  font-size: 0.98rem;
+  box-sizing: border-box;
+}
+
+.fornecedor-modal-primary-inline,
+.catalog-files-add-btn,
+.fornecedor-logo-action {
+  min-height: 2.75rem;
+  padding: 0.78rem 1rem;
+  border: none;
+  border-radius: 14px;
+  background: #111111;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fornecedor-modal-primary-inline:hover,
+.catalog-files-add-btn:hover,
+.fornecedor-logo-action:hover {
+  filter: brightness(0.92);
+}
+
+.fornecedor-modal-primary-inline:disabled,
+.catalog-files-add-btn:disabled,
+.fornecedor-logo-action:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  filter: none;
+}
+
 .fornecedor-logo-panel {
   display: grid;
   grid-template-columns: 148px minmax(0, 1fr);
@@ -133,10 +214,6 @@
   min-width: 0;
 }
 
-.fornecedor-logo-url-group label {
-  margin-bottom: 0.55rem;
-}
-
 .fornecedor-logo-helper {
   margin: 0;
   color: #64748b;
@@ -149,7 +226,24 @@
   margin-top: 0;
 }
 
+.fornecedor-modal-footer {
+  margin-top: 0;
+}
+
+.fornecedor-modal-inline-note {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px dashed rgba(203, 213, 225, 0.95);
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+}
+
 @media (max-width: 720px) {
+  .fornecedor-modal-field-grid {
+    grid-template-columns: 1fr;
+  }
+
   .fornecedor-logo-panel {
     grid-template-columns: 1fr;
   }
