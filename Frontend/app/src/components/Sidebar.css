@@ -141,6 +141,22 @@
 .sidebar-nav {
   flex: 1;
   padding: 0.6rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sidebar-section { display: flex; flex-direction: column; }
+.sidebar-section + .sidebar-section { margin-top: 0.5rem; }
+
+.sidebar-section-label {
+  padding: 0.5rem 0.75rem 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-color-light, #94a3b8);
+  white-space: nowrap;
 }
 
 .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }

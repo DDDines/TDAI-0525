@@ -8,13 +8,17 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LuBox,
+  LuBoxes,
   LuBuilding2,
   LuChevronDown,
+  LuGlobe,
   LuHistory,
   LuLayoutDashboard,
   LuLogOut,
   LuSearch,
   LuSettings,
+  LuTag,
+  LuTruck,
   LuX,
   LuZap,
 } from 'react-icons/lu';
@@ -96,40 +100,39 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
   const companyLabel = workspace?.nome || user?.nome_empresa || 'Configurar empresa';
   const companyHint = hasWorkspace ? 'Empresa ativa' : 'Crie ou entre em uma empresa';
 
-  const menuItems = [
+
+  const sections = [
     {
-      path: '/dashboard',
-      name: 'Dashboard',
-      icon: <LuLayoutDashboard />,
-      matches: ['/dashboard'],
+      label: null,
+      items: [
+        { path: '/dashboard', name: 'Dashboard', icon: <LuLayoutDashboard />, matches: ['/dashboard'] },
+      ],
     },
     {
-      path: '/produtos',
-      name: 'Catálogo',
-      icon: <LuBox />,
-      matches: ['/produtos', '/fornecedores', '/tipos-de-produto', '/enriquecimento', '/importacoes'],
+      label: 'Catálogo',
+      items: [
+        { path: '/produtos', name: 'Produtos', icon: <LuBox />, matches: ['/produtos'] },
+        { path: '/fornecedores', name: 'Fornecedores', icon: <LuTruck />, matches: ['/fornecedores'] },
+        { path: '/tipos-de-produto', name: 'Tipos de Produto', icon: <LuTag />, matches: ['/tipos-de-produto'] },
+      ],
     },
     {
-      path: '/monitoramento',
-      name: 'Operações',
-      icon: <LuHistory />,
-      matches: ['/monitoramento', '/historico'],
+      label: 'Operações',
+      items: [
+        { path: '/enriquecimento', name: 'Enriquecimento', icon: <LuGlobe />, matches: ['/enriquecimento'] },
+        { path: '/monitoramento', name: 'Monitoramento', icon: <LuHistory />, matches: ['/monitoramento', '/historico'] },
+      ],
     },
     {
-      path: '/workspace',
-      name: 'Empresa',
-      icon: <LuBuilding2 />,
-      matches: ['/workspace', '/financeiro'],
-    },
-    {
-      path: '/configuracoes',
-      name: 'Configurações',
-      icon: <LuSettings />,
-      matches: ['/configuracoes', ...(isAdmin ? ['/admin'] : [])],
+      label: null,
+      items: [
+        { path: '/workspace', name: 'Empresa', icon: <LuBuilding2 />, matches: ['/workspace', '/financeiro'] },
+        { path: '/configuracoes', name: 'Configurações', icon: <LuSettings />, matches: ['/configuracoes', ...(isAdmin ? ['/admin'] : [])] },
+      ],
     },
   ];
 
-  const isItemActive = (item) => item.matches.some((path) => location.pathname.startsWith(path));
+  const isItemActive = (item) => item.matches.some((p) => location.pathname.startsWith(p));
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'} ${isMobileViewport ? 'mobile' : 'desktop'}`}>
@@ -175,20 +178,27 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
       </div>
 
       <nav className="sidebar-nav">
-        <ul>
-          {menuItems.map((item) => (
-            <li key={item.name}>
-              <NavLink
-                to={item.path}
-                className={isItemActive(item) ? 'nav-link active' : 'nav-link'}
-                title={item.name}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                {isOpen ? <span className="nav-text">{item.name}</span> : null}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+        {sections.map((section, si) => (
+          <div key={si} className="sidebar-section">
+            {section.label && isOpen ? (
+              <span className="sidebar-section-label">{section.label}</span>
+            ) : null}
+            <ul>
+              {section.items.map((item) => (
+                <li key={item.name}>
+                  <NavLink
+                    to={item.path}
+                    className={isItemActive(item) ? 'nav-link active' : 'nav-link'}
+                    title={item.name}
+                  >
+                    <span className="nav-icon">{item.icon}</span>
+                    {isOpen ? <span className="nav-text">{item.name}</span> : null}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       <div className="sidebar-footer">
