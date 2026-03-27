@@ -167,14 +167,10 @@ button[disabled], button:disabled {
 }
 
 .sidebar nav a {
-  display: block;
-  padding: 0.75rem 1rem;
+  /* display and layout handled by .nav-link in Sidebar.css */
   color: var(--sidebar-text);
   text-decoration: none;
-  border-radius: var(--radius);
-  margin-bottom: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
 }
 .sidebar nav a.active, .sidebar nav a:hover {
   background: var(--sidebar-active-bg, #e0e0e0);
