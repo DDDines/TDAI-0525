@@ -228,6 +228,7 @@ class User(Base):
     registros_uso_ia_feitos = relationship(
         "RegistroUsoIA", back_populates="usuario", cascade="all, delete-orphan"
     )
+    export_logs = relationship("ExportLog", back_populates="user", lazy="dynamic")
     historicos = relationship(
         "RegistroHistorico", back_populates="usuario", cascade="all, delete-orphan"
     )
@@ -807,6 +808,18 @@ class RegistroUsoIA(Base):
 
     usuario = relationship("User", back_populates="registros_uso_ia_feitos")
     produto = relationship("Produto", back_populates="registros_uso_ia")
+
+
+class ExportLog(Base):
+    """Represent Export Log and centralize its responsibilities inside this module."""
+    __tablename__ = "export_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    total_items = Column(Integer, nullable=False, default=0)
+    format = Column(String, nullable=False, default="xlsx")
+    filtros_json = Column(Text, nullable=True)  # JSON string of filters used
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    user = relationship("User", back_populates="export_logs")
 
 
 class PromptTemplate(Base):

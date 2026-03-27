@@ -654,3 +654,37 @@ body.dark .plano-coverage-icon {
   .plano-chooser-select-btn { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); color: #e2e8f0; }
   .plano-chooser-select-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
 }
+
+/* Finance polish */
+.plano-page-shell {
+  max-width: 1420px;
+}
+
+.plano-inline-card,
+.plano-section-card,
+.plano-hero-card {
+  border-color: #e3e9f1;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+.plano-hero-card {
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at top right, rgba(15, 23, 42, 0.05), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 249, 252, 0.98));
+}
+
+.plano-hero-pill,
+.plano-side-stat,
+.plano-usage-card,
+.plano-coverage-item,
+.plano-action-link,
+.plano-action-button {
+  border-color: #e3e9f1;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+}
+
+.plano-action-link:hover,
+.plano-action-button:hover {
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+}

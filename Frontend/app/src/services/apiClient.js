@@ -81,6 +81,11 @@ apiClient.interceptors.response.use(
     );
 
     if (error.response && error.response.status === 401) {
+      if (error.config?.skipAuthRedirect) {
+        console.warn('apiClient: Erro 401 com skipAuthRedirect ativo. Mantendo rota atual.');
+        return Promise.reject(error);
+      }
+
       // Apenas redireciona se NÃO estiver já na página de login para evitar loops
       if (window.location.pathname !== '/login') {
         console.warn("apiClient: Erro 401! Limpando tokens e redirecionando para /login. URL original:", error.config?.url);

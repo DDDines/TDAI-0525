@@ -534,7 +534,7 @@
 }
 
 .produto-conteudo-feedback-actions .is-selected {
-  outline: 2px solid #111111;
+  outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
 

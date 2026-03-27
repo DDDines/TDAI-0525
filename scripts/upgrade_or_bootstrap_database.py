@@ -67,7 +67,7 @@ class DatabaseUpgradeOrBootstrapRuntime:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Upgrade an existing CatalogAI database or bootstrap an empty one."
+        description="Upgrade an existing CommerceFolio database or bootstrap an empty one."
     )
     parser.add_argument(
         "--config",

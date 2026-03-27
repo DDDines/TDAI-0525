@@ -17,10 +17,9 @@ jest.mock('../Sidebar', () => ({
 
 jest.mock('../Topbar', () => ({
   __esModule: true,
-  default: ({ viewTitle, toggleSidebar }) => (
+  default: ({ viewTitle }) => (
     <div>
       <span data-testid="topbar-title">{viewTitle}</span>
-      <button onClick={toggleSidebar}>toggle-topbar</button>
     </div>
   ),
 }));
@@ -32,7 +31,7 @@ function renderLayout(path) {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<div>Dashboard screen</div>} />
           <Route path="dashboard" element={<div>Dashboard screen</div>} />
-          <Route path="historico" element={<div>Historico screen</div>} />
+          <Route path="monitoramento" element={<div>Monitoramento screen</div>} />
           <Route path="tipos-de-produto" element={<div>Tipos screen</div>} />
           <Route path="rota-customizada" element={<div>Custom screen</div>} />
         </Route>
@@ -61,23 +60,20 @@ describe('MainLayout', () => {
   });
 
   test('maps route names to friendly view titles', () => {
-    renderLayout('/historico');
+    renderLayout('/monitoramento');
 
-    expect(screen.getByTestId('topbar-title')).toHaveTextContent('Histórico de Uso');
-    expect(screen.getByText('Historico screen')).toBeInTheDocument();
+    expect(screen.getByTestId('topbar-title')).toHaveTextContent('Monitoramento');
+    expect(screen.getByText('Monitoramento screen')).toBeInTheDocument();
   });
 
-  test('toggles the sidebar from the topbar and sidebar controls', () => {
+  test('toggles the sidebar from the sidebar control', () => {
     renderLayout('/tipos-de-produto');
 
     expect(screen.getByTestId('topbar-title')).toHaveTextContent('Tipos de Produto');
     expect(screen.getByTestId('sidebar-state')).toHaveTextContent('open');
 
-    fireEvent.click(screen.getByText('toggle-topbar'));
-    expect(screen.getByTestId('sidebar-state')).toHaveTextContent('closed');
-
     fireEvent.click(screen.getByText('toggle-sidebar'));
-    expect(screen.getByTestId('sidebar-state')).toHaveTextContent('open');
+    expect(screen.getByTestId('sidebar-state')).toHaveTextContent('closed');
   });
 
   test('uses dashboard as the default title and formats unknown routes', () => {

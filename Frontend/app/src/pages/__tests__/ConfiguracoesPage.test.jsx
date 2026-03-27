@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { MemoryRouter } from 'react-router-dom';
 import ConfiguracoesPage from '../ConfiguracoesPage.jsx';
 import authService from '../../services/authService';
 import basicTemplateService from '../../services/basicTemplateService';
@@ -72,7 +73,7 @@ jest.mock('../../components/common/LoadingOverlay.jsx', () => ({
 
 function buildCredentialsOverview() {
   return {
-    company_identifier: 'catalogai',
+    company_identifier: 'commercefolio',
     company_credentials: [
       {
         id: 1,
@@ -128,12 +129,24 @@ function buildTemplateOverview(overrides = {}) {
     };
 
   return {
-    companyIdentifier: overrides.companyIdentifier || 'catalogai',
+    companyIdentifier: overrides.companyIdentifier || 'commercefolio',
     systemDefaults,
     companyConfig,
     userConfig,
     effectiveConfig,
   };
+}
+
+async function openSettingsTab(label) {
+  fireEvent.click(await screen.findByRole('tab', { name: label }));
+}
+
+function renderSettingsPage(initialEntries = ['/configuracoes']) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <ConfiguracoesPage />
+    </MemoryRouter>
+  );
 }
 
 describe('ConfiguracoesPage', () => {
@@ -229,7 +242,7 @@ describe('ConfiguracoesPage', () => {
     authService.getCurrentUser.mockResolvedValue({
       id: 8,
       nome_completo: 'Julio Cesar',
-      nome_empresa: 'CatalogAI',
+      nome_empresa: 'CommerceFolio',
       avatar_url: '',
       email: 'julio@example.com',
       idioma_preferido: 'pt_BR',
@@ -249,10 +262,10 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('loads the current user and saves profile changes', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
-    expect(await screen.findByText('Credenciais da Empresa')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Credenciais' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Nome'), {
       target: { value: 'Julio Atualizado' },
@@ -289,7 +302,7 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('saves user templates, resets defaults and allows admin preview changes', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
     const templatesCard = screen.getByRole('heading', { name: /Templates do Modo/i }).closest('section');
@@ -343,7 +356,7 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('supports switching the template editor scope for admins', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
 
@@ -351,14 +364,15 @@ describe('ConfiguracoesPage', () => {
 
     expect(await screen.findByDisplayValue('{titulo_base} Empresa')).toBeInTheDocument();
     const templatesCard = screen.getByRole('heading', { name: /Templates do Modo/i }).closest('section');
-    expect(within(templatesCard).getByText(/Empresa atual:/i)).toHaveTextContent('catalogai');
+    expect(within(templatesCard).getByText(/Empresa atual:/i)).toHaveTextContent('commercefolio');
   });
 
   test('renders company and personal credentials with precedence information', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
+    await openSettingsTab('Credenciais');
 
     expect(await screen.findByText('Credenciais da Empresa')).toBeInTheDocument();
-    expect(screen.getByText(/Empresa atual:/i)).toHaveTextContent('catalogai');
+    expect(screen.getByText(/Empresa atual:/i)).toHaveTextContent('commercefolio');
     expect(screen.getByText('Minhas Credenciais Pessoais')).toBeInTheDocument();
     expect(screen.getAllByText('OpenAI').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Origem efetiva em uso:/i).length).toBeGreaterThan(0);
@@ -367,7 +381,8 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('validates and saves a company credential, then reloads the overview', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
+    await openSettingsTab('Credenciais');
 
     const companyHeading = await screen.findByText('Credenciais da Empresa');
     const companySection = companyHeading.closest('section');
@@ -410,7 +425,8 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('removes a personal override credential', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
+    await openSettingsTab('Credenciais');
 
     const userSection = await screen.findByText('Minhas Credenciais Pessoais');
     const userOpenAICard = within(userSection.closest('section')).getByText('OpenAI').closest('form');
@@ -424,7 +440,8 @@ describe('ConfiguracoesPage', () => {
   });
 
   test('validates a stored credential without forcing the user to save it first', async () => {
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
+    await openSettingsTab('Credenciais');
 
     const userSection = await screen.findByText('Minhas Credenciais Pessoais');
     const userOpenAICard = within(userSection.closest('section')).getByText('OpenAI').closest('form');
@@ -464,12 +481,13 @@ describe('ConfiguracoesPage', () => {
       clearAdminPreviewMode,
     });
 
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByDisplayValue('julio@example.com')).toBeInTheDocument();
     const experienceCard = screen.getByRole('heading', { name: /Experi.ncia do Produto/i }).closest('section');
     expect(within(experienceCard).getByText(/sem IA/i)).toBeInTheDocument();
     expect(screen.getByText(/Seu modo real vem do plano ativo e do seu perfil/i)).toBeInTheDocument();
+    await openSettingsTab('Credenciais');
     expect(screen.queryByText('Credenciais da Empresa')).not.toBeInTheDocument();
     expect(screen.getByText('Minhas Credenciais Pessoais')).toBeInTheDocument();
   });
@@ -483,14 +501,14 @@ describe('ConfiguracoesPage', () => {
         })
     );
 
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(screen.getByText(/Carregando configura/i)).toBeInTheDocument();
 
     resolveCurrentUser({
       id: 8,
       nome_completo: 'Julio Cesar',
-      nome_empresa: 'CatalogAI',
+      nome_empresa: 'CommerceFolio',
       avatar_url: '',
       email: 'julio@example.com',
       idioma_preferido: 'pt_BR',
@@ -509,7 +527,7 @@ describe('ConfiguracoesPage', () => {
     );
     credentialsService.getOverview.mockRejectedValueOnce(new Error('credenciais indisponiveis'));
 
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByDisplayValue('{nome_base} {marca}')).toBeInTheDocument();
     await waitFor(() => {
@@ -536,7 +554,7 @@ describe('ConfiguracoesPage', () => {
       .mockRejectedValueOnce(new Error('templates offline'))
       .mockResolvedValueOnce(currentTemplateOverview);
 
-    render(<ConfiguracoesPage />);
+    renderSettingsPage();
 
     expect(await screen.findByText('templates offline')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Tentar novamente/i }));

@@ -108,7 +108,7 @@ describe('authService', () => {
       id: 7,
       email: 'admin@example.com',
     });
-    expect(apiClient.get).toHaveBeenCalledWith('/auth/users/me');
+    expect(apiClient.get).toHaveBeenCalledWith('/auth/users/me', { skipAuthRedirect: true });
   });
 
   test('getCurrentUser rethrows backend payload or generic error', async () => {

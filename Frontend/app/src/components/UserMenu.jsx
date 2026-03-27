@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LuHistory, LuLogOut, LuSettings, LuWalletCards } from 'react-icons/lu';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 function getInitials(name) {
   if (!name || typeof name !== 'string') return '--';
@@ -22,6 +23,7 @@ function getInitials(name) {
 function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
   const navigate = useNavigate();
   const { user, logout, isLoading } = useAuth();
+  const { workspace } = useWorkspace();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const navigateAction = onNavigate ?? navigate;
@@ -31,7 +33,7 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
   const userInitials = isLoading ? '...' : getInitials(user?.nome_completo || user?.email);
   const userAvatarUrl = isLoading ? '' : user?.avatar_url || '';
   const userEmailDisplay = isLoading ? '' : user?.email || 'Sem e-mail';
-  const userCompanyDisplay = isLoading ? '' : user?.nome_empresa || '';
+  const userCompanyDisplay = isLoading ? '' : workspace?.nome || user?.nome_empresa || '';
   const userPlanDisplay = isLoading ? '' : user?.plano?.nome || '';
   const userRoleDisplay = isLoading ? '' : user?.is_superuser ? 'Administrador' : 'Usuario';
 
@@ -74,6 +76,7 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
         onClick={toggleMenu}
         aria-haspopup="menu"
         aria-expanded={menuOpen ? 'true' : 'false'}
+        title={userNameDisplay}
       >
         <div className="user-avatar">
           {userAvatarUrl ? (
@@ -87,7 +90,6 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
             userInitials
           )}
         </div>
-        <span className="user-name">{userNameDisplay}</span>
       </button>
 
       {enableMenu && menuOpen ? (
@@ -108,13 +110,13 @@ function UserMenu({ onLogout, onNavigate, showDropdown = true }) {
             <span className="menu-item-icon"><LuSettings /></span>
             Configuracoes
           </button>
-          <button onClick={() => handleNavigate('/plano')}>
+          <button onClick={() => handleNavigate('/financeiro')}>
             <span className="menu-item-icon"><LuWalletCards /></span>
-            Meu Plano
+            Financeiro
           </button>
-          <button onClick={() => handleNavigate('/historico')}>
+          <button onClick={() => handleNavigate('/monitoramento')}>
             <span className="menu-item-icon"><LuHistory /></span>
-            Historico
+            Monitoramento
           </button>
           <button onClick={handleLogout}>
             <span className="menu-item-icon"><LuLogOut /></span>

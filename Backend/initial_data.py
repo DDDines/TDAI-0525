@@ -70,7 +70,7 @@ class InitialDataRuntime:
             return admin_user
         admin_role = user_repo.get_role_by_name(name='admin')
         admin_plano = user_repo.get_plano_by_name(nome='Pro')
-        db_admin_user = user_repo.create_user(user=schemas.UserCreate(email=admin_email, password=admin_password, nome_completo='Admin CatalogAI', plano_id=admin_plano.id if admin_plano else None))
+        db_admin_user = user_repo.create_user(user=schemas.UserCreate(email=admin_email, password=admin_password, nome_completo='Admin CommerceFolio', plano_id=admin_plano.id if admin_plano else None))
         db_admin_user.is_superuser = True
         if admin_role:
             db_admin_user.role_id = admin_role.id

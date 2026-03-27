@@ -18,7 +18,7 @@
 
 .catalog-file-table th {
   background: #f8fafc;
-  color: #111827;
+  color: var(--primary);
   font-weight: 700;
 }
 

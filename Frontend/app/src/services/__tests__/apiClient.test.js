@@ -141,6 +141,25 @@ describe('apiClient interceptors', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 
+  test('response interceptor does not redirect when skipAuthRedirect is enabled', async () => {
+    window.history.pushState({}, '', '/');
+    localStorage.setItem('accessToken', 'token-123');
+    loadApiClient();
+    const error = {
+      config: { url: '/auth/users/me', skipAuthRedirect: true },
+      response: {
+        status: 401,
+        data: { detail: 'token expirado' },
+      },
+    };
+
+    await expect(responseFailure(error)).rejects.toBe(error);
+
+    expect(window.location.pathname).toBe('/');
+    expect(localStorage.getItem('accessToken')).toBe('token-123');
+    expect(console.warn).toHaveBeenCalled();
+  });
+
   test('response interceptor leaves auth state untouched for non-401 errors', async () => {
     localStorage.setItem('accessToken', 'token-123');
     localStorage.setItem('refreshToken', 'refresh-456');

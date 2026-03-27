@@ -15,7 +15,7 @@ BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-8002}"
 HEALTHCHECK_PATH="${HEALTHCHECK_PATH:-/health}"
 HEALTHCHECK_TIMEOUT_SECONDS="${HEALTHCHECK_TIMEOUT_SECONDS:-60}"
 KEEP_PREVIOUS_SLOT_RUNNING="${KEEP_PREVIOUS_SLOT_RUNNING:-1}"
-NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/catalogai-upstream.conf}"
+NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/commercefolio-upstream.conf}"
 NGINX_TEST_COMMAND="${NGINX_TEST_COMMAND:-nginx -t}"
 NGINX_RELOAD_COMMAND="${NGINX_RELOAD_COMMAND:-nginx -s reload}"
 SKIP_NGINX_RELOAD="${SKIP_NGINX_RELOAD:-0}"
@@ -107,7 +107,7 @@ wait_for_health() {
 render_upstream_config() {
   local port="$1"
   cat > "$NGINX_UPSTREAM_PATH" <<EOF
-upstream catalogai_backend {
+upstream commercefolio_backend {
     server 127.0.0.1:${port};
     keepalive 32;
 }

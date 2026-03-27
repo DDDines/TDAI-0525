@@ -69,7 +69,7 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: #111111;
+  background: var(--primary);
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -80,7 +80,7 @@
   white-space: pre-wrap;
   font-size: 0.95rem;
   line-height: 1.4;
-  color: #1f2937;
+  color: var(--primary);
 }
 
 .product-content-title-input,

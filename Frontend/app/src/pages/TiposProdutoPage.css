@@ -407,7 +407,7 @@
 }
 
 .attribute-template-action-button.edit {
-  background: #111111;
+  background: var(--primary);
   color: #ffffff;
 }
 

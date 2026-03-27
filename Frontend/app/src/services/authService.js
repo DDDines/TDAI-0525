@@ -60,7 +60,7 @@ authService = {
   async getCurrentUser() {
     logger.log('authService: Tentando buscar getCurrentUser...');
     try {
-      const response = await apiClient.get('/auth/users/me');
+      const response = await apiClient.get('/auth/users/me', { skipAuthRedirect: true });
       logger.log('authService: getCurrentUser response data:', response.data);
       return response.data;
     } catch (error) {

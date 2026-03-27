@@ -425,6 +425,61 @@ class ProductManagementService:
 
         return xlsx_bytes
 
+    def export_produtos_csv(
+        self,
+        *,
+        current_user: Any,
+        ids: Optional[List[int]] = None,
+        search: Optional[str] = None,
+        fornecedor_id: Optional[int] = None,
+        categoria: Optional[str] = None,
+        status_enriquecimento_web: Any = None,
+        status_titulo_ia: Any = None,
+        status_descricao_ia: Any = None,
+        product_type_id: Optional[int] = None,
+        enrichment_scope: Optional[str] = None,
+    ) -> tuple:
+        """Build and return a (DataFrame, csv_string) of products matching the given filters."""
+        import pandas as pd
+
+        user_id_filter = None if current_user.is_superuser else current_user.id
+        produtos = self._produto_repo.get_produtos_for_export(
+            user_id=user_id_filter,
+            is_admin=current_user.is_superuser,
+            ids=ids,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            product_type_id=product_type_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            enrichment_scope=enrichment_scope,
+        )
+
+        rows = []
+        for p in produtos:
+            rows.append({
+                "ID": p.id,
+                "SKU": p.sku or "",
+                "Nome Base": p.nome_base or "",
+                "Título Gerado (IA)": p.nome_chat_api or "",
+                "Descrição Gerada (IA)": p.descricao_chat_api or "",
+                "Marca": p.marca or "",
+                "Modelo": p.modelo or "",
+                "Fornecedor": p.fornecedor.nome if p.fornecedor else "",
+                "Tipo de Produto": self._resolve_product_type_label(p.product_type),
+                "Status Enriquecimento": str(p.status_enriquecimento_web.value) if p.status_enriquecimento_web else "",
+                "Status Título IA": str(p.status_titulo_ia.value) if p.status_titulo_ia else "",
+                "Status Descrição IA": str(p.status_descricao_ia.value) if p.status_descricao_ia else "",
+                "Imagem URL": p.imagem_principal_url or "",
+                "Criado em": p.created_at.strftime("%d/%m/%Y %H:%M") if p.created_at else "",
+            })
+
+        df = pd.DataFrame(rows)
+        csv_str = df.to_csv(index=False)
+        return df, csv_str
+
     def update_produto(
         self,
         *,

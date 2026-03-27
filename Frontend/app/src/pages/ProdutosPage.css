@@ -181,3 +181,73 @@
     width: 100%;
   }
 }
+
+/* ── Export format toggle ──────────────────────────── */
+.export-format-toggle {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.export-fmt-btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text-color-light, #64748b);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-radius: 0;
+  min-height: unset;
+}
+
+.export-fmt-btn.active,
+.export-fmt-btn.active:hover {
+  background: #1d2537;
+  color: #ffffff;
+}
+
+body.dark .export-fmt-btn.active,
+body.dark .export-fmt-btn.active:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ── Export history modal ──────────────────────────── */
+.export-history-list { padding: 0.25rem 0; }
+
+.export-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.export-history-table th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color-light, #64748b);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.export-history-table td {
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  color: #334155;
+}
+
+.export-fmt-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+}

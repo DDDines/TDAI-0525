@@ -43,6 +43,13 @@
   width: min(1180px, calc(100vw - 2.5rem));
 }
 
+.modal-size-fullscreen {
+  width: calc(100vw - 2rem);
+  max-width: 1600px;
+  height: calc(100vh - 2rem);
+  max-height: calc(100vh - 2rem);
+}
+
 .modal-header {
   display: flex;
   align-items: flex-start;
@@ -255,7 +262,7 @@
 }
 
 .form-section button {
-  background-color: #111111;
+  background-color: var(--primary);
   color: white;
   padding: 0.78rem 1rem;
   border: none;
@@ -297,7 +304,7 @@
 
 .modal-actions button[type="submit"],
 .modal-actions button.btn-primary {
-  background-color: #111111;
+  background-color: var(--primary);
   color: #ffffff;
   border: none;
 }

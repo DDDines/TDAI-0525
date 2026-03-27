@@ -12,9 +12,9 @@ No servidor, como `root`:
 
 ```bash
 cd /opt
-git clone <repo> catalogai-bootstrap
-cd catalogai-bootstrap/Project
-APP_ROOT=/srv/catalogai DOMAIN=catalogai.example.com bash scripts/bootstrap-vps.sh
+git clone <repo> commercefolio-bootstrap
+cd commercefolio-bootstrap/Project
+APP_ROOT=/srv/commercefolio DOMAIN=commercefolio.example.com bash scripts/bootstrap-vps.sh
 ```
 
 Isso instala `python3`, `nginx`, `redis-server`, `poppler-utils`, `tesseract-ocr` e `Node.js 20`, cria a estrutura de diretórios em `APP_ROOT` e publica a configuracao inicial do `nginx`.
@@ -51,7 +51,7 @@ Defina no repositório:
 - `VPS_SSH_KEY`
 
 ## Deploy
-Use o workflow `Deploy CatalogAI to VPS` em modo `deploy`.
+Use o workflow `Deploy CommerceFolio to VPS` em modo `deploy`.
 
 Fluxo executado:
 1. envia o release por `git archive`

@@ -46,6 +46,14 @@ function timestamp() {return (
 
 const DEFAULT_EXTRACTION_MODE = 'vision';
 
+function sortProductTypesByLabel(items) {
+  return [...items].sort((left, right) =>
+    getProductTypeOptionLabel(left).localeCompare(getProductTypeOptionLabel(right), 'pt-BR', {
+      sensitivity: 'base',
+    })
+  );
+}
+
 function ImportCatalogWizard(
 
   {
@@ -87,6 +95,10 @@ function ImportCatalogWizard(
     const [selectedPreviewIndex, setSelectedPreviewIndex] = useState(null);
     const [productTypes, setProductTypes] = useState([]);
     const [productTypeId, setProductTypeId] = useState(initialProductTypeId || '');
+    const [showNewProductTypeModal, setShowNewProductTypeModal] = useState(false);
+    const [newProductTypeName, setNewProductTypeName] = useState('');
+    const [newProductTypeError, setNewProductTypeError] = useState('');
+    const [isCreatingProductType, setIsCreatingProductType] = useState(false);
     const [extractionMode, setExtractionMode] = useState(DEFAULT_EXTRACTION_MODE);
     const [fieldOptions, setFieldOptions] = useState(BASE_FIELD_OPTIONS);
     const [statusData, setStatusData] = useState(null);
@@ -143,6 +155,10 @@ function ImportCatalogWizard(
       setSelectedPreviewIndex(null);
       setMapping({ ...defaultFornecedorMapping });
       setProductTypeId(initialProductTypeId || '');
+      setShowNewProductTypeModal(false);
+      setNewProductTypeName('');
+      setNewProductTypeError('');
+      setIsCreatingProductType(false);
       setExtractionMode(DEFAULT_EXTRACTION_MODE);
       setStatusData(null);
       setResultData(null);
@@ -154,19 +170,20 @@ function ImportCatalogWizard(
       terminalStatusAnnouncedRef.current = false;
     }, [isOpen, fornecedor?.id, initialProductTypeId, defaultFornecedorMapping]);
 
+    const loadProductTypes = useCallback(async () => {
+      try {
+        const data = await productTypeService.getProductTypes({ limit: 100 });
+        setProductTypes(sortProductTypesByLabel(extractProductTypesCollection(data)));
+      } catch (err) {
+        console.error('Erro ao carregar tipos de produto:', err);
+        setProductTypes([]);
+      }
+    }, []);
+
     useEffect(() => {
       if (!isOpen) return;
-      const loadProductTypes = async () => {
-        try {
-          const data = await productTypeService.getProductTypes({ limit: 100 });
-          setProductTypes(extractProductTypesCollection(data));
-        } catch (err) {
-          console.error('Erro ao carregar tipos de produto:', err);
-          setProductTypes([]);
-        }
-      };
-      loadProductTypes();
-    }, [isOpen]);
+      void loadProductTypes();
+    }, [isOpen, loadProductTypes]);
 
     useEffect(() => {
       if (!isOpen) {
@@ -206,6 +223,64 @@ function ImportCatalogWizard(
 
     const handleProductTypeChange = (nextValue) => {
       setProductTypeId(nextValue);
+    };
+
+    const handleOpenNewProductTypeModal = () => {
+      setNewProductTypeName('');
+      setNewProductTypeError('');
+      setShowNewProductTypeModal(true);
+    };
+
+    const handleCloseNewProductTypeModal = () => {
+      if (isCreatingProductType) {
+        return;
+      }
+      setShowNewProductTypeModal(false);
+      setNewProductTypeName('');
+      setNewProductTypeError('');
+    };
+
+    const handleCreateProductType = async () => {
+      const friendlyName = String(newProductTypeName || '').trim();
+      if (!friendlyName) {
+        setNewProductTypeError('Informe um nome para o novo tipo de produto.');
+        return;
+      }
+
+      const keyName = friendlyName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+
+      if (!keyName) {
+        setNewProductTypeError('Nao foi possivel gerar uma chave valida a partir do nome informado.');
+        return;
+      }
+
+      setIsCreatingProductType(true);
+      setNewProductTypeError('');
+
+      try {
+        const createdType = await productTypeService.createProductType({
+          key_name: keyName,
+          friendly_name: friendlyName,
+          attribute_templates: [],
+        });
+        await loadProductTypes();
+        setProductTypeId(String(createdType?.id || ''));
+        setShowNewProductTypeModal(false);
+        setNewProductTypeName('');
+        appendTimeline(`Tipo de produto "${friendlyName}" criado e selecionado para esta importacao.`);
+      } catch (err) {
+        setNewProductTypeError(
+          extractErrorMessage(err, 'Falha ao criar o tipo de produto.')
+        );
+      } finally {
+        setIsCreatingProductType(false);
+      }
     };
 
     const handleFileChange = (event) => {
@@ -763,6 +838,49 @@ function ImportCatalogWizard(
               <>
                 {isPdf ? (
                   <>
+                    <div className="wizard-upload-type-section">
+                      {!productTypeId ? (
+                        <p className="wizard-warning-text wizard-warning-text--inline">
+                          Selecione o tipo de produto para iniciar a importação.
+                        </p>
+                      ) : null}
+
+                      <div className="wizard-upload-type-grid">
+                        <label htmlFor="wizard-upload-product-type" className="wizard-upload-type-field">
+                          Tipo de Produto
+                          <select
+                            id="wizard-upload-product-type"
+                            value={productTypeId}
+                            onChange={(e) => handleProductTypeChange(e.target.value)}
+                            className="wizard-inline-select">
+                            <option value="">Selecione...</option>
+                            {productTypes.map((pt) => {
+                              const value = pt.id;
+                              if (value === null || value === undefined) return null;
+                              return (
+                                <option key={value} value={value}>
+                                  {getProductTypeOptionLabel(pt)}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+
+                        <div className="wizard-type-inline-actions wizard-type-inline-actions--upload">
+                          <button
+                            type="button"
+                            className="wizard-inline-link-btn"
+                            onClick={handleOpenNewProductTypeModal}
+                          >
+                            Nao encontrou o tipo? Criar novo tipo de produto
+                          </button>
+                          <p className="wizard-inline-helper-text">
+                            O novo tipo sera criado e ja fica selecionado para esta importacao.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="wizard-mode-selector">
                       <p className="wizard-mode-selector-label">Como o sistema vai ler o PDF?</p>
                       <p className="wizard-mode-selector-hint">
@@ -841,29 +959,7 @@ function ImportCatalogWizard(
                       </div>
                     </div>
 
-                    {isDirectMode ? (
-                      <div className="wizard-inline-fields wizard-quick-type-row">
-                        <label htmlFor="wizard-upload-product-type">
-                          Tipo de Produto
-                          <select
-                            id="wizard-upload-product-type"
-                            value={productTypeId}
-                            onChange={(e) => handleProductTypeChange(e.target.value)}
-                            className="wizard-inline-select">
-                            <option value="">Selecione...</option>
-                            {productTypes.map((pt) => {
-                              const value = pt.id;
-                              if (value === null || value === undefined) return null;
-                              return (
-                                <option key={value} value={value}>
-                                  {getProductTypeOptionLabel(pt)}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </label>
-                      </div>
-                    ) : (
+                    {!isDirectMode ? (
                       <div className="wizard-inline-fields">
                         <label htmlFor="wizard-start-page">
                           Página inicial
@@ -886,7 +982,7 @@ function ImportCatalogWizard(
                             className="wizard-small-number-input" />
                         </label>
                       </div>
-                    )}
+                    ) : null}
                   </>
                 ) : (
                   <p className="wizard-file-type-hint">
@@ -894,7 +990,9 @@ function ImportCatalogWizard(
                   </p>
                 )}
 
-                <div className="wizard-actions-row">
+                <div
+                  className={`wizard-actions-row ${isPdf && isDirectMode ? 'wizard-actions-row--center' : ''}`.trim()}
+                >
                   {isPdf && isDirectMode ? (
                     <button
                       onClick={handleQuickStart}
@@ -909,9 +1007,6 @@ function ImportCatalogWizard(
                     </button>
                   )}
                 </div>
-                {isPdf && isDirectMode && !productTypeId && (
-                  <p className="wizard-warning-text">Selecione o tipo de produto para iniciar a importação.</p>
-                )}
               </>
             );
           })()}
@@ -1051,6 +1146,15 @@ function ImportCatalogWizard(
                         return <option key={value} value={value}>{label}</option>;
                       })}
                     </select>
+                    <div className="wizard-type-inline-actions">
+                      <button
+                        type="button"
+                        className="wizard-inline-link-btn"
+                        onClick={handleOpenNewProductTypeModal}
+                      >
+                        Nao encontrou o tipo? Criar novo tipo de produto
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1128,7 +1232,7 @@ function ImportCatalogWizard(
 
           <div className="wizard-processing-card">
             <div className="wizard-processing-header">
-              <img src={LogoImg} alt="CatalogAI" className="wizard-processing-logo" />
+              <img src={LogoImg} alt="CommerceFolio" className="wizard-processing-logo" />
               <div>
                 <strong>Status:</strong> {processingStatusLabel}
                 <div>{`Páginas: ${pagesProcessed}/${pagesTotalLabel}`}</div>
@@ -1277,6 +1381,41 @@ function ImportCatalogWizard(
         </div>
       </Modal>
 
+      <Modal
+        isOpen={showNewProductTypeModal}
+        onClose={handleCloseNewProductTypeModal}
+        title="Criar novo tipo de produto"
+      >
+        <div className="wizard-new-type-modal">
+          <label htmlFor="wizard-new-product-type-name" className="wizard-file-label">
+            Nome do tipo
+          </label>
+          <input
+            id="wizard-new-product-type-name"
+            type="text"
+            value={newProductTypeName}
+            onChange={(event) => setNewProductTypeName(event.target.value)}
+            className="wizard-inline-select"
+            placeholder="Ex: Ferragens, Autopeças, Cabos"
+            disabled={isCreatingProductType}
+          />
+          <p className="wizard-inline-helper-text">
+            A chave interna sera gerada automaticamente a partir do nome informado.
+          </p>
+          {newProductTypeError ? (
+            <p className="wizard-error-text">{newProductTypeError}</p>
+          ) : null}
+          <div className="wizard-actions-row">
+            <button type="button" onClick={handleCloseNewProductTypeModal} disabled={isCreatingProductType}>
+              Cancelar
+            </button>
+            <button type="button" onClick={handleCreateProductType} disabled={isCreatingProductType}>
+              {isCreatingProductType ? 'Salvando...' : 'Salvar tipo'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
     );
 
@@ -1284,17 +1423,9 @@ function ImportCatalogWizard(
       <>
       {showLoadingPopup &&
         <LoadingPopup
-          title="Importação de catálogo em andamento"
-          message={loadingPopupMessage}
           isOpen={showLoadingPopup}
-          progressPercent={progressPct}
-          progressLabel={`${pagesProcessed}/${pagesTotalLabel} páginas processadas`}
-          chips={[
-          { label: 'Status', value: statusData?.status || 'PROCESSING' },
-          { label: 'Arquivo', value: fileId ? `#${fileId}` : '-' },
-          { label: 'Tempo', value: formatElapsed(elapsedSec) },
-          { label: 'ETA', value: etaLabel }]}
-          details={statusTimeline.slice(-5)} />
+          title="Importação de catálogo em andamento"
+          message={loadingPopupMessage} />
 
         }
       {embedded ? (

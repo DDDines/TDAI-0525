@@ -161,6 +161,19 @@ class MainBootstrapRuntime:
         try:
             inspector = inspect(engine)
             table_names = set(inspector.get_table_names())
+            dialect_name = str(getattr(getattr(engine, "dialect", None), "name", "") or "").lower()
+
+            if dialect_name == "postgresql":
+                session.execute(
+                    text(
+                        "ALTER TYPE externalcredentialproviderenum "
+                        "ADD VALUE IF NOT EXISTS 'LM_STUDIO'"
+                    )
+                )
+                session.commit()
+                logger.info(
+                    "Enum externalcredentialproviderenum alinhado com o valor LM_STUDIO."
+                )
 
             if "external_credential_configs" not in table_names:
                 models.ExternalCredentialConfig.__table__.create(bind=engine, checkfirst=True)
@@ -169,6 +182,10 @@ class MainBootstrapRuntime:
             if "basic_generation_template_configs" not in table_names:
                 models.BasicGenerationTemplateConfig.__table__.create(bind=engine, checkfirst=True)
                 logger.info("Tabela basic_generation_template_configs criada automaticamente.")
+
+            if "ai_policy_configs" not in table_names:
+                models.AIPolicyConfig.__table__.create(bind=engine, checkfirst=True)
+                logger.info("Tabela ai_policy_configs criada automaticamente.")
 
             if "attribute_templates" in table_names:
                 attribute_columns = {
@@ -241,7 +258,7 @@ class MainBootstrapRuntime:
             if not admin_role_obj:
                 logger.error("ERRO: nao foi possivel criar admin '%s' porque role 'admin' nao existe.", settings.ADMIN_EMAIL)
                 return None
-            user_in_data = {'email': settings.ADMIN_EMAIL, 'password': settings.ADMIN_PASSWORD, 'nome_completo': 'Administrador CatalogAI', 'plano_id': admin_plano_obj.id if admin_plano_obj else None}
+            user_in_data = {'email': settings.ADMIN_EMAIL, 'password': settings.ADMIN_PASSWORD, 'nome_completo': 'Administrador CommerceFolio', 'plano_id': admin_plano_obj.id if admin_plano_obj else None}
             if hasattr(settings, 'ADMIN_IDIOMA_PREFERIDO'):
                 user_in_data['idioma_preferido'] = settings.ADMIN_IDIOMA_PREFERIDO
             created_admin = user_repo.create_user(user=schemas.UserCreate(**user_in_data))
@@ -367,7 +384,7 @@ class _MainLifecycleEntries:
         """Entrada de compatibilidade para testes/workflows de bootstrap."""
         await MainBootstrapWorkflow().startup_event_create_defaults()
 lifespan = asynccontextmanager(_MainLifecycleEntries.lifespan)
-app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION, description='API para o sistema CatalogAI - Ferramenta de Descricao Assistida por IA.', lifespan=lifespan)
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.PROJECT_VERSION, description='API para o sistema CommerceFolio - Ferramenta de Descricao Assistida por IA.', lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)

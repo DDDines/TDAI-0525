@@ -151,9 +151,9 @@ test('keeps unique base fields exclusive across headers and clears the mapping',
   const secondSelect = screen.getByRole('combobox', { name: /campo para coluna coluna b/i });
 
   await user.selectOptions(firstSelect, 'sku_original');
-
-  const secondSkuOption = screen.getAllByRole('option', { name: 'SKU' })[1];
-  expect(secondSkuOption).toBeDisabled();
+  await user.selectOptions(secondSelect, 'sku_original');
+  expect(firstSelect).toHaveValue('');
+  expect(secondSelect).toHaveValue('sku_original');
 
   await user.click(screen.getByRole('button', { name: /Limpar mapeamento/i }));
 
@@ -240,7 +240,7 @@ test('supports omitted collections and no-op confirm handlers', async () => {
 
   render(<ColumnMappingModal isOpen={true} onClose={() => {}} />);
 
-  expect(screen.getByText(/Colunas mapeadas:/i)).toHaveTextContent('0 de 0');
+  expect(screen.getByText('0 / 0 mapeadas')).toBeInTheDocument();
 
   await user.click(screen.getByRole('button', { name: /Confirmar mapeamento/i }));
   await user.click(screen.getByRole('button', { name: /Limpar mapeamento/i }));

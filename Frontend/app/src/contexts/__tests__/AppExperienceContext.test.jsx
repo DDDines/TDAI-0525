@@ -106,16 +106,16 @@ describe('AppExperienceContext', () => {
     fireEvent.click(screen.getByText('preview-complete'));
 
     expect(screen.getByTestId('effective-mode')).toHaveTextContent('complete');
-    expect(localStorage.getItem('catalogai_admin_preview_mode')).toBe('complete');
+    expect(localStorage.getItem('commercefolio_admin_preview_mode')).toBe('complete');
 
     fireEvent.click(screen.getByText('clear-preview'));
 
     expect(screen.getByTestId('effective-mode')).toHaveTextContent('basic');
-    expect(localStorage.getItem('catalogai_admin_preview_mode')).toBeNull();
+    expect(localStorage.getItem('commercefolio_admin_preview_mode')).toBeNull();
   });
 
   test('clears any stored admin preview when the user cannot use it', async () => {
-    localStorage.setItem('catalogai_admin_preview_mode', 'complete');
+    localStorage.setItem('commercefolio_admin_preview_mode', 'complete');
     useAuth.mockReturnValue({ user: { is_superuser: false } });
     configService.getSocialLoginConfig.mockResolvedValue({
       product_experience_default: 'basic',
@@ -133,11 +133,11 @@ describe('AppExperienceContext', () => {
     });
 
     expect(screen.getByTestId('effective-mode')).toHaveTextContent('basic');
-    expect(localStorage.getItem('catalogai_admin_preview_mode')).toBeNull();
+    expect(localStorage.getItem('commercefolio_admin_preview_mode')).toBeNull();
   });
 
   test('ignores preview toggles for non-admin users and invalid stored preview values', async () => {
-    localStorage.setItem('catalogai_admin_preview_mode', 'modo-invalido');
+    localStorage.setItem('commercefolio_admin_preview_mode', 'modo-invalido');
     useAuth.mockReturnValue({ user: { is_superuser: false } });
     configService.getSocialLoginConfig.mockResolvedValue({
       product_experience_default: 'basic',
@@ -157,7 +157,7 @@ describe('AppExperienceContext', () => {
     fireEvent.click(screen.getByText('preview-complete'));
 
     expect(screen.getByTestId('admin-preview')).toHaveTextContent('null');
-    expect(localStorage.getItem('catalogai_admin_preview_mode')).toBeNull();
+    expect(localStorage.getItem('commercefolio_admin_preview_mode')).toBeNull();
   });
 
   test('falls back to safe defaults when config loading fails', async () => {
@@ -200,7 +200,7 @@ describe('AppExperienceContext', () => {
   });
 
   test('ignores stored preview values that do not normalize exactly', () => {
-    localStorage.setItem('catalogai_admin_preview_mode', ' COMPLETE ');
+    localStorage.setItem('commercefolio_admin_preview_mode', ' COMPLETE ');
 
     expect(loadStoredAdminPreviewMode()).toBeNull();
   });

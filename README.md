@@ -1,4 +1,4 @@
-# CatalogAI (TDAI-0525)
+# CommerceFolio
 
 Plataforma para importar catalogos, enriquecer dados de produtos via web e gerar conteudo com IA para e-commerce.
 

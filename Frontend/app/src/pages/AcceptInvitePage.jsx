@@ -3,15 +3,17 @@
  */
 
 import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { LuBuilding2, LuCheck, LuX } from 'react-icons/lu';
-import workspaceService from '../services/workspaceService';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import workspaceService from '../services/workspaceService';
 
 function AcceptInvitePage() {
   const { token } = useParams();
   const { isAuthenticated } = useAuth();
+  const { refreshWorkspace } = useWorkspace();
   const navigate = useNavigate();
   const [accepting, setAccepting] = useState(false);
   const [done, setDone] = useState(false);
@@ -22,13 +24,14 @@ function AcceptInvitePage() {
     setError(null);
     try {
       await workspaceService.acceptInvite(token);
+      await refreshWorkspace();
       setDone(true);
       toast.success('Convite aceito! Você agora faz parte da empresa.');
-      setTimeout(() => navigate('/workspace'), 2000);
+      setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || 'Erro ao aceitar convite.';
-      setError(msg);
-      toast.error(msg);
+      const message = err?.response?.data?.detail || err?.message || 'Erro ao aceitar convite.';
+      setError(message);
+      toast.error(message);
     } finally {
       setAccepting(false);
     }
@@ -58,8 +61,7 @@ function AcceptInvitePage() {
             Fazer login
           </Link>
           <p style={{ marginTop: 12, fontSize: '0.9rem', color: 'var(--text-color-light)' }}>
-            Não tem conta?{' '}
-            <Link to={`/signup?next=/invite/${token}`}>Criar conta grátis</Link>
+            Não tem conta? <Link to={`/signup?next=/invite/${token}`}>Criar conta grátis</Link>
           </p>
         </div>
       </div>
@@ -85,12 +87,12 @@ function AcceptInvitePage() {
               Você foi convidado para fazer parte de um workspace. Clique abaixo para aceitar.
             </p>
 
-            {error && (
+            {error ? (
               <p style={{ color: '#dc2626', marginBottom: 16, fontSize: '0.9rem' }}>
                 <LuX style={{ verticalAlign: 'middle', marginRight: 4 }} />
                 {error}
               </p>
-            )}
+            ) : null}
 
             <button
               onClick={handleAccept}

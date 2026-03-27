@@ -766,10 +766,10 @@ describe('ProdutosPage', () => {
     fireEvent.change(screen.getByDisplayValue('Status'), {
       target: { value: 'CONCLUIDO_SUCESSO' },
     });
-    fireEvent.change(screen.getByDisplayValue('Status Título IA'), {
+    fireEvent.change(screen.getByDisplayValue('Título IA'), {
       target: { value: 'CONCLUIDO' },
     });
-    fireEvent.change(screen.getByDisplayValue('Status Descrição IA'), {
+    fireEvent.change(screen.getByDisplayValue('Descrição IA'), {
       target: { value: 'NAO_INICIADO' },
     });
     fireEvent.change(screen.getByDisplayValue('Todos os tipos'), {

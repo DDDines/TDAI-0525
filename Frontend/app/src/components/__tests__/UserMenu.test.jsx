@@ -3,11 +3,16 @@ import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import UserMenu from '../UserMenu.jsx';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 
 const mockNavigate = jest.fn();
 
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock('../../contexts/WorkspaceContext', () => ({
+  useWorkspace: jest.fn(),
 }));
 
 jest.mock('react-router-dom', () => ({
@@ -25,12 +30,16 @@ describe('UserMenu', () => {
       user: {
         nome_completo: 'Julio Cesar',
         email: 'julio@example.com',
-        nome_empresa: 'CatalogAI',
+        nome_empresa: 'CommerceFolio',
         is_superuser: true,
         plano: { nome: 'Pro' },
       },
       logout,
       isLoading: false,
+    });
+    useWorkspace.mockReturnValue({
+      workspace: { nome: 'CommerceFolio' },
+      workspaceName: 'CommerceFolio',
     });
   });
 
@@ -45,7 +54,7 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
 
     expect(screen.getByText('julio@example.com')).toBeInTheDocument();
-    expect(screen.getByText('CatalogAI')).toBeInTheDocument();
+    expect(screen.getByText('CommerceFolio')).toBeInTheDocument();
     expect(screen.getByText('Administrador')).toBeInTheDocument();
     expect(screen.getByText('Plano: Pro')).toBeInTheDocument();
 
@@ -53,12 +62,12 @@ describe('UserMenu', () => {
     expect(onNavigate).toHaveBeenCalledWith('/configuracoes');
 
     await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
-    await user.click(screen.getByRole('button', { name: /Meu Plano/i }));
-    expect(onNavigate).toHaveBeenCalledWith('/plano');
+    await user.click(screen.getByRole('button', { name: /Financeiro/i }));
+    expect(onNavigate).toHaveBeenCalledWith('/financeiro');
 
     await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
-    await user.click(screen.getByRole('button', { name: /Historico/i }));
-    expect(onNavigate).toHaveBeenCalledWith('/historico');
+    await user.click(screen.getByRole('button', { name: /Monitoramento/i }));
+    expect(onNavigate).toHaveBeenCalledWith('/monitoramento');
 
     await user.click(screen.getByRole('button', { name: /Julio Cesar/i }));
     await user.click(screen.getByRole('button', { name: /Sair/i }));
@@ -135,6 +144,10 @@ describe('UserMenu', () => {
       logout,
       isLoading: false,
     });
+    useWorkspace.mockReturnValue({
+      workspace: null,
+      workspaceName: '',
+    });
 
     render(<UserMenu />);
 
@@ -142,7 +155,7 @@ describe('UserMenu', () => {
     expect(screen.getByAltText(/Avatar de Julio Silva/i)).toBeInTheDocument();
     expect(screen.getByText('Usuario')).toBeInTheDocument();
     expect(screen.queryByText(/Plano:/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('CatalogAI')).not.toBeInTheDocument();
+    expect(screen.queryByText('CommerceFolio')).not.toBeInTheDocument();
   });
 
   test('uses a single initial when the user has only one name token', async () => {

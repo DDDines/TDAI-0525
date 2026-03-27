@@ -139,7 +139,9 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
 
     await waitFor(() => {
-      expect(loginMock).toHaveBeenCalledWith('julio@teste.com', '123456');
+      expect(loginMock).toHaveBeenCalledWith('julio@teste.com', '123456', {
+        redirectPath: undefined,
+      });
     });
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Bem-vindo de volta'));
   });

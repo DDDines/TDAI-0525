@@ -4,32 +4,43 @@
 
 import apiClient from './apiClient';
 
+const STORAGE_KEY = 'commercefolio_basic_generation_templates_v1';
 const LEGACY_STORAGE_KEY = 'catalogai_basic_generation_templates_v1';
+
+function upgradeLegacyTemplateCopy(value = '') {
+  return String(value || '')
+    .replaceAll('Resumo tecnico:', 'Resumo técnico:')
+    .replaceAll('Aplicacao:', 'Aplicação:')
+    .replaceAll('Referencia:', 'Referência:')
+    .replaceAll('Conteudo da embalagem:', 'Conteúdo da embalagem:')
+    .replaceAll('Especificacoes tecnicas:', 'Especificações técnicas:')
+    .replaceAll('Destaques tecnicos:', 'Destaques técnicos:');
+}
 
 const DEFAULT_BASIC_GENERATION_TEMPLATES = {
   titleTemplate: '{titulo_base}',
   descriptionTemplate: [
     '{nome_base}',
     '',
-    'Resumo tecnico:',
+    'Resumo técnico:',
     '{technical_summary}',
     '',
-    'Aplicacao:',
+    'Aplicação:',
     '{application}',
     '',
-    'Referencia:',
+    'Referência:',
     '{reference}',
     '',
     'Material:',
     '{material}',
     '',
-    'Conteudo da embalagem:',
+    'Conteúdo da embalagem:',
     '{content}',
     '',
-    'Especificacoes tecnicas:',
+    'Especificações técnicas:',
     '{specs}',
     '',
-    'Destaques tecnicos:',
+    'Destaques técnicos:',
     '{bullets}',
   ].join('\n'),
 };
@@ -41,7 +52,7 @@ function clone(value) {
 }
 
 function normalizeTemplate(value, fallbackValue) {
-  const text = String(value || '').replace(/\r\n/g, '\n').trim();
+  const text = upgradeLegacyTemplateCopy(String(value || '').replace(/\r\n/g, '\n').trim());
   if (!text) {
     return fallbackValue;
   }
@@ -68,7 +79,9 @@ function readLegacyTemplates() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return { ...DEFAULT_BASIC_GENERATION_TEMPLATES };
   }
-  const parsed = safeParse(window.localStorage.getItem(LEGACY_STORAGE_KEY));
+  const parsed = safeParse(
+    window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem(LEGACY_STORAGE_KEY)
+  );
   return {
     titleTemplate: normalizeTemplate(
       parsed.titleTemplate,
@@ -83,6 +96,7 @@ function readLegacyTemplates() {
 
 function clearLegacyTemplates() {
   if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   }
 }

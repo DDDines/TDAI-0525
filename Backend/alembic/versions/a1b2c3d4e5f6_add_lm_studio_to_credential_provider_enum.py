@@ -14,7 +14,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE externalcredentialproviderenum ADD VALUE IF NOT EXISTS 'lm_studio'")
+    op.execute("ALTER TYPE externalcredentialproviderenum ADD VALUE IF NOT EXISTS 'LM_STUDIO'")
 
 
 def downgrade() -> None:

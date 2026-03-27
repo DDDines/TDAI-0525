@@ -1,4 +1,4 @@
-"""Validate the local LM Studio workflow through the real CatalogAI API."""
+"""Validate the local LM Studio workflow through the real CommerceFolio API."""
 
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ class WorkflowValidationFailure(Exception):
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the local workflow validator."""
     parser = argparse.ArgumentParser(
-        description="Validate the local LM Studio workflow through the real CatalogAI API."
+        description="Validate the local LM Studio workflow through the real CommerceFolio API."
     )
     parser.add_argument("--base-url", default="http://127.0.0.1:8000", help="Backend base URL without /api/v1.")
     parser.add_argument("--api-prefix", default=settings.API_V1_STR, help="API prefix.")

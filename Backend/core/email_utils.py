@@ -1,5 +1,6 @@
 """Document email utils module responsibilities and runtime integration points."""
 
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -72,7 +73,7 @@ class EmailWorkflow:
             if raise_if_unconfigured:
                 raise RuntimeError('Configuracao de email ausente')
             return
-        subject = 'Redefinicao de Senha - CatalogAI'
+        subject = 'Redefinicao de Senha - CommerceFolio'
         template_name = 'password_reset_email.html'
         template_body = {'username': username, 'reset_url': reset_link, 'expiration_hours': settings.ACCESS_TOKEN_EXPIRE_MINUTES // 60, 'current_year': self._runtime.current_year()}
         message = self._runtime.create_message_schema(subject=subject, recipients=[email_to], subtype=MessageType.html)
@@ -121,3 +122,45 @@ class EmailRuntime:
     def current_year(self) -> int:
         """Execute current year as part of this module workflow."""
         return datetime.now().year
+
+
+async def maybe_send_limit_warning(
+    user: Any,
+    session: Any,
+    limit_type: str,
+    current: int,
+    limit: int,
+) -> None:
+    """Send a warning email only when the user crosses the 80% usage threshold.
+
+    Sends ONLY when current / limit >= 0.80 AND (current - 1) / limit < 0.80,
+    i.e., exactly on the crossing event, not on every subsequent call above 80%.
+    """
+    if limit <= 0:
+        return
+    if current / limit >= 0.80 and (current - 1) / limit < 0.80:
+        email_to = getattr(user, "email", None)
+        if not email_to:
+            return
+        subject = f"Você atingiu 80% do seu limite de {limit_type}"
+        body = (
+            f"<p>Olá,</p>"
+            f"<p>Você utilizou <strong>{current}/{limit}</strong> operações de "
+            f"<strong>{limit_type}</strong> este mês.</p>"
+            f"<p>Você está se aproximando do seu limite mensal. "
+            f"Considere fazer um upgrade do seu plano para continuar usando sem interrupções.</p>"
+            f"<p>Obrigado por usar o CommerceFolio!</p>"
+        )
+        workflow = EmailWorkflow()
+        try:
+            await workflow.send_email(
+                email_to=email_to,
+                subject=subject,
+                html_content=body,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Falha ao enviar email de aviso de limite para %s: %s",
+                email_to,
+                exc,
+            )

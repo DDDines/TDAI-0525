@@ -693,6 +693,17 @@ body.dark .user-menu-profile-meta span {
   color: #ffffff;
 }
 
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-color, #e2e8f0);
+  color: var(--text-color-light, #64748b);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--border-color, #e2e8f0);
+  filter: none;
+}
+
 .btn-sm {
   padding: 0.7rem 1rem;
   border-radius: 14px;

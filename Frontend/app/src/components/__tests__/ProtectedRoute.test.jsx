@@ -18,16 +18,22 @@ import ProtectedRoute from '../ProtectedRoute.jsx';class _TopLevelFunctionSurfac
       render(
         <MemoryRouter initialEntries={['/private']}>
       <Routes>
+        <Route path="/landing" element={<div>Landing Page</div>} />
         <Route path="/login" element={<div>Login Page</div>} />
         <Route path="/dashboard" element={<div>Dashboard Page</div>} />
+        <Route path="/workspace" element={<div>Workspace Page</div>} />
         <Route path="/private" element={routeElement} />
       </Routes>
     </MemoryRouter>
-      ));}}const mockUseAuth = jest.fn();jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));jest.mock('../../utils/logger', () => ({ __esModule: true, default: { log: jest.fn() } }));const renderWithRoutes = _TopLevelFunctionSurface.renderWithRoutes;
+      ));}}const mockUseAuth = jest.fn();const mockUseWorkspace = jest.fn();jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => mockUseAuth() }));jest.mock('../../contexts/WorkspaceContext', () => ({ useWorkspace: () => mockUseWorkspace() }));jest.mock('../../utils/logger', () => ({ __esModule: true, default: { log: jest.fn() } }));const renderWithRoutes = _TopLevelFunctionSurface.renderWithRoutes;
 
 describe('ProtectedRoute', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseWorkspace.mockReturnValue({
+      hasWorkspace: true,
+      isLoading: false
+    });
   });
 
   test('shows loading overlay while auth is loading', () => {
@@ -46,7 +52,7 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText(/carregando autentica/i)).toBeInTheDocument();
   });
 
-  test('redirects to login when user is not authenticated', () => {
+  test('redirects to landing when user is not authenticated', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: null,
@@ -59,7 +65,7 @@ describe('ProtectedRoute', () => {
       </ProtectedRoute>
     );
 
-    expect(screen.getByText('Login Page')).toBeInTheDocument();
+    expect(screen.getByText('Landing Page')).toBeInTheDocument();
     expect(screen.queryByText('Private Content')).not.toBeInTheDocument();
   });
 
@@ -109,6 +115,27 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.getByText('Dashboard Page')).toBeInTheDocument();
+    expect(screen.queryByText('Private Content')).not.toBeInTheDocument();
+  });
+
+  test('redirects authenticated users without workspace to the workspace gate', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { role: { name: 'admin' } },
+      isLoading: false
+    });
+    mockUseWorkspace.mockReturnValue({
+      hasWorkspace: false,
+      isLoading: false
+    });
+
+    renderWithRoutes(
+      <ProtectedRoute>
+        <div>Private Content</div>
+      </ProtectedRoute>
+    );
+
+    expect(screen.getByText('Workspace Page')).toBeInTheDocument();
     expect(screen.queryByText('Private Content')).not.toBeInTheDocument();
   });
 });

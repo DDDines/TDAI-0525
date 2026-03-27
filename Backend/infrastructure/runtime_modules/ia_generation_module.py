@@ -41,6 +41,7 @@ from Backend.infrastructure.repositories.external_credential_repository import (
 from Backend.infrastructure.repositories.registro_uso_ia_repository import (
     RegistroUsoIARepository,
 )
+from Backend.core.email_utils import maybe_send_limit_warning
 
 # ConfiguraÃ§Ã£o do logger
 logger = logging.getLogger(__name__)
@@ -2681,6 +2682,14 @@ class IAGenerationRuntime:
                 creditos_consumidos=1,
             )
         )
+        _ia_limit = getattr(getattr(user, "plano", None), "limite_geracao_ia", None) or 0
+        if _ia_limit > 0:
+            _current_uso = RegistroUsoIARepository(db).count_usos_ia_by_user_and_type_no_mes_corrente(
+                user_id=user.id, tipo_geracao_prefix="titulo"
+            )
+            asyncio.ensure_future(maybe_send_limit_warning(
+                user=user, session=db, limit_type="títulos IA", current=_current_uso, limit=_ia_limit
+            ))
         return titulos_list[: max(1, int(num_titulos or 1))]
 
     async def _gerar_descricao_com_openai_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
@@ -2833,6 +2842,14 @@ class IAGenerationRuntime:
                 creditos_consumidos=1,
             )
         )
+        _ia_limit = getattr(getattr(user, "plano", None), "limite_geracao_ia", None) or 0
+        if _ia_limit > 0:
+            _current_uso = RegistroUsoIARepository(db).count_usos_ia_by_user_and_type_no_mes_corrente(
+                user_id=user.id, tipo_geracao_prefix="descricao"
+            )
+            asyncio.ensure_future(maybe_send_limit_warning(
+                user=user, session=db, limit_type="descrições IA", current=_current_uso, limit=_ia_limit
+            ))
         return descricao
 
     async def _gerar_titulos_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, num_titulos: int = 3) -> List[str]:
@@ -2905,6 +2922,14 @@ class IAGenerationRuntime:
                 creditos_consumidos=1,
             )
         )
+        _ia_limit = getattr(getattr(user, "plano", None), "limite_geracao_ia", None) or 0
+        if _ia_limit > 0:
+            _current_uso = RegistroUsoIARepository(db).count_usos_ia_by_user_and_type_no_mes_corrente(
+                user_id=user.id, tipo_geracao_prefix="titulo"
+            )
+            asyncio.ensure_future(maybe_send_limit_warning(
+                user=user, session=db, limit_type="títulos IA", current=_current_uso, limit=_ia_limit
+            ))
         return titulos_list[: max(1, int(num_titulos or 1))]
 
     async def _gerar_descricao_com_gemini_impl(self, db: Session, produto_id: int, user: models.User, tamanho_palavras: int = 150) -> str:
@@ -2983,6 +3008,14 @@ class IAGenerationRuntime:
                 creditos_consumidos=1,
             )
         )
+        _ia_limit = getattr(getattr(user, "plano", None), "limite_geracao_ia", None) or 0
+        if _ia_limit > 0:
+            _current_uso = RegistroUsoIARepository(db).count_usos_ia_by_user_and_type_no_mes_corrente(
+                user_id=user.id, tipo_geracao_prefix="descricao"
+            )
+            asyncio.ensure_future(maybe_send_limit_warning(
+                user=user, session=db, limit_type="descrições IA", current=_current_uso, limit=_ia_limit
+            ))
         return descricao
 
     async def _sugerir_valores_atributos_com_gemini_impl(self, 

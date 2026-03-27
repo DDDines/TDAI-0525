@@ -1,6 +1,6 @@
-# CatalogAI Frontend (Vite)
+# CommerceFolio Frontend (Vite)
 
-Aplicacao React do CatalogAI.
+Aplicacao React do CommerceFolio.
 
 ## Requisitos
 - Node.js 18+

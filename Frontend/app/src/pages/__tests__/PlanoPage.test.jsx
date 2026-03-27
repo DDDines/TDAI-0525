@@ -6,6 +6,7 @@ import PlanoPage from '../PlanoPage.jsx';
 import authService from '../../services/authService';
 import dashboardService from '../../services/dashboardService';
 import planosService from '../../services/planosService';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import { showErrorToast, showInfoToast } from '../../utils/notifications';
 
 jest.mock('../../services/authService', () => ({
@@ -32,6 +33,10 @@ jest.mock('../../services/planosService', () => ({
   },
 }));
 
+jest.mock('../../contexts/WorkspaceContext', () => ({
+  useWorkspace: jest.fn(),
+}));
+
 jest.mock('../../utils/notifications', () => ({
   showErrorToast: jest.fn(),
   showInfoToast: jest.fn(),
@@ -47,6 +52,9 @@ describe('PlanoPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    useWorkspace.mockReturnValue({
+      workspace: { nome: 'Dines' },
+    });
     planosService.listarPlanos.mockResolvedValue([]);
     dashboardService.getMyDashboard.mockResolvedValue({
       plano_nome: 'Pro',
@@ -85,11 +93,11 @@ describe('PlanoPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Pro' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Capacidade do plano/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Cobertura incluida/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Acoes do plano/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Cobertura incluída/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Ações financeiras/i })).toBeInTheDocument();
     expect(screen.getByText(/Credenciais do cliente liberadas/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Ilimitado/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /Ver historico de uso/i })).toHaveAttribute('href', '/historico');
+    expect(screen.getByRole('link', { name: /Abrir monitoramento/i })).toHaveAttribute('href', '/monitoramento');
     expect(screen.getByRole('link', { name: /Configurar credenciais/i })).toHaveAttribute('href', '/configuracoes');
     expect(screen.getByRole('button', { name: /Mudar de plano/i })).toBeInTheDocument();
 
@@ -97,7 +105,7 @@ describe('PlanoPage', () => {
 
     expect(showInfoToast).toHaveBeenNthCalledWith(
       1,
-      expect.stringMatching(/suporte comercial ainda nao foi conectado/i)
+      expect.stringMatching(/suporte comercial ainda não foi conectado/i)
     );
   });
 
@@ -107,7 +115,7 @@ describe('PlanoPage', () => {
 
     renderPage();
 
-    expect(screen.getByText(/Preparando sua visao de capacidade/i)).toBeInTheDocument();
+    expect(screen.getByText(/Preparando a leitura financeira da empresa/i)).toBeInTheDocument();
   });
 
   test('shows an error state when user data fails to load', async () => {
@@ -118,7 +126,7 @@ describe('PlanoPage', () => {
     await waitFor(() => {
       expect(showErrorToast).toHaveBeenCalledWith('plano indisponivel');
     });
-    expect(screen.getByText(/Nao foi possivel montar a tela do seu plano/i)).toBeInTheDocument();
+    expect(screen.getByText(/Não foi possível montar a tela do seu plano/i)).toBeInTheDocument();
   });
 
   test('uses the generic load error fallback when the request fails without a message', async () => {
@@ -131,7 +139,7 @@ describe('PlanoPage', () => {
         expect.stringMatching(/Falha ao carregar dados do usuario e plano/i)
       );
     });
-    expect(screen.getByText(/Nao foi possivel montar a tela do seu plano/i)).toBeInTheDocument();
+    expect(screen.getByText(/Não foi possível montar a tela do seu plano/i)).toBeInTheDocument();
   });
 
   test('falls back to a gratuito baseline when the account has no nested plan payload', async () => {
@@ -141,7 +149,7 @@ describe('PlanoPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Gratuito' })).toBeInTheDocument();
-    expect(screen.getByText(/sem busca web incluida/i)).toBeInTheDocument();
+    expect(screen.getByText(/sem busca web incluída/i)).toBeInTheDocument();
   });
 
   test('renders the plan from dashboard limits when the current user payload has no nested plan object', async () => {
@@ -174,8 +182,8 @@ describe('PlanoPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Gratuito' })).toBeInTheDocument();
-    expect(screen.getByText(/Fluxo enxuto com geracao basica como padrao/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/38 espacos livres/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Fluxo enxuto com geração básica como padrão/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/38 espaços livres/i).length).toBeGreaterThan(0);
   });
 
   test('renders fallback plan labels when the current plan has no friendly name', async () => {
@@ -193,6 +201,6 @@ describe('PlanoPage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'N/D' })).toBeInTheDocument();
-    expect(screen.queryByText(/Fila de suporte com atendimento prioritario/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Fila de suporte com atendimento prioritário/i)).not.toBeInTheDocument();
   });
 });

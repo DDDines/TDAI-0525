@@ -7,11 +7,11 @@ APP_USER="${APP_USER:-${SUDO_USER:-}}"
 BACKEND_BLUE_PORT="${BACKEND_BLUE_PORT:-8001}"
 BACKEND_GREEN_PORT="${BACKEND_GREEN_PORT:-8002}"
 REDIS_PORT="${REDIS_PORT:-6379}"
-NGINX_SITE_PATH="${NGINX_SITE_PATH:-/etc/nginx/sites-available/catalogai.conf}"
-NGINX_ENABLED_PATH="${NGINX_ENABLED_PATH:-/etc/nginx/sites-enabled/catalogai.conf}"
-NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/catalogai-upstream.conf}"
+NGINX_SITE_PATH="${NGINX_SITE_PATH:-/etc/nginx/sites-available/commercefolio.conf}"
+NGINX_ENABLED_PATH="${NGINX_ENABLED_PATH:-/etc/nginx/sites-enabled/commercefolio.conf}"
+NGINX_UPSTREAM_PATH="${NGINX_UPSTREAM_PATH:-/etc/nginx/conf.d/commercefolio-upstream.conf}"
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-TEMPLATE_PATH="${TEMPLATE_PATH:-$PROJECT_ROOT/deploy/vps/nginx/catalogai-site.conf.template}"
+TEMPLATE_PATH="${TEMPLATE_PATH:-$PROJECT_ROOT/deploy/vps/nginx/commercefolio-site.conf.template}"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Execute bootstrap-vps.sh as root." >&2
@@ -55,7 +55,7 @@ mkdir -p \
 touch "$APP_ROOT/shared/active-slot" "$APP_ROOT/shared/last-slot"
 
 cat > "$NGINX_UPSTREAM_PATH" <<EOF
-upstream catalogai_backend {
+upstream commercefolio_backend {
     server 127.0.0.1:${BACKEND_BLUE_PORT};
     keepalive 32;
 }
@@ -89,5 +89,5 @@ Bootstrap concluido.
 Proximos passos:
 1. Copie Project/.env.example para $APP_ROOT/shared/.env e ajuste os valores reais.
 2. Configure os secrets do GitHub Actions: VPS_HOST, VPS_USER, VPS_APP_ROOT e VPS_SSH_KEY.
-3. Rode o workflow Deploy CatalogAI to VPS em modo deploy.
+3. Rode o workflow Deploy CommerceFolio to VPS em modo deploy.
 EOF

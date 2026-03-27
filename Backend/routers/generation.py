@@ -1,7 +1,7 @@
 """Camada de transporte HTTP para o dominio 'generation'."""
 
 import logging
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request, status
 from typing import List
 from pydantic import BaseModel as _PydanticBase
 from sqlalchemy.orm import Session
@@ -23,6 +23,7 @@ from Backend.infrastructure.adapters.limit_adapter import LimitServiceAdapter
 from Backend.infrastructure.repositories.product_repository import ProductRepository
 from Backend.infrastructure.repositories.user_repository import UserRepository
 
+from Backend.core.rate_limiter import limiter
 from . import auth_utils
 
 
@@ -311,7 +312,9 @@ class GenerationRequestService:
     status_code=status.HTTP_202_ACCEPTED,
     deprecated=True,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_novos_titulos_openai(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(3, ge=1, le=10),
@@ -321,6 +324,7 @@ async def agendar_geracao_novos_titulos_openai(
     ),
 ):
     """Handle Agendar geracao novos titulos openai in this request workflow."""
+    _ = request
     return request_service.agendar_geracao_novos_titulos_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -335,7 +339,9 @@ async def agendar_geracao_novos_titulos_openai(
     status_code=status.HTTP_202_ACCEPTED,
     deprecated=True,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_nova_descricao_openai(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
@@ -345,6 +351,7 @@ async def agendar_geracao_nova_descricao_openai(
     ),
 ):
     """Handle Agendar geracao nova descricao openai in this request workflow."""
+    _ = request
     return request_service.agendar_geracao_nova_descricao_openai(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -358,7 +365,9 @@ async def agendar_geracao_nova_descricao_openai(
     response_model=schemas.Msg,
     status_code=status.HTTP_202_ACCEPTED,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_novos_titulos_basico(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(5, ge=1, le=10),
@@ -369,6 +378,7 @@ async def agendar_geracao_novos_titulos_basico(
     ),
 ):
     """Agendar geracao basica de titulos sem IA externa."""
+    _ = request
     return request_service.agendar_geracao_novos_titulos_basico(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -383,7 +393,9 @@ async def agendar_geracao_novos_titulos_basico(
     response_model=schemas.Msg,
     status_code=status.HTTP_202_ACCEPTED,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_nova_descricao_basica(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
@@ -394,6 +406,7 @@ async def agendar_geracao_nova_descricao_basica(
     ),
 ):
     """Agendar geracao basica de descricao sem IA externa."""
+    _ = request
     return request_service.agendar_geracao_nova_descricao_basica(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -408,7 +421,9 @@ async def agendar_geracao_nova_descricao_basica(
     response_model=schemas.Msg,
     status_code=status.HTTP_202_ACCEPTED,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_novos_titulos_gemini(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     num_titulos: int = Query(3, ge=1, le=10),
@@ -418,6 +433,7 @@ async def agendar_geracao_novos_titulos_gemini(
     ),
 ):
     """Handle Agendar geracao novos titulos gemini in this request workflow."""
+    _ = request
     return request_service.agendar_geracao_novos_titulos_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -431,7 +447,9 @@ async def agendar_geracao_novos_titulos_gemini(
     response_model=schemas.Msg,
     status_code=status.HTTP_202_ACCEPTED,
 )
+@limiter.limit("30/minute")
 async def agendar_geracao_nova_descricao_gemini(
+    request: Request,
     produto_id: int,
     background_tasks: BackgroundTasks,
     tamanho_palavras: int = Query(150, ge=50, le=500),
@@ -441,6 +459,7 @@ async def agendar_geracao_nova_descricao_gemini(
     ),
 ):
     """Handle Agendar geracao nova descricao gemini in this request workflow."""
+    _ = request
     return request_service.agendar_geracao_nova_descricao_gemini(
         produto_id=produto_id,
         background_tasks=background_tasks,
@@ -453,7 +472,9 @@ async def agendar_geracao_nova_descricao_gemini(
     "/sugerir-atributos-gemini/{produto_id}",
     response_model=schemas.SugestoesAtributosResponse,
 )
+@limiter.limit("30/minute")
 async def sugerir_atributos_para_produto_com_gemini(
+    request: Request,
     produto_id: int,
     request_service: GenerationRequestService = Depends(),
     current_user: models.User = Depends(
@@ -461,6 +482,7 @@ async def sugerir_atributos_para_produto_com_gemini(
     ),
 ):
     """Handle Sugerir atributos para produto com gemini in this request workflow."""
+    _ = request
     return await request_service.sugerir_atributos_para_produto_com_gemini(
         produto_id=produto_id,
         current_user=current_user,
@@ -486,7 +508,9 @@ class BatchGenerationResponse(_PydanticBase):
 
 
 @router.post("/batch", response_model=BatchGenerationResponse, status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("60/minute")
 async def batch_generation(
+    request: Request,
     payload: BatchGenerationRequest,
     background_tasks: BackgroundTasks,
     request_service: GenerationRequestService = Depends(),
@@ -495,6 +519,7 @@ async def batch_generation(
     ),
 ):
     """Agenda geração em lote para múltiplos produtos."""
+    _ = request
     tipo = payload.tipo.lower()
     provider = payload.provider.lower()
 

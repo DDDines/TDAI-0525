@@ -58,7 +58,7 @@
   padding: 0.78rem 1rem;
   border: none;
   border-radius: 14px;
-  background: #111111;
+  background: var(--primary);
   color: #ffffff;
   font-size: 0.95rem;
   font-weight: 700;

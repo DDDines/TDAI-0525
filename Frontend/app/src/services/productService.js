@@ -285,12 +285,13 @@ async function registrarFeedbackConteudoGerado(produtoId, feedbackPayload = {}) 
   return updateProduto(produtoId, { dados_brutos_web: dadosBrutos });
 }
 
-async function exportarProdutos({ ids, search, fornecedor_id, categoria, status_enriquecimento_web, status_titulo_ia, status_descricao_ia, product_type_id, enrichment_scope } = {}) {
+async function exportarProdutos({ ids, search, fornecedor_id, categoria, status_enriquecimento_web, status_titulo_ia, status_descricao_ia, product_type_id, enrichment_scope, format = 'xlsx' } = {}) {
   const params = new URLSearchParams();
   if (ids && ids.length > 0) params.set('ids', ids.join(','));
   if (search) params.set('search', search);
   if (fornecedor_id) params.set('fornecedor_id', fornecedor_id);
   if (categoria) params.set('categoria', categoria);
+  if (format) params.set('format', format);
   if (status_enriquecimento_web) params.set('status_enriquecimento_web', status_enriquecimento_web);
   if (status_titulo_ia) params.set('status_titulo_ia', status_titulo_ia);
   if (status_descricao_ia) params.set('status_descricao_ia', status_descricao_ia);
@@ -304,11 +305,16 @@ async function exportarProdutos({ ids, search, fornecedor_id, categoria, status_
   const url = URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'produtos_commercefolio.xlsx';
+  link.download = format === 'csv' ? 'produtos.csv' : 'produtos_commercefolio.xlsx';
   document.body.appendChild(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+async function getExportHistory() {
+  const response = await apiClient.get('/produtos/exports/historico');
+  return response.data;
 }
 
 async function gerarConteudoCanal(produtoId, canal) {
@@ -362,6 +368,7 @@ export default {
   atualizarWorkflowStatus,
   batchGeneration,
   getCatalogStats,
+  getExportHistory,
 };
 
 async function getCatalogStats() {

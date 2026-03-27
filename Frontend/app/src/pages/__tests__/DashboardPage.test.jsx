@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+﻿import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from '../DashboardPage.jsx';
@@ -7,16 +7,7 @@ import adminService from '../../services/adminService';
 import dashboardService from '../../services/dashboardService';
 import { showErrorToast } from '../../utils/notifications';
 
-const mockNavigate = jest.fn();
 let consoleErrorSpy;
-
-jest.mock('react-router-dom', () => {
-  const actual = jest.requireActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
 
 jest.mock('../../services/authService', () => ({
   __esModule: true,
@@ -51,13 +42,6 @@ describe('DashboardPage', () => {
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     authService.getCurrentUser.mockResolvedValue({ id: 1, is_superuser: true });
-    adminService.getTotalCounts.mockResolvedValue({
-      total_produtos: 10,
-      total_fornecedores: 3,
-      total_usuarios: 2,
-      total_geracoes_ia_mes: 1,
-      total_enriquecimentos_mes: 0,
-    });
     adminService.getProductStatusCounts.mockResolvedValue([{ status: 'NAO_INICIADO', total: 6 }]);
     adminService.getRecentHistorico.mockResolvedValue([
       {
@@ -70,7 +54,6 @@ describe('DashboardPage', () => {
     ]);
     dashboardService.getMyDashboard.mockResolvedValue({
       plano_nome: 'Gratuito',
-      product_experience_mode: 'basic',
       limites: {
         produtos: 10,
         enriquecimento_web: 25,
@@ -93,7 +76,6 @@ describe('DashboardPage', () => {
           created_at: '2025-12-01T00:00:00Z',
         },
       ],
-      atalhos: [{ label: 'Produtos', route: '/produtos' }],
     });
   });
 
@@ -101,30 +83,31 @@ describe('DashboardPage', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test('renders admin dashboard shell without duplicating the internal title', async () => {
+  test('renders a simplified admin dashboard shell', async () => {
     render(
       <MemoryRouter>
         <DashboardPage />
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
-    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(4);
-    expect(screen.getByText('Painel administrativo')).toBeInTheDocument();
-    expect(screen.queryByText('Visao geral')).not.toBeInTheDocument();
-    expect(screen.getByText('Prioridades do dia')).toBeInTheDocument();
-    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
+    expect(await screen.findByText('Total produtos')).toBeInTheDocument();
+    expect(screen.getByText('Em atenção')).toBeInTheDocument();
+    expect(screen.getByText('Em andamento')).toBeInTheDocument();
+    expect(screen.queryByText('Próximos passos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Prioridades do dia')).not.toBeInTheDocument();
+    expect(screen.getByText('Status dos produtos')).toBeInTheDocument();
+    expect(screen.getByText('Atividade recente')).toBeInTheDocument();
+    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(0);
     expect(adminService.getTotalCounts).toHaveBeenCalled();
     expect(adminService.getProductStatusCounts).toHaveBeenCalled();
     expect(adminService.getRecentHistorico).toHaveBeenCalledWith(5);
   });
 
-  test('renders the real dashboard for non-admin users', async () => {
+  test('renders the real dashboard for non-admin users without extra shortcut blocks', async () => {
     authService.getCurrentUser.mockResolvedValue({
       id: 2,
       is_superuser: false,
       plano: { nome: 'Gratuito' },
-      product_experience_mode: 'basic',
     });
 
     render(
@@ -134,13 +117,13 @@ describe('DashboardPage', () => {
     );
 
     expect(await screen.findByText(/Limites do plano/i)).toBeInTheDocument();
-    expect(screen.getByText('Painel do cliente')).toBeInTheDocument();
-    expect(screen.getByText(/Plano Gratuito/i)).toBeInTheDocument();
-    expect(screen.queryByText('Modo Basico')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Produtos').length).toBeGreaterThan(0);
+    expect(screen.getByText('Busca web disponível')).toBeInTheDocument();
+    expect(screen.getByText('IA disponível')).toBeInTheDocument();
+    expect(screen.queryByText('Próximos passos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Onde agir agora')).not.toBeInTheDocument();
     expect(document.querySelectorAll('.dashboard-side-stat')).toHaveLength(0);
-    expect(screen.queryByText('Acoes rapidas')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(4);
+    expect(document.querySelectorAll('.pro-card-metric')).toHaveLength(0);
     expect(dashboardService.getMyDashboard).toHaveBeenCalled();
     expect(adminService.getTotalCounts).not.toHaveBeenCalled();
   });
@@ -196,7 +179,7 @@ describe('DashboardPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
+    expect(await screen.findByText('Total produtos')).toBeInTheDocument();
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'Erro ao buscar dados adicionais do dashboard:',
@@ -204,26 +187,8 @@ describe('DashboardPage', () => {
       );
     });
   });
-
-  test('renders zero fallbacks and empty-search feedback when admin metrics are sparse', async () => {
-    adminService.getTotalCounts.mockResolvedValueOnce({
-      total_produtos: null,
-      total_fornecedores: undefined,
-      total_usuarios: undefined,
-      total_geracoes_ia_mes: null,
-      total_enriquecimentos_mes: undefined,
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardPage />
-      </MemoryRouter>
-    );
-
-    expect(await screen.findByText('Total Produtos')).toBeInTheDocument();
-    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
-    expect(screen.getByText('Usuários')).toBeInTheDocument();
-    expect(screen.getByText('Gerações IA no mês')).toBeInTheDocument();
-    expect(screen.queryByText(/Busca rapida do sistema/i)).not.toBeInTheDocument();
-  });
 });
+
+
+
+

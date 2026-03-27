@@ -1,4 +1,4 @@
-"""Smoke checks for a freshly deployed CatalogAI release."""
+"""Smoke checks for a freshly deployed CommerceFolio release."""
 
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ def run_smoke(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run smoke checks against a CatalogAI release.")
+    parser = argparse.ArgumentParser(description="Run smoke checks against a CommerceFolio release.")
     parser.add_argument("--base-url", required=True, help="Base URL of the deployed API.")
     parser.add_argument("--api-prefix", default="/api/v1", help="API prefix used by the backend.")
     parser.add_argument("--timeout", type=float, default=30.0, help="Timeout per request in seconds.")

@@ -9,6 +9,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   LuDownload,
+  LuHistory,
   LuPlus,
   LuSearch,
 } from 'react-icons/lu';
@@ -445,6 +446,9 @@ function ProdutosPage() {
   };
 
   const [exportLoading, setExportLoading] = React.useState(false);
+  const [exportFormat, setExportFormat] = React.useState('xlsx');
+  const [showExportHistory, setShowExportHistory] = React.useState(false);
+  const [exportHistory, setExportHistory] = React.useState([]);
 
   const handleExportProdutos = async () => {
     setExportLoading(true);
@@ -461,10 +465,10 @@ function ProdutosPage() {
             status_descricao_ia: filtroStatusDescricaoIA || undefined,
             product_type_id: filtroTipoProduto || undefined,
           };
-      await productService.exportarProdutos(exportParams);
+      await productService.exportarProdutos({ ...exportParams, format: exportFormat });
       showSuccessToast(hasSelection
-        ? `${selectedProdutos.size} produto(s) exportado(s).`
-        : 'Planilha exportada com sucesso.');
+        ? `${selectedProdutos.size} produto(s) exportado(s) em ${exportFormat.toUpperCase()}.`
+        : `Planilha exportada em ${exportFormat.toUpperCase()} com sucesso.`);
     } catch (err) {
       showErrorToast(extractErrorMessage(err, 'Falha ao exportar produtos.'));
     } finally {
@@ -1036,9 +1040,35 @@ function ProdutosPage() {
               ) : null}
             </div>
             <div className="ops-selection-actions">
+              <span className="export-format-toggle">
+                <button
+                  type="button"
+                  className={`export-fmt-btn${exportFormat === 'xlsx' ? ' active' : ''}`}
+                  onClick={() => setExportFormat('xlsx')}
+                >XLSX</button>
+                <button
+                  type="button"
+                  className={`export-fmt-btn${exportFormat === 'csv' ? ' active' : ''}`}
+                  onClick={() => setExportFormat('csv')}
+                >CSV</button>
+              </span>
               <button onClick={handleExportProdutos} className="btn-secondary btn-sm" disabled={exportLoading}>
                 <LuDownload style={{ marginRight: 4 }} />
                 {exportLoading ? 'Exportando...' : 'Exportar'}
+              </button>
+              <button
+                type="button"
+                className="btn-ghost btn-sm"
+                title="Histórico de exports"
+                onClick={async () => {
+                  try {
+                    const h = await productService.getExportHistory();
+                    setExportHistory(Array.isArray(h) ? h : []);
+                  } catch { setExportHistory([]); }
+                  setShowExportHistory(true);
+                }}
+              >
+                <LuHistory />
               </button>
               <button onClick={handleDeleteSelected} className="btn-danger btn-sm">Ocultar</button>
               <button onClick={handleEnrichSelectedWeb} className="btn-secondary btn-sm">
@@ -1091,6 +1121,29 @@ function ProdutosPage() {
           />
         ) : null}
       </section>
+
+      {showExportHistory ? (
+        <Modal isOpen={showExportHistory} onClose={() => setShowExportHistory(false)} title="Histórico de Exports">
+          <div className="export-history-list">
+            {exportHistory.length === 0 ? (
+              <p style={{ color: 'var(--text-color-light, #64748b)', textAlign: 'center', padding: '1.5rem 0' }}>Nenhum export registrado ainda.</p>
+            ) : (
+              <table className="export-history-table">
+                <thead><tr><th>Data</th><th>Formato</th><th>Produtos</th></tr></thead>
+                <tbody>
+                  {exportHistory.map((row) => (
+                    <tr key={row.id}>
+                      <td>{new Date(row.created_at).toLocaleString('pt-BR')}</td>
+                      <td><span className="export-fmt-badge">{(row.format || 'xlsx').toUpperCase()}</span></td>
+                      <td>{row.total_items}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </Modal>
+      ) : null}
 
       {isModalOpen ? (
         <Modal

@@ -10,7 +10,8 @@ import configService from '../services/configService';
 import logger from '../utils/logger';
 
 const EXPERIENCE_MODES = new Set(['basic', 'complete']);
-const ADMIN_PREVIEW_STORAGE_KEY = 'catalogai_admin_preview_mode';
+const ADMIN_PREVIEW_STORAGE_KEY = 'commercefolio_admin_preview_mode';
+const LEGACY_ADMIN_PREVIEW_STORAGE_KEY = 'catalogai_admin_preview_mode';
 const DEFAULT_PUBLIC_CONFIG = {
   google_enabled: false,
   facebook_enabled: false,
@@ -39,7 +40,8 @@ function loadStoredAdminPreviewMode() {
   if (typeof window === 'undefined' || !window.localStorage) {
     return null;
   }
-  const stored = window.localStorage.getItem(ADMIN_PREVIEW_STORAGE_KEY);
+  const stored = window.localStorage.getItem(ADMIN_PREVIEW_STORAGE_KEY)
+    || window.localStorage.getItem(LEGACY_ADMIN_PREVIEW_STORAGE_KEY);
   if (!stored) {
     return null;
   }
@@ -52,6 +54,7 @@ function persistAdminPreviewMode(mode) {
     return;
   }
   window.localStorage.setItem(ADMIN_PREVIEW_STORAGE_KEY, mode);
+  window.localStorage.removeItem(LEGACY_ADMIN_PREVIEW_STORAGE_KEY);
 }
 
 function removeStoredAdminPreviewMode() {
@@ -59,6 +62,7 @@ function removeStoredAdminPreviewMode() {
     return;
   }
   window.localStorage.removeItem(ADMIN_PREVIEW_STORAGE_KEY);
+  window.localStorage.removeItem(LEGACY_ADMIN_PREVIEW_STORAGE_KEY);
 }
 
 function AppExperienceProvider({ children }) {

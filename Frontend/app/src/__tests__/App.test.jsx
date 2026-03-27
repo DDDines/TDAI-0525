@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import App from '../App.jsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 
 jest.mock('../contexts/AuthContext', () => ({
   AuthProvider: ({ children }) => <>{children}</>,
@@ -16,6 +17,11 @@ jest.mock('../contexts/AppExperienceContext', () => ({
 
 jest.mock('../contexts/ProductTypeContext', () => ({
   ProductTypeProvider: ({ children }) => <>{children}</>,
+}));
+
+jest.mock('../contexts/WorkspaceContext', () => ({
+  WorkspaceProvider: ({ children }) => <>{children}</>,
+  useWorkspace: jest.fn(),
 }));
 
 jest.mock('../contexts/ThemeContext', () => ({
@@ -62,6 +68,11 @@ jest.mock('../pages/LandingPage', () => ({
 jest.mock('../pages/SignupPage', () => ({
   __esModule: true,
   default: () => <div>signup-page</div>,
+}));
+
+jest.mock('../pages/WorkspacePage', () => ({
+  __esModule: true,
+  default: () => <div>workspace-page</div>,
 }));
 
 jest.mock('../pages/DashboardPage', () => ({
@@ -134,6 +145,10 @@ describe('App', () => {
       isAuthenticated: true,
       isLoading: false,
     });
+    useWorkspace.mockReturnValue({
+      hasWorkspace: true,
+      isLoading: false,
+    });
   });
 
   test('shows the global loading overlay while auth state is loading', () => {
@@ -141,6 +156,10 @@ describe('App', () => {
     useAuth.mockReturnValueOnce({
       isAuthenticated: false,
       isLoading: true,
+    });
+    useWorkspace.mockReturnValueOnce({
+      hasWorkspace: false,
+      isLoading: false,
     });
 
     render(<App />);
@@ -176,5 +195,20 @@ describe('App', () => {
 
     expect(screen.getByTestId('main-layout')).toBeInTheDocument();
     expect(screen.getByText('dashboard-page')).toBeInTheDocument();
+  });
+
+  test('redirects authenticated users without a company into workspace setup', () => {
+    window.history.pushState({}, '', '/');
+    useWorkspace.mockReturnValueOnce({
+      hasWorkspace: false,
+      isLoading: false,
+    });
+
+    render(<App />);
+
+    expect(screen.getByTestId('main-layout')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/workspace');
+    expect(window.location.search).toBe('?setup=1');
+    expect(screen.getByText('workspace-page')).toBeInTheDocument();
   });
 });

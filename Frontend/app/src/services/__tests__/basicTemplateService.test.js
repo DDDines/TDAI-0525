@@ -13,7 +13,7 @@ jest.mock('../apiClient', () => ({
   },
 }));
 
-const STORAGE_KEY = 'catalogai_basic_generation_templates_v1';
+const STORAGE_KEY = 'commercefolio_basic_generation_templates_v1';
 
 function buildApiOverview(overrides = {}) {
   const systemDefaults = overrides.systemDefaults || {
@@ -22,7 +22,7 @@ function buildApiOverview(overrides = {}) {
   };
 
   return {
-    company_identifier: overrides.companyIdentifier || 'catalogai',
+    company_identifier: overrides.companyIdentifier || 'commercefolio',
     system_defaults: systemDefaults,
     company_config: overrides.companyConfig ?? null,
     user_config: overrides.userConfig ?? null,
@@ -66,7 +66,7 @@ describe('basicTemplateService', () => {
     const templates = await basicTemplateService.getBasicGenerationTemplates();
 
     expect(overview).toEqual({
-      companyIdentifier: 'catalogai',
+      companyIdentifier: 'commercefolio',
       systemDefaults: DEFAULT_BASIC_GENERATION_TEMPLATES,
       companyConfig: null,
       userConfig: {
@@ -196,7 +196,7 @@ describe('basicTemplateService', () => {
     expect(result).toEqual({
       ...DEFAULT_BASIC_GENERATION_TEMPLATES,
       overview: {
-        companyIdentifier: 'catalogai',
+        companyIdentifier: 'commercefolio',
         systemDefaults: DEFAULT_BASIC_GENERATION_TEMPLATES,
         companyConfig: null,
         userConfig: null,

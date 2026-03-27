@@ -5,6 +5,7 @@ import HistoricoPage from '../HistoricoPage.jsx';
 import usoIAService from '../../services/usoIAService';
 import historicoService from '../../services/historicoService';
 import { useAuth } from '../../contexts/AuthContext';
+import { useWorkspace } from '../../contexts/WorkspaceContext';
 import logger from '../../utils/logger';
 
 jest.mock('../../services/usoIAService', () => ({
@@ -24,6 +25,10 @@ jest.mock('../../services/historicoService', () => ({
 
 jest.mock('../../contexts/AuthContext', () => ({
   useAuth: jest.fn(),
+}));
+
+jest.mock('../../contexts/WorkspaceContext', () => ({
+  useWorkspace: jest.fn(),
 }));
 
 jest.mock('../../utils/logger', () => ({
@@ -61,6 +66,9 @@ describe('HistoricoPage', () => {
     useAuth.mockReturnValue({
       user: { id: 8 },
       isLoading: false,
+    });
+    useWorkspace.mockReturnValue({
+      workspace: { nome: 'Dines' },
     });
     usoIAService.getMeuHistoricoUsoIA.mockResolvedValue({
       items: [
@@ -137,14 +145,14 @@ describe('HistoricoPage', () => {
     render(<HistoricoPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Nenhum registro de uso de IA encontrado com os filtros atuais/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nenhuma execução com IA encontrada com os filtros atuais/i)).toBeInTheDocument();
     });
 
     expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
     expect(historicoService.getHistorico).not.toHaveBeenCalled();
   });
 
-  test('mostra estado de carregamento enquanto a autenticacao ainda nao terminou', () => {
+  test('mostra estado de carregamento enquanto a autenticação ainda não terminou', () => {
     useAuth.mockReturnValue({
       user: { id: 8 },
       isLoading: true,
@@ -152,7 +160,7 @@ describe('HistoricoPage', () => {
 
     render(<HistoricoPage />);
 
-    expect(screen.getByText(/Carregando historico/i)).toBeInTheDocument();
+    expect(screen.getByText(/Carregando monitoramento/i)).toBeInTheDocument();
     expect(usoIAService.getMeuHistoricoUsoIA).not.toHaveBeenCalled();
     expect(historicoService.getHistorico).not.toHaveBeenCalled();
   });
@@ -160,13 +168,13 @@ describe('HistoricoPage', () => {
   test('carrega resumo, filtro de IA e usa tipo_geracao corretamente', async () => {
     render(<HistoricoPage />);
 
-    expect(await screen.findByText(/Central de historico/i)).toBeInTheDocument();
-    expect(screen.getByText('Registros IA')).toBeInTheDocument();
+    expect(await screen.findByText(/Central de monitoramento/i)).toBeInTheDocument();
+    expect(screen.getByText('Execuções IA')).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();
-    expect(screen.getByText('Falhas IA')).toBeInTheDocument();
+    expect(screen.getByText('Falhas ativas')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Tipo de acao de IA/i), {
+    fireEvent.change(screen.getByLabelText(/Tipo de ação de IA/i), {
       target: { value: 'criacao_descricao_produto' },
     });
 
@@ -213,12 +221,12 @@ describe('HistoricoPage', () => {
   test('separa eventos do sistema em aba propria e filtra por entidade e acao', async () => {
     render(<HistoricoPage />);
 
-    await screen.findByText(/Central de historico/i);
+    await screen.findByText(/Central de monitoramento/i);
 
-    fireEvent.click(screen.getByRole('tab', { name: /Eventos do sistema/i }));
-    expect(await screen.findByLabelText(/Entidade do historico do sistema/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Eventos da plataforma/i }));
+    expect(await screen.findByLabelText(/Entidade do histórico do sistema/i)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Entidade do historico do sistema/i), {
+    fireEvent.change(screen.getByLabelText(/Entidade do histórico do sistema/i), {
       target: { value: 'produto' },
     });
 
@@ -231,7 +239,7 @@ describe('HistoricoPage', () => {
       });
     });
 
-    fireEvent.change(screen.getByLabelText(/Acao do historico do sistema/i), {
+    fireEvent.change(screen.getByLabelText(/Ação do histórico do sistema/i), {
       target: { value: 'ATUALIZACAO' },
     });
 
@@ -252,9 +260,9 @@ describe('HistoricoPage', () => {
   test('aplica busca textual local nas duas abas', async () => {
     render(<HistoricoPage />);
 
-    await screen.findByText(/Central de historico/i);
+    await screen.findByText(/Central de monitoramento/i);
 
-    fireEvent.change(screen.getByLabelText(/Busca textual no historico de IA/i), {
+    fireEvent.change(screen.getByLabelText(/Busca textual no histórico de IA/i), {
       target: { value: 'timeout' },
     });
 
@@ -263,8 +271,8 @@ describe('HistoricoPage', () => {
       expect(screen.queryByText(/Texto gerado para o produto/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /Eventos do sistema/i }));
-    fireEvent.change(screen.getByLabelText(/Busca textual no historico do sistema/i), {
+    fireEvent.click(screen.getByRole('tab', { name: /Eventos da plataforma/i }));
+    fireEvent.change(screen.getByLabelText(/Busca textual no histórico do sistema/i), {
       target: { value: 'Fornecedor XPTO' },
     });
 
@@ -281,7 +289,7 @@ describe('HistoricoPage', () => {
     render(<HistoricoPage />);
 
     expect(await screen.findByText(/historico indisponivel/i)).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Eventos do sistema/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Eventos da plataforma/i })).toBeInTheDocument();
   });
 
   test('registra warnings e erros secundarios para payloads inesperados', async () => {
@@ -294,7 +302,7 @@ describe('HistoricoPage', () => {
     render(<HistoricoPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Nenhum registro de uso de IA encontrado com os filtros atuais/i)).toBeInTheDocument();
+      expect(screen.getByText(/Nenhuma execução com IA encontrada com os filtros atuais/i)).toBeInTheDocument();
     });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -314,7 +322,7 @@ describe('HistoricoPage', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test('mantem o log de autenticacao enquanto aguarda carregar historico autenticado', () => {
+  test('mantém o log de autenticação enquanto aguarda carregar histórico autenticado', () => {
     useAuth.mockReturnValue({
       user: { id: 8 },
       isLoading: true,

@@ -112,28 +112,40 @@ test('renderPdfPage exits early when there is no document or canvas', async () =
   await expect(renderPdfPage(null, 1, null)).resolves.toBeUndefined();
 });
 
-test('notifies apply-all checkbox changes', async () => {
-  const onApplyAllChange = jest.fn();
+test('uses apply-all by default in the selection payload', async () => {
+  const onSelect = jest.fn();
 
-  render(
+  const { container } = render(
     <PdfRegionSelector
       file={new Uint8Array([1])}
-      onSelect={jest.fn()}
+      onSelect={onSelect}
       initialApplyAll={true}
-      onApplyAllChange={onApplyAllChange}
     />
   );
 
-  const checkbox = await screen.findByRole('checkbox');
-  expect(checkbox).toBeChecked();
+  const canvas = container.querySelector('canvas');
+  Object.defineProperty(canvas, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, width: 200, height: 100 }),
+    configurable: true,
+  });
 
-  fireEvent.click(checkbox);
-  expect(checkbox).not.toBeChecked();
-  expect(onApplyAllChange).toHaveBeenCalledWith(false);
+  await waitFor(() => {
+    expect(canvas.width).toBeGreaterThan(0);
+  });
+
+  fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+  fireEvent.mouseMove(canvas, { clientX: 40, clientY: 40 });
+  fireEvent.mouseUp(canvas);
+
+  expect(onSelect).toHaveBeenCalledWith(
+    expect.objectContaining({
+      applyAllPages: true,
+    })
+  );
 });
 
-test('toggles apply-all safely without a callback', async () => {
-  render(
+test('renders without the legacy apply-all checkbox controls', async () => {
+  const { container } = render(
     <PdfRegionSelector
       file={new Uint8Array([1])}
       onSelect={jest.fn()}
@@ -141,11 +153,10 @@ test('toggles apply-all safely without a callback', async () => {
     />
   );
 
-  const checkbox = await screen.findByRole('checkbox');
-  expect(checkbox).not.toBeChecked();
-
-  fireEvent.click(checkbox);
-  expect(checkbox).toBeChecked();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  await waitFor(() => {
+    expect(container.querySelector('canvas').width).toBeGreaterThan(0);
+  });
 });
 
 test('shows error and calls onLoadError when pdf load fails', async () => {
@@ -180,7 +191,7 @@ test('shows a generic error without calling a missing onLoadError callback', asy
   expect(await screen.findByText(/falha ao carregar pdf/i)).toBeInTheDocument();
 });
 
-test('resets page and apply-all state when a new file is loaded', async () => {
+test('rerenders a new file using the new initial page', async () => {
   const firstPdf = makeSuccessfulPdfTask({ width: 200, height: 100 });
   const secondPdf = makeSuccessfulPdfTask({ width: 150, height: 75 });
   mockGetDocument
@@ -196,8 +207,10 @@ test('resets page and apply-all state when a new file is loaded', async () => {
     />
   );
 
-  const checkbox = await screen.findByRole('checkbox');
-  expect(checkbox).not.toBeChecked();
+  const canvas = document.querySelector('canvas');
+  await waitFor(() => {
+    expect(canvas.width).toBe(200);
+  });
 
   rerender(
     <PdfRegionSelector
@@ -209,7 +222,10 @@ test('resets page and apply-all state when a new file is loaded', async () => {
   );
 
   await waitFor(() => {
-    expect(screen.getByRole('checkbox')).toBeChecked();
+    expect(canvas.width).toBe(150);
+  });
+  await waitFor(() => {
+    expect(secondPdf.doc.getPage).toHaveBeenLastCalledWith(5);
   });
 });
 
@@ -232,7 +248,7 @@ test('does not call onSelect when the user releases the mouse without drawing a 
   });
 
   await waitFor(() => {
-    expect(canvas.width).toBe(200);
+    expect(canvas.width).toBeGreaterThan(0);
   });
 
   fireEvent.mouseDown(canvas, { clientX: 20, clientY: 20 });
@@ -310,10 +326,15 @@ test('ignores mouse move events before drawing starts', async () => {
   expect(container.querySelector('.pdf-region-selector-overlay')).not.toBeInTheDocument();
 });
 
-test('handles missing files without requesting a PDF document', () => {
-  render(<PdfRegionSelector file={null} onSelect={jest.fn()} />);
+test('handles missing files without requesting a PDF document', async () => {
+  const { container } = render(<PdfRegionSelector file={null} onSelect={jest.fn()} />);
 
-  expect(screen.getByRole('checkbox')).toBeChecked();
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(container.querySelector('canvas')).toBeInTheDocument();
   expect(mockGetDocument).not.toHaveBeenCalled();
 });
 

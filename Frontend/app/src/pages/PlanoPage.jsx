@@ -20,6 +20,7 @@ import {
   LuZap,
 } from 'react-icons/lu';
 import authService from '../services/authService';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import dashboardService from '../services/dashboardService';
 import planosService from '../services/planosService';
 import { showErrorToast, showInfoToast, showSuccessToast } from '../utils/notifications';
@@ -32,7 +33,7 @@ function normalizeMode(value) {
 }
 
 function formatModeLabel(mode) {
-  return normalizeMode(mode) === 'complete' ? 'Completo' : 'Basico';
+  return normalizeMode(mode) === 'complete' ? 'Completo' : 'Básico';
 }
 
 function isUnlimited(limit) {
@@ -121,20 +122,20 @@ function buildUsageCards(plan, userDashboard) {
 
   return [
     createUsageCard({
-      title: 'Catalogo ocupado',
-      helper: 'Produtos ja cadastrados no seu espaco atual.',
+      title: 'Catálogo ocupado',
+      helper: 'Produtos já cadastrados no seu espaço atual.',
       icon: <LuBox />,
       tone: 'neutral',
       used: totalProducts,
       usedLabel: `${formatNumber(totalProducts)} cadastrados`,
       remainingLabel: isUnlimited(plan?.limite_produtos)
-        ? 'Sem limite de catalogo'
-        : `${formatNumber(Math.max(Number(plan?.limite_produtos || 0) - totalProducts, 0))} espacos livres`,
+        ? 'Sem limite de catálogo'
+        : `${formatNumber(Math.max(Number(plan?.limite_produtos || 0) - totalProducts, 0))} espaços livres`,
       limit: plan?.limite_produtos,
     }),
     createUsageCard({
       title: 'Busca web no ciclo',
-      helper: 'Consultas de enriquecimento usadas neste mes.',
+      helper: 'Consultas de enriquecimento usadas neste mês.',
       icon: <LuSearch />,
       tone: 'info',
       used: webUsage,
@@ -145,8 +146,8 @@ function buildUsageCards(plan, userDashboard) {
       limit: plan?.limite_enriquecimento_web,
     }),
     createUsageCard({
-      title: 'Geracao IA no ciclo',
-      helper: 'Titulos e descricoes gerados neste mes.',
+      title: 'Geração IA no ciclo',
+      helper: 'Títulos e descrições gerados neste mês.',
       icon: <LuZap />,
       tone: 'warn',
       used: aiUsage,
@@ -163,7 +164,7 @@ function buildUsageCards(plan, userDashboard) {
       tone: 'success',
       used: totalFornecedores,
       usedLabel: `${formatNumber(totalFornecedores)} fornecedores`,
-      remainingLabel: 'Prontos para alimentar o catalogo',
+      remainingLabel: 'Prontos para alimentar o catálogo',
       limit: null,
       unlimited: true,
       remaining: null,
@@ -184,25 +185,25 @@ function buildCoverageItems(plan) {
       helper:
         modeLabel === 'Completo'
           ? 'Fluxo completo com recursos de IA liberados.'
-          : 'Fluxo enxuto com geracao basica como padrao.',
+          : 'Fluxo enxuto com geração básica como padrão.',
       icon: <LuSparkles />,
       tone: modeLabel === 'Completo' ? 'success' : 'neutral',
     },
     {
       title: 'Enriquecimento web',
-      value: webEnabled ? 'Ativo' : 'Nao incluso',
+      value: webEnabled ? 'Ativo' : 'Não incluso',
       helper: webEnabled
         ? 'Pode buscar dados externos e revisar resultados.'
-        : 'Disponivel apenas para planos com cota de busca.',
+        : 'Disponível apenas para planos com cota de busca.',
       icon: <LuSearch />,
       tone: webEnabled ? 'info' : 'muted',
     },
     {
-      title: 'Geracao com IA',
-      value: aiEnabled ? 'Disponivel' : 'Indisponivel',
+      title: 'Geração com IA',
+      value: aiEnabled ? 'Disponível' : 'Indisponível',
       helper: aiEnabled
-        ? 'Pode gerar titulos, descricoes e sugestoes assistidas.'
-        : 'A tela continua funcional apenas com o modo basico.',
+        ? 'Pode gerar títulos, descrições e sugestões assistidas.'
+        : 'A tela continua funcional apenas com o modo básico.',
       icon: <LuZap />,
       tone: aiEnabled ? 'warn' : 'muted',
     },
@@ -211,23 +212,23 @@ function buildCoverageItems(plan) {
       value: plan?.permite_api_externa ? 'Permitidas' : 'Bloqueadas',
       helper: plan?.permite_api_externa
         ? 'Aceita chaves do cliente para Google, OpenAI e Gemini.'
-        : 'Usa apenas as configuracoes padrao da plataforma.',
+        : 'Usa apenas as configurações padrão da plataforma.',
       icon: <LuCable />,
       tone: plan?.permite_api_externa ? 'success' : 'muted',
     },
     {
       title: 'Suporte',
-      value: plan?.suporte_prioritario ? 'Prioritario' : 'Padrao',
+      value: plan?.suporte_prioritario ? 'Prioritário' : 'Padrão',
       helper: plan?.suporte_prioritario
-        ? 'Fila de suporte com atendimento prioritario.'
-        : 'Atendimento padrao pelos canais ativos.',
+        ? 'Fila de suporte com atendimento prioritário.'
+        : 'Atendimento padrão pelos canais ativos.',
       icon: <LuHeadphones />,
       tone: plan?.suporte_prioritario ? 'success' : 'neutral',
     },
     {
-      title: 'Renovacao de limites',
+      title: 'Renovação de limites',
       value: 'Mensal',
-      helper: 'As cotas de uso sao acompanhadas por ciclo mensal.',
+      helper: 'As cotas de uso são acompanhadas por ciclo mensal.',
       icon: <LuShieldCheck />,
       tone: 'neutral',
     },
@@ -238,8 +239,8 @@ function getPlanSummary(plan, userDashboard) {
   const planName = String(plan?.nome || 'N/D').trim();
   const modeLabel = formatModeLabel(plan?.mode);
   const produtosLivres = isUnlimited(plan?.limite_produtos)
-    ? 'catalogo ilimitado'
-    : `${formatNumber(Math.max(Number(plan?.limite_produtos || 0) - Number(userDashboard?.totais?.produtos ?? 0), 0))} espacos livres`;
+    ? 'catálogo ilimitado'
+    : `${formatNumber(Math.max(Number(plan?.limite_produtos || 0) - Number(userDashboard?.totais?.produtos ?? 0), 0))} espaços livres`;
   const webDisponivel = Number(plan?.limite_enriquecimento_web ?? 0) > 0;
   const aiDisponivel = Number(plan?.limite_geracao_ia ?? 0) > 0 || normalizeMode(plan?.mode) === 'complete';
 
@@ -247,8 +248,8 @@ function getPlanSummary(plan, userDashboard) {
     `Plano ${planName}`,
     `Modo ${modeLabel}`,
     produtosLivres,
-    webDisponivel ? 'busca web ativa' : 'sem busca web incluida',
-    aiDisponivel ? 'geracao IA disponivel' : 'geracao IA indisponivel',
+    webDisponivel ? 'busca web ativa' : 'sem busca web incluída',
+    aiDisponivel ? 'geração IA disponível' : 'geração IA indisponível',
   ].join('. ');
 }
 
@@ -290,6 +291,7 @@ function CoverageItem({ item }) {
 }
 
 function PlanoPage() {
+  const { workspace } = useWorkspace();
   const [currentUser, setCurrentUser] = useState(null);
   const [userDashboard, setUserDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -384,9 +386,9 @@ function PlanoPage() {
     return (
       <div className="plano-page-shell">
         <section className="plano-inline-card plano-loading-card">
-          <span className="plano-inline-eyebrow">Carregando plano</span>
-          <h2>Preparando sua visao de capacidade</h2>
-          <p>Estamos consolidando limites, uso atual e cobertura ativa da sua conta.</p>
+          <span className="plano-inline-eyebrow">Carregando financeiro</span>
+          <h2>Preparando a leitura financeira da empresa</h2>
+          <p>Estamos consolidando limites, uso atual e cobertura ativa do workspace.</p>
         </section>
       </div>
     );
@@ -397,7 +399,7 @@ function PlanoPage() {
       <div className="plano-page-shell">
         <section className="plano-inline-card plano-error-card">
           <span className="plano-inline-eyebrow">Falha ao carregar</span>
-          <h2>Nao foi possivel montar a tela do seu plano</h2>
+          <h2>Não foi possível montar a tela do seu plano</h2>
           <p className="plano-error">Erro ao carregar dados: {error}</p>
         </section>
       </div>
@@ -408,11 +410,11 @@ function PlanoPage() {
     return (
       <div className="plano-page-shell">
         <section className="plano-inline-card plano-empty-card">
-          <span className="plano-inline-eyebrow">Plano indisponivel</span>
-          <h2>Nao encontramos um plano ativo para esta conta</h2>
+          <span className="plano-inline-eyebrow">Plano indisponível</span>
+          <h2>Não encontramos um plano ativo para esta conta</h2>
           <p>
-            Revise o cadastro do usuario ou entre em contato com o suporte para liberar
-            limites e recursos desta area.
+            Revise o cadastro do usuário ou entre em contato com o suporte para liberar
+            limites e recursos desta área.
           </p>
         </section>
       </div>
@@ -421,19 +423,20 @@ function PlanoPage() {
 
   const modeLabel = formatModeLabel(resolvedPlan.mode);
   const heroSummary = getPlanSummary(resolvedPlan, userDashboard);
+  const companyContextLabel = workspace?.nome || currentUser?.nome_empresa || 'Empresa ativa';
   const totalProducts = Number(userDashboard?.totais?.produtos ?? 0);
   const totalFornecedores = Number(userDashboard?.totais?.fornecedores ?? 0);
   const allowsAi = Number(resolvedPlan?.limite_geracao_ia ?? 0) > 0 || normalizeMode(resolvedPlan.mode) === 'complete';
 
   const handleSupportClick = () => {
-    showInfoToast('Suporte comercial ainda nao foi conectado nesta tela.');
+    showInfoToast('Suporte comercial ainda não foi conectado nesta tela.');
   };
 
   return (
     <div className="plano-page-shell">
       <section className="plano-hero-card">
         <div className="plano-hero-copy">
-          <span className="plano-inline-eyebrow">Visao do plano</span>
+          <span className="plano-inline-eyebrow">Financeiro da empresa</span>
           <div className="plano-hero-title-row">
             <h1>{resolvedPlan.nome || 'N/D'}</h1>
             <span className={`plan-badge ${String(resolvedPlan.nome || '').trim().toLowerCase() || 'nd'}`}>
@@ -442,6 +445,10 @@ function PlanoPage() {
           </div>
           <p className="plano-hero-summary">{heroSummary}</p>
           <div className="plano-hero-pill-row">
+            <span className="plano-hero-pill">
+              <LuLayers />
+              {companyContextLabel}
+            </span>
             <span className="plano-hero-pill">
               <LuBadgeCheck />
               {modeLabel}
@@ -469,12 +476,12 @@ function PlanoPage() {
             </article>
             <article className="plano-side-stat">
               <span className="plano-side-stat-label">IA no plano</span>
-              <strong className="plano-side-stat-value">{allowsAi ? 'Ativa' : 'Basica'}</strong>
+                <strong className="plano-side-stat-value">{allowsAi ? 'Ativa' : 'Básica'}</strong>
             </article>
             <article className="plano-side-stat">
               <span className="plano-side-stat-label">Suporte</span>
               <strong className="plano-side-stat-value">
-                {resolvedPlan.suporte_prioritario ? 'Prioritario' : 'Padrao'}
+                {resolvedPlan.suporte_prioritario ? 'Prioritário' : 'Padrão'}
               </strong>
             </article>
           </div>
@@ -485,7 +492,7 @@ function PlanoPage() {
         <div className="plano-section-head">
           <div>
             <h2>Capacidade do plano</h2>
-            <p>Leitura direta do que ja foi usado e do que ainda resta no ciclo atual.</p>
+            <p>Leitura direta do que já foi usado e do que ainda resta no ciclo atual.</p>
           </div>
         </div>
         <div className="plano-usage-grid">
@@ -499,8 +506,8 @@ function PlanoPage() {
         <section className="plano-section-card">
           <div className="plano-section-head">
             <div>
-              <h2>Cobertura incluida</h2>
-              <p>O que este plano libera hoje na operacao do catalogo.</p>
+              <h2>Cobertura incluída</h2>
+              <p>O que este plano libera hoje na operação do catálogo.</p>
             </div>
           </div>
           <div className="plano-coverage-grid">
@@ -513,16 +520,16 @@ function PlanoPage() {
         <section className="plano-section-card plano-actions-card">
           <div className="plano-section-head">
             <div>
-              <h2>Acoes do plano</h2>
-              <p>Atalhos uteis para revisar consumo, credenciais e proxima evolucao da conta.</p>
+              <h2>Ações financeiras</h2>
+              <p>Atalhos para acompanhar consumo operacional, credenciais e evolução do workspace.</p>
             </div>
           </div>
 
           <div className="plano-action-list">
-            <a className="plano-action-link" href="/historico">
+            <a className="plano-action-link" href="/monitoramento">
               <div>
-                <strong>Ver historico de uso</strong>
-                <span>Audite consumo de IA, eventos e operacoes recentes.</span>
+                <strong>Abrir monitoramento</strong>
+                <span>Audite consumo de IA, eventos e operações recentes da empresa.</span>
               </div>
               <LuArrowUpRight />
             </a>
@@ -556,7 +563,7 @@ function PlanoPage() {
             <button type="button" className="plano-action-button" onClick={handleSupportClick}>
               <div>
                 <strong>Falar com suporte</strong>
-                <span>Abra um canal para duvidas sobre plano, limites e cobranca.</span>
+                <span>Abra um canal para dúvidas sobre plano, limites e cobrança.</span>
               </div>
               <LuArrowUpRight />
             </button>

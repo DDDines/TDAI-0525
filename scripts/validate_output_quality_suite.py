@@ -17,7 +17,7 @@ RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the local quality validation suite."""
-    parser = argparse.ArgumentParser(description="Run the local CatalogAI output quality suite.")
+    parser = argparse.ArgumentParser(description="Run the local CommerceFolio output quality suite.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8017", help="Backend base URL without /api/v1.")
     parser.add_argument("--lm-model", default="google/gemma-3-12b", help="LM Studio model identifier.")
     parser.add_argument(

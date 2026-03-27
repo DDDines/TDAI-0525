@@ -536,6 +536,20 @@ class _EndpointHandlers:
         """Endpoint HTTP que delega a execucao para workflow/servico OO (read_produtos)."""
         return request_services.product_management_service.list_produtos(skip=skip, limit=limit, sort_by=sort_by, sort_order=sort_order, search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, enrichment_scope=enrichment_scope, current_user=current_user)
 
+    @router.get('/exports/historico', response_model=List[schemas.ExportLogResponse])
+    def get_export_historico(
+        current_user: models.User = Depends(_CURRENT_ACTIVE_USER_PROVIDER),
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+    ):
+        """Retorna os últimos 20 exports do usuário autenticado."""
+        return (
+            session.query(models.ExportLog)
+            .filter(models.ExportLog.user_id == current_user.id)
+            .order_by(models.ExportLog.created_at.desc())
+            .limit(20)
+            .all()
+        )
+
     @router.get('/exportar/')
     def exportar_produtos(
         ids: Optional[str] = Query(None, description='IDs separados por vírgula para exportar apenas selecionados'),
@@ -547,16 +561,61 @@ class _EndpointHandlers:
         status_descricao_ia: Optional[models.StatusGeracaoIAEnum] = Query(None),
         product_type_id: Optional[int] = Query(None),
         enrichment_scope: Optional[str] = Query(None),
+        format: str = Query(default='xlsx'),
         current_user: models.User = Depends(_CURRENT_ACTIVE_USER_PROVIDER),
         request_services: _ProdutosRequestServices = Depends(_build_produtos_request_services),
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
     ):
-        """Gera e retorna planilha XLSX com os produtos filtrados ou selecionados."""
+        """Gera e retorna planilha XLSX ou CSV com os produtos filtrados ou selecionados."""
         parsed_ids: Optional[List[int]] = None
         if ids:
             try:
                 parsed_ids = [int(i.strip()) for i in ids.split(',') if i.strip()]
             except ValueError:
                 pass
+
+        filtros = {
+            'ids': ids,
+            'search': search,
+            'fornecedor_id': fornecedor_id,
+            'categoria': categoria,
+            'status_enriquecimento_web': status_enriquecimento_web.value if status_enriquecimento_web else None,
+            'status_titulo_ia': status_titulo_ia.value if status_titulo_ia else None,
+            'status_descricao_ia': status_descricao_ia.value if status_descricao_ia else None,
+            'product_type_id': product_type_id,
+            'enrichment_scope': enrichment_scope,
+        }
+
+        import io
+        # Build DataFrame once for count (used by both formats for ExportLog)
+        export_df, csv_str = request_services.product_management_service.export_produtos_csv(
+            current_user=current_user,
+            ids=parsed_ids,
+            search=search,
+            fornecedor_id=fornecedor_id,
+            categoria=categoria,
+            status_enriquecimento_web=status_enriquecimento_web,
+            status_titulo_ia=status_titulo_ia,
+            status_descricao_ia=status_descricao_ia,
+            product_type_id=product_type_id,
+            enrichment_scope=enrichment_scope,
+        )
+        total_items = len(export_df)
+        export_log = models.ExportLog(
+            user_id=current_user.id,
+            total_items=total_items,
+            format=format if format == 'csv' else 'xlsx',
+            filtros_json=json.dumps(filtros),
+        )
+        session.add(export_log)
+        session.commit()
+
+        if format == 'csv':
+            return StreamingResponse(
+                io.BytesIO(csv_str.encode('utf-8')),
+                media_type='text/csv',
+                headers={'Content-Disposition': 'attachment; filename="produtos.csv"'},
+            )
 
         xlsx_bytes = request_services.product_management_service.export_produtos(
             current_user=current_user,
@@ -570,7 +629,6 @@ class _EndpointHandlers:
             product_type_id=product_type_id,
             enrichment_scope=enrichment_scope,
         )
-        import io
         filename = 'produtos_commercefolio.xlsx'
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),

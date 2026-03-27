@@ -4,7 +4,7 @@
  * Defines responsibilities and integration points for components common.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf';
 import pdfWorkerSrc from 'pdfjs-dist/legacy/build/pdf.worker.js?url';
 import { renderPdfPage } from './PdfRegionSelector.helpers.js';
@@ -16,7 +16,6 @@ function PdfRegionSelector({
   initialPage = 1,
   initialApplyAll = true,
   onLoadError,
-  onApplyAllChange,
 }) {
   const canvasRef = useRef(null);
   const pdfDocumentRef = useRef(null);
@@ -24,17 +23,13 @@ function PdfRegionSelector({
   const startPos = useRef(null);
   const [rect, setRect] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [applyAll, setApplyAll] = useState(Boolean(initialApplyAll));
+  const [applyAll] = useState(Boolean(initialApplyAll));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setPageNum(initialPage);
   }, [initialPage, file]);
-
-  useEffect(() => {
-    setApplyAll(Boolean(initialApplyAll));
-  }, [initialApplyAll, file]);
 
   useEffect(() => {
     let task;
@@ -56,7 +51,7 @@ function PdfRegionSelector({
           return;
         }
         pdfDocumentRef.current = doc;
-        await renderPdfPage(doc, pageNum, canvasRef.current);
+        await renderPdfPage(doc, initialPage, canvasRef.current);
       } catch (err) {
         if (!cancelled && onLoadError) onLoadError(err);
         if (!cancelled) setError('Falha ao carregar PDF');
@@ -127,9 +122,14 @@ function PdfRegionSelector({
 
   return (
     <div className="pdf-region-selector">
-      <p className="pdf-region-selector-tip">
-        Clique e arraste para desenhar a Ã¡rea da tabela que serÃ¡ extraÃ­da.
-      </p>
+      <div className="pdf-region-selector-tip">
+        <strong>Como selecionar a tabela:</strong>
+        <ol>
+          <li>Clique no canto superior esquerdo da tabela e segure o botão do mouse</li>
+          <li>Arraste até o canto inferior direito, cobrindo todas as linhas e colunas desejadas</li>
+          <li>Solte o botão — a área será extraída automaticamente</li>
+        </ol>
+      </div>
 
       {loading && <p className="pdf-region-selector-loading">Carregando PDF...</p>}
       {error && <p className="pdf-region-selector-error">{error}</p>}
@@ -140,7 +140,7 @@ function PdfRegionSelector({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        aria-label="Ãrea para seleÃ§Ã£o da regiÃ£o do PDF"
+        aria-label="Área para seleção da região do PDF"
       />
 
       {rect && isDrawing && (
@@ -154,18 +154,6 @@ function PdfRegionSelector({
           }}
         />
       )}
-
-      <label className="pdf-region-selector-apply-all">
-        <input
-          type="checkbox"
-          checked={applyAll}
-          onChange={(e) => {
-            setApplyAll(e.target.checked);
-            if (onApplyAllChange) onApplyAllChange(e.target.checked);
-          }}
-        />
-        Aplicar esta seleÃ§Ã£o a todas as pÃ¡ginas
-      </label>
     </div>
   );
 }

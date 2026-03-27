@@ -1,4 +1,4 @@
-CatalogAI (TDAI-0525)
+CommerceFolio
 
 Este arquivo e um resumo rapido.
 Para instrucoes completas e atualizadas, use:

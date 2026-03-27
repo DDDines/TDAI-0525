@@ -13,7 +13,7 @@ class CeleryAppFactory:
     @staticmethod
     def build() -> Celery:
         """Create the Celery app using environment-backed settings."""
-        app = Celery("catalogai")
+        app = Celery("commercefolio")
         app.conf.update(
             broker_url=settings.CELERY_BROKER_URL,
             result_backend=settings.CELERY_RESULT_BACKEND,

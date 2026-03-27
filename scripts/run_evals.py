@@ -1,4 +1,4 @@
-"""Run deterministic local LLM evals against the versioned CatalogAI prompt set."""
+"""Run deterministic local LLM evals against the versioned CommerceFolio prompt set."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ class EvalFailure(Exception):
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments for the local eval runner."""
-    parser = argparse.ArgumentParser(description="Run CatalogAI local LLM evals against LM Studio.")
+    parser = argparse.ArgumentParser(description="Run CommerceFolio local LLM evals against LM Studio.")
     parser.add_argument("--dataset", default=str(DEFAULT_DATASET_PATH), help="Path to the JSON dataset.")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="OpenAI-compatible base URL.")
     parser.add_argument("--api-key", default=DEFAULT_API_KEY, help="OpenAI-compatible API key.")

@@ -32,6 +32,7 @@ jest.mock('../../../services/productTypeService', () => ({
   default: {
     getProductTypes: jest.fn(() => Promise.resolve({ items: [] })),
     getProductTypeDetails: jest.fn(() => Promise.resolve({ attribute_templates: [] })),
+    createProductType: jest.fn(() => Promise.resolve({ id: 99, friendly_name: 'Novo Tipo', key_name: 'novo_tipo' })),
   },
 }));
 
@@ -289,6 +290,63 @@ describe('ImportCatalogWizard', () => {
       screen.getByText(/Selecione o tipo de produto para habilitar a importação/i)
     ).toBeInTheDocument();
     expect(fornecedorService.finalizarImportacaoCatalogo).not.toHaveBeenCalled();
+  });
+
+  test('allows creating a new product type inline and selects it automatically', async () => {
+    productTypeService.getProductTypes
+      .mockResolvedValueOnce({
+        items: [{ id: 4, friendly_name: 'Automotivo' }],
+      })
+      .mockResolvedValueOnce({
+        items: [
+          { id: 4, friendly_name: 'Automotivo' },
+          { id: 99, friendly_name: 'Ferragens', key_name: 'ferragens' },
+        ],
+      });
+    productTypeService.createProductType.mockResolvedValue({
+      id: 99,
+      friendly_name: 'Ferragens',
+      key_name: 'ferragens',
+      attribute_templates: [],
+    });
+
+    render(
+      <ImportCatalogWizard
+        fornecedor={{ id: 1, default_column_mapping: { col_0: 'auto:sku_nome' } }}
+        onClose={() => {}}
+        isOpen
+      />
+    );
+
+    const fileInput = document.querySelector('input[type="file"]');
+    const file = createPdfFile();
+    await userEvent.upload(fileInput, file);
+
+    expect(
+      await screen.findByRole('button', { name: /Nao encontrou o tipo\? Criar novo tipo de produto/i })
+    ).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /Nao encontrou o tipo\? Criar novo tipo de produto/i })
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: /Criar novo tipo de produto/i })
+    ).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/Nome do tipo/i), 'Ferragens');
+    await userEvent.click(screen.getByRole('button', { name: /Salvar tipo/i }));
+
+    await waitFor(() => {
+      expect(productTypeService.createProductType).toHaveBeenCalledWith({
+        key_name: 'ferragens',
+        friendly_name: 'Ferragens',
+        attribute_templates: [],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: /tipo de produto/i })).toHaveValue('99');
+    });
   });
 
   test('uses all pages and clamps the selected region page when apply-all is enabled', async () => {

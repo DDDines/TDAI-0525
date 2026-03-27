@@ -530,7 +530,7 @@ class _EndpointHandlers:
 
     """Represent Endpoint Handlers and centralize its responsibilities inside this module."""
     @router.post("/token", response_model=schemas.Token)
-    @limiter.limit("20/minute")
+    @limiter.limit("10/minute")
     async def login_for_access_token(
         request: Request,
         form_data: OAuth2PasswordRequestForm = Depends(),

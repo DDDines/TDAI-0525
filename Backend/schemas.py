@@ -1228,3 +1228,12 @@ AIPolicyOverviewResponse.model_rebuild()
 ConteudoCanaisResponse.model_rebuild()
 CanalConteudo.model_rebuild()
 
+
+class ExportLogResponse(BaseModel):
+    """Represent Export Log Response and centralize its responsibilities inside this module."""
+    id: int
+    total_items: int
+    format: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+

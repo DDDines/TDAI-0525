@@ -77,7 +77,7 @@ function AuthProvider({ children }) {
     void checkUserSession();
   }, [checkUserSession]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, options = {}) => {
     logger.log('AuthContext: iniciando login...');
     setIsLoading(true);
     try {
@@ -101,8 +101,8 @@ function AuthProvider({ children }) {
 
       setAuthData(userData, token);
 
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      const redirectPath = options?.redirectPath || location.state?.from?.pathname || '/dashboard';
+      navigate(redirectPath, { replace: true });
       return true;
     } catch (error) {
       const errorMsg =
@@ -130,6 +130,7 @@ function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        currentUser: user,
         isAuthenticated,
         isLoading,
         login,

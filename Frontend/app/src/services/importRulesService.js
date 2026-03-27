@@ -5,7 +5,7 @@
 import apiClient from './apiClient';
 
 async function listarRegras() {
-  const response = await apiClient.get('/import-rules/');
+  const response = await apiClient.get('/import-rules');
   return response.data;
 }
 

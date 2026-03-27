@@ -1,4 +1,4 @@
-# CatalogAI 2025/Project/run_backend.py
+# CommerceFolio 2025/Project/run_backend.py
 import sys
 import os
 import argparse
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     logger.debug("Diretório de Trabalho Atual (CWD): %s", os.getcwd())
     logger.info("Tentando iniciar Uvicorn com 'Backend.main:app' ...")
 
-    parser = argparse.ArgumentParser(description="Run CatalogAI backend")
+    parser = argparse.ArgumentParser(description="Run CommerceFolio backend")
 
     def str_to_bool(value: str) -> bool:
         return str(value).lower() in {"1", "true", "yes", "y"}

@@ -5,78 +5,99 @@
  */
 
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AppExperienceProvider } from './contexts/AppExperienceContext';
-import { ProductTypeProvider } from './contexts/ProductTypeContext'; // Certifique-se que o caminho está correto
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import {
+  BrowserRouter as Router,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AppExperienceProvider } from './contexts/AppExperienceContext';
+import { ProductTypeProvider } from './contexts/ProductTypeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { WorkspaceProvider, useWorkspace } from './contexts/WorkspaceContext';
+
 import MainLayout from './components/MainLayout';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import ProdutosPage from './pages/ProdutosPage';
-import ProdutoConteudoPage from './pages/ProdutoConteudoPage';
-import FornecedoresPage from './pages/FornecedoresPage';
-import TiposProdutoPage from './pages/TiposProdutoPage';
-import EnriquecimentoPage from './pages/EnriquecimentoPage';
-import HistoricoPage from './pages/HistoricoPage';
-import PlanoPage from './pages/PlanoPage';
-import ConfiguracoesPage from './pages/ConfiguracoesPage';
-import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
-import ResetSenhaPage from './pages/ResetSenhaPage';
-import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import ProtectedRoute from './components/ProtectedRoute';
-// Importe outras páginas e componentes necessários
 import LoadingOverlay from './components/common/LoadingOverlay.jsx';
+
+import AcceptInvitePage from './pages/AcceptInvitePage';
+import AdminPage from './pages/AdminPage';
+import ConfiguracoesPage from './pages/ConfiguracoesPage';
+import DashboardPage from './pages/DashboardPage';
+import EnriquecimentoPage from './pages/EnriquecimentoPage';
+import FornecedoresPage from './pages/FornecedoresPage';
+import HistoricoPage from './pages/HistoricoPage';
 import ImportReviewPage from './pages/ImportReviewPage';
 import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import OAuthCallbackPage from './pages/OAuthCallbackPage';
+import PlanoPage from './pages/PlanoPage';
+import ProdutoConteudoPage from './pages/ProdutoConteudoPage';
+import ProdutosPage from './pages/ProdutosPage';
+import RecuperarSenhaPage from './pages/RecuperarSenhaPage';
+import ResetSenhaPage from './pages/ResetSenhaPage';
 import SignupPage from './pages/SignupPage';
+import TiposProdutoPage from './pages/TiposProdutoPage';
 import WorkspacePage from './pages/WorkspacePage';
-import AdminPage from './pages/AdminPage';
-import AcceptInvitePage from './pages/AcceptInvitePage';
 
 import './App.css';
 import logger from './utils/logger';
 
-function AppContent()
+function AppContent() {
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { hasWorkspace, isLoading: isWorkspaceLoading } = useWorkspace();
+  const location = useLocation();
 
-  {
-    const { isAuthenticated, isLoading } = useAuth();
-    const location = useLocation();
+  useEffect(() => {
+    logger.log(
+      'App.jsx: estado de sessao alterado',
+      'isAuthenticated:',
+      isAuthenticated,
+      'authLoading:',
+      isAuthLoading,
+      'workspaceLoading:',
+      isWorkspaceLoading,
+      'hasWorkspace:',
+      hasWorkspace,
+      'path:',
+      location.pathname
+    );
+  }, [hasWorkspace, isAuthenticated, isAuthLoading, isWorkspaceLoading, location.pathname]);
 
-    useEffect(() => {
-      logger.log("App.jsx: Auth state changed - isAuthenticated:", isAuthenticated, "isLoading:", isLoading, "path:", location.pathname);
-    }, [isAuthenticated, isLoading, location.pathname]);
+  if (isAuthLoading || (isAuthenticated && isWorkspaceLoading)) {
+    return <LoadingOverlay isOpen={true} message="Carregando Aplicação..." />;
+  }
 
-    // Se ainda estiver carregando a informação de autenticação, pode mostrar um loader global
-    // ou deixar o ProtectedRoute lidar com isso individualmente.
-    // Para evitar piscar a tela de login, é bom ter um estado de carregamento aqui.
-    if (isLoading) {
-      return <LoadingOverlay isOpen={true} message="Carregando Aplicação..." />;
-    }
+  const authenticatedHomeRoute = hasWorkspace ? '/dashboard' : '/workspace?setup=1';
 
-    return (
-      <Routes>
-      <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={isAuthenticated ? <Navigate to={authenticatedHomeRoute} replace /> : <LandingPage />}
+      />
+      <Route path="/landing" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
       <Route path="/resetar-senha" element={<ResetSenhaPage />} />
       <Route path="/auth/oauth-callback" element={<OAuthCallbackPage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
-      
-      {/* Rotas Protegidas */}
+
       <Route
-          path="/"
-          element={
+        path="/"
+        element={
           <ProtectedRoute>
             <MainLayout />
           </ProtectedRoute>
-          }>
-          
-        <Route index element={<Navigate to="/dashboard" replace />} /> {/* Redireciona / para /dashboard */}
+        }
+      >
+        <Route index element={<Navigate to={authenticatedHomeRoute} replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="produtos" element={<ProdutosPage />} />
         <Route path="produtos/:produtoId/conteudo" element={<ProdutoConteudoPage />} />
@@ -84,63 +105,65 @@ function AppContent()
         <Route path="importacoes/:fileId/quarentena" element={<ImportReviewPage />} />
         <Route path="tipos-de-produto" element={<TiposProdutoPage />} />
         <Route path="enriquecimento" element={<EnriquecimentoPage />} />
-        <Route path="historico" element={<HistoricoPage />} />
-        <Route path="plano" element={<PlanoPage />} />
+        <Route path="monitoramento" element={<HistoricoPage />} />
+        <Route path="historico" element={<Navigate to="/monitoramento" replace />} />
+        <Route path="financeiro" element={<PlanoPage />} />
+        <Route path="plano" element={<Navigate to="/financeiro" replace />} />
         <Route path="configuracoes" element={<ConfiguracoesPage />} />
         <Route path="workspace" element={<WorkspacePage />} />
         <Route path="admin" element={<AdminPage />} />
-        {/* Adicione outras rotas filhas de MainLayout aqui */}
       </Route>
 
-      {/* Rota para página não encontrada */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>);
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? authenticatedHomeRoute : '/landing'} replace />}
+      />
+    </Routes>
+  );
+}
 
-  }
+function ProvidersWrapper() {
+  const { mode } = useTheme();
 
-function ProvidersWrapper()
-
-  {
-    const { mode } = useTheme();
-
-    return (
-      <>
+  return (
+    <>
       <AppContent />
       <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme={mode === 'dark' ? 'dark' : 'colored'} />
-        
-    </>);
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme={mode === 'dark' ? 'dark' : 'colored'}
+      />
+    </>
+  );
+}
 
-  }
+function App() {
+  useEffect(() => {
+    logger.log('App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider');
+  }, []);
 
-function App()
-
-  {
-    useEffect(() => {
-      logger.log("App.jsx está a ser renderizado com AuthProvider e ProductTypeProvider");
-    }, []);
-
-    return (
-      <Router>
+  return (
+    <Router>
       <ThemeProvider>
         <AuthProvider>
-          <AppExperienceProvider>
-            <ProductTypeProvider>
-              <ProvidersWrapper />
-            </ProductTypeProvider>
-          </AppExperienceProvider>
+          <WorkspaceProvider>
+            <AppExperienceProvider>
+              <ProductTypeProvider>
+                <ProvidersWrapper />
+              </ProductTypeProvider>
+            </AppExperienceProvider>
+          </WorkspaceProvider>
         </AuthProvider>
       </ThemeProvider>
-    </Router>);
+    </Router>
+  );
+}
 
-  }
 export default App;

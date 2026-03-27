@@ -28,11 +28,11 @@ http_url_adapter = TypeAdapter(AnyHttpUrl)
 
 class Settings(BaseSettings):
     """Represent Settings and centralize its responsibilities inside this module."""
-    PROJECT_NAME: str = 'CatalogAI - Transformador de Dados Assistido por IA'
+    PROJECT_NAME: str = 'CommerceFolio - Transformador de Dados Assistido por IA'
     PROJECT_VERSION: str = '1.0.0'
     API_V1_STR: str = '/api/v1'
     DATABASE_URL: Optional[str] = os.getenv('DATABASE_URL')
-    SQLITE_DB_FILE: str = os.getenv('SQLITE_DB_FILE', 'catalogai_app.db')
+    SQLITE_DB_FILE: str = os.getenv('SQLITE_DB_FILE', 'commercefolio_app.db')
     SECRET_KEY: str = os.getenv('SECRET_KEY', 'super-secret-key-deve-ser-alterada-imediatamente')
     REFRESH_SECRET_KEY: str = os.getenv('REFRESH_SECRET_KEY', 'super-refresh-secret-change-me')
     ALGORITHM: str = 'HS256'
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = os.getenv('MAIL_SSL_TLS', 'False').lower() in ('true', '1', 't')
     USE_CREDENTIALS: bool = bool(os.getenv('MAIL_USERNAME') and os.getenv('MAIL_PASSWORD'))
     VALIDATE_CERTS: bool = True
-    MAIL_FROM_NAME: Optional[str] = os.getenv('MAIL_FROM_NAME', 'CatalogAI Platform')
+    MAIL_FROM_NAME: Optional[str] = os.getenv('MAIL_FROM_NAME', 'CommerceFolio Platform')
     RAISE_ON_MISSING_EMAIL_CONFIG: bool = os.getenv('RAISE_ON_MISSING_EMAIL_CONFIG', 'True').lower() in ('true', '1', 't', 'yes')
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv('GOOGLE_CLIENT_SECRET')

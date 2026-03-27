@@ -25,12 +25,13 @@ export default function SignupPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get('next');
 
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigate('/dashboard', { replace: true });
+      navigate(nextPath || '/workspace?setup=1', { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, nextPath]);
 
   const plano = searchParams.get('plano');
   const setField = (field) => (event) => {
@@ -59,9 +60,10 @@ export default function SignupPage() {
         nome_completo: form.nome_completo || undefined,
         nome_empresa: form.nome_empresa || undefined,
       });
-      await login(form.email, form.password);
+      await login(form.email, form.password, {
+        redirectPath: nextPath || '/workspace?setup=1',
+      });
       toast.success(`Bem-vindo, ${form.nome_completo || form.email}!`);
-      navigate('/dashboard', { replace: true });
     } catch (err) {
       const message = err?.detail || err?.message || 'Erro ao criar conta.';
       setError(message);
