@@ -4,7 +4,7 @@
  * Defines responsibilities and integration points for pages.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -15,29 +15,32 @@ import {
   LuFilter,
   LuHistory,
   LuLayers3,
+  LuRadio,
   LuSparkles,
 } from 'react-icons/lu';
 import PaginationControls from '../components/common/PaginationControls';
+import PageHeader from '../components/PageHeader.jsx';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import historicoService from '../services/historicoService';
 import usoIAService from '../services/usoIAService';
 import logger from '../utils/logger';
 import './HistoricoPage.css';
 
 const IA_ACTION_LABELS = {
-  analise_sentimento_reviews: 'Analise de sentimento',
-  criacao_descricao_produto: 'Descricao de produto',
-  criacao_produto: 'Criacao de produto',
-  criacao_titulo_produto: 'Titulos de produto',
+  analise_sentimento_reviews: 'Análise de sentimento',
+  criacao_descricao_produto: 'Descrição de produto',
+  criacao_produto: 'Criação de produto',
+  criacao_titulo_produto: 'Títulos de produto',
   enriquecimento_web: 'Enriquecimento web',
   enriquecimento_web_produto: 'Enriquecimento web',
-  geracao_descricao_ia: 'Geracao de descricao IA',
-  geracao_tags_produto: 'Geracao de tags',
-  geracao_titulo_ia: 'Geracao de titulo IA',
-  otimizacao_seo_conteudo: 'Otimizacao SEO',
-  sugestao_atributos_gemini: 'Sugestao de atributos',
-  sumarizacao_caracteristicas: 'Sumarizacao de caracteristicas',
-  traducao_conteudo_produto: 'Traducao de conteudo',
+  geracao_descricao_ia: 'Geração de descrição IA',
+  geracao_tags_produto: 'Geração de tags',
+  geracao_titulo_ia: 'Geração de título IA',
+  otimizacao_seo_conteudo: 'Otimização SEO',
+  sugestao_atributos_gemini: 'Sugestão de atributos',
+  sumarizacao_caracteristicas: 'Sumarização de características',
+  traducao_conteudo_produto: 'Tradução de conteúdo',
 };
 
 const IA_STATUS_META = {
@@ -47,9 +50,9 @@ const IA_STATUS_META = {
 };
 
 const SYSTEM_ACTION_LABELS = {
-  ATUALIZACAO: 'Atualizacao',
-  CRIACAO: 'Criacao',
-  DELECAO: 'Exclusao',
+  ATUALIZACAO: 'Atualização',
+  CRIACAO: 'Criação',
+  DELECAO: 'Exclusão',
 };
 
 const ENTITY_LABELS = {
@@ -58,15 +61,15 @@ const ENTITY_LABELS = {
   product_type: 'Tipo de produto',
   produto: 'Produto',
   tipos_de_produto: 'Tipos de produto',
-  user: 'Usuario',
-  usuario: 'Usuario',
+  user: 'Usuário',
+  usuario: 'Usuário',
 };
 
 const SYSTEM_ACTION_OPTIONS = [
-  { value: '', label: 'Todas as acoes' },
-  { value: 'CRIACAO', label: 'Criacao' },
-  { value: 'ATUALIZACAO', label: 'Atualizacao' },
-  { value: 'DELECAO', label: 'Exclusao' },
+  { value: '', label: 'Todas as ações' },
+  { value: 'CRIACAO', label: 'Criação' },
+  { value: 'ATUALIZACAO', label: 'Atualização' },
+  { value: 'DELECAO', label: 'Exclusão' },
 ];
 
 function normalizeText(value = '') {
@@ -99,7 +102,7 @@ function formatIAAction(value = '') {
   const normalized = normalizeText(value);
   if (IA_ACTION_LABELS[normalized]) return IA_ACTION_LABELS[normalized];
   const raw = String(value || '').trim();
-  if (!raw) return 'Nao informado';
+  if (!raw) return 'Não informado';
   return raw
     .replace(/_/g, ' ')
     .split(' ')
@@ -109,11 +112,11 @@ function formatIAAction(value = '') {
 }
 
 function formatSystemAction(value = '') {
-  return SYSTEM_ACTION_LABELS[String(value || '').trim().toUpperCase()] || 'Nao informado';
+  return SYSTEM_ACTION_LABELS[String(value || '').trim().toUpperCase()] || 'Não informado';
 }
 
 function formatEntity(value = '') {
-  return ENTITY_LABELS[normalizeText(value)] || String(value || '').trim() || 'Nao informado';
+  return ENTITY_LABELS[normalizeText(value)] || String(value || '').trim() || 'Não informado';
 }
 
 function getIAStatusMeta(record) {
@@ -198,6 +201,7 @@ function matchesSystemSearch(record, query) {
 
 function HistoricoPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { workspace } = useWorkspace();
   const [activeTab, setActiveTab] = useState('ia');
   const [historicoIA, setHistoricoIA] = useState([]);
   const [iaTotalItems, setIaTotalItems] = useState(0);
@@ -225,6 +229,8 @@ function HistoricoPage() {
     query: '',
   });
   const [tiposAcaoIA, setTiposAcaoIA] = useState([]);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
+  const pollingRef = useRef(null);
 
   const fetchHistoricoIA = useCallback(async () => {
     if (isAuthLoading) {
@@ -255,6 +261,7 @@ function HistoricoPage() {
       if (responseData && Array.isArray(responseData.items) && typeof responseData.total_items === 'number') {
         setHistoricoIA(responseData.items);
         setIaTotalItems(responseData.total_items);
+        setLastRefreshedAt(new Date());
       } else {
         console.warn('HistoricoPage: formato de dados inesperado recebido para historico IA:', responseData);
         setHistoricoIA([]);
@@ -320,6 +327,13 @@ function HistoricoPage() {
     void fetchHistoricoSistema();
   }, [fetchHistoricoSistema]);
 
+  // auto-refresh IA tab every 12 s when visible
+  useEffect(() => {
+    if (activeTab !== 'ia' || isAuthLoading || !user) return;
+    pollingRef.current = setInterval(() => { void fetchHistoricoIA(); }, 12_000);
+    return () => { clearInterval(pollingRef.current); };
+  }, [activeTab, fetchHistoricoIA, isAuthLoading, user]);
+
   useEffect(() => {
     if (isAuthLoading || !user) {
       return;
@@ -358,28 +372,28 @@ function HistoricoPage() {
 
     return [
       {
-        helper: 'Total com filtros aplicados no backend',
+        helper: 'Total com filtros aplicados na API de monitoramento',
         icon: <LuSparkles />,
-        label: 'Registros IA',
+        label: 'Execuções IA',
         value: iaTotalItems,
       },
       {
-        helper: 'Falhas detectadas nesta pagina',
+        helper: 'Falhas detectadas nesta página operacional',
         icon: <LuCircleAlert />,
-        label: 'Falhas IA',
+        label: 'Falhas ativas',
         tone: iaFailures > 0 ? 'danger' : 'success',
         value: iaFailures,
       },
       {
-        helper: 'Soma de prompt e resposta na pagina atual',
+        helper: 'Soma de prompt e resposta na página atual',
         icon: <LuBot />,
-        label: 'Tokens na pagina',
+        label: 'Tokens na página',
         value: totalTokensOnPage,
       },
       {
-        helper: latestActivity ? `Ultima atividade em ${formatDateShort(latestActivity)}` : 'Sem atividade registrada',
+        helper: latestActivity ? `Última atividade em ${formatDateShort(latestActivity)}` : 'Sem atividade registrada',
         icon: <LuHistory />,
-        label: 'Eventos do sistema',
+        label: 'Eventos auditados',
         value: systemTotalItems,
       },
     ];
@@ -405,13 +419,37 @@ function HistoricoPage() {
   if (isAuthLoading) {
     return (
       <div className="app-page-shell historico-page-shell">
-        <div className="historico-state-card">Carregando historico...</div>
+        <div className="historico-state-card">Carregando monitoramento...</div>
       </div>
     );
   }
 
+  const workspaceLabel = workspace?.nome || user?.nome_empresa || 'empresa ativa';
+
   return (
     <div className="app-page-shell historico-page-shell">
+      <PageHeader title="Operações" subtitle="Acompanhe a atividade recente da sua conta" />
+      <section className="historico-hero-card">
+        <div className="historico-hero-copy">
+          <span className="historico-hero-eyebrow">Monitoramento operacional</span>
+          <h1>Execuções, sinais e auditoria do workspace</h1>
+          <p>
+            Acompanhe o que a IA executou, quais eventos o sistema registrou e onde o time
+            precisa agir dentro de <strong>{workspaceLabel}</strong>.
+          </p>
+        </div>
+        <aside className="historico-hero-side">
+          <div className="historico-hero-kpi">
+            <span>Escopo atual</span>
+            <strong>{workspaceLabel}</strong>
+          </div>
+          <div className="historico-hero-kpi">
+            <span>Leitura da área</span>
+            <strong>IA + eventos + auditoria</strong>
+          </div>
+        </aside>
+      </section>
+
       <section className="historico-overview-grid">
         {summaryCards.map((card) => (
           <article
@@ -431,10 +469,10 @@ function HistoricoPage() {
       <section className="historico-panel">
         <div className="historico-panel-header">
           <div>
-            <h2>Central de historico</h2>
-            <p>Acompanhe o que foi executado com IA e os eventos do sistema sem sair da operacao.</p>
+            <h2>Central de monitoramento</h2>
+            <p>Use esta área para acompanhar execuções com IA, auditar eventos e localizar sinais de risco sem sair da operação.</p>
           </div>
-          <div className="historico-tabs" role="tablist" aria-label="Tipos de historico">
+          <div className="historico-tabs" role="tablist" aria-label="Tipos de histórico">
             <button
               type="button"
               className={`historico-tab${activeTab === 'ia' ? ' active' : ''}`}
@@ -443,7 +481,12 @@ function HistoricoPage() {
               onClick={() => setActiveTab('ia')}
             >
               <LuBot />
-              Uso de IA
+              Execuções com IA
+              {activeTab === 'ia' ? (
+                <span className="historico-live-badge" title={lastRefreshedAt ? `Atualizado às ${lastRefreshedAt.toLocaleTimeString('pt-BR')}` : 'Ao vivo'}>
+                  <LuRadio />
+                </span>
+              ) : null}
             </button>
             <button
               type="button"
@@ -453,7 +496,7 @@ function HistoricoPage() {
               onClick={() => setActiveTab('sistema')}
             >
               <LuLayers3 />
-              Eventos do sistema
+              Eventos da plataforma
             </button>
           </div>
         </div>
@@ -462,14 +505,14 @@ function HistoricoPage() {
           <>
             <div className="historico-filter-grid">
               <label className="historico-filter-field">
-                <span>Tipo de acao de IA</span>
+                <span>Tipo de ação de IA</span>
                 <select
-                  aria-label="Tipo de acao de IA"
+                  aria-label="Tipo de ação de IA"
                   value={iaFilters.tipoGeracao}
                   onChange={(event) => handleIAFilterChange('tipoGeracao', event.target.value)}
                   disabled={iaLoading}
                 >
-                  <option value="">Todas as acoes</option>
+                  <option value="">Todas as ações</option>
                   {tiposAcaoIA.map((tipo) => (
                     <option key={tipo} value={tipo}>
                       {formatIAAction(tipo)}
@@ -489,7 +532,7 @@ function HistoricoPage() {
               </label>
 
               <label className="historico-filter-field">
-                <span>Ate</span>
+                <span>Até</span>
                 <input
                   aria-label="Data final de uso de IA"
                   type="date"
@@ -503,7 +546,7 @@ function HistoricoPage() {
                 <div className="historico-filter-search">
                   <LuFilter />
                   <input
-                    aria-label="Busca textual no historico de IA"
+                    aria-label="Busca textual no histórico de IA"
                     placeholder="Produto, modelo, resposta ou erro"
                     type="search"
                     value={iaFilters.query}
@@ -514,15 +557,15 @@ function HistoricoPage() {
             </div>
 
             <p className="historico-filter-note">
-              O filtro textual desta tela atua sobre os registros ja carregados na pagina atual.
+              O filtro textual desta tela atua sobre os registros já carregados na página atual.
             </p>
 
             {iaLoading ? (
-              <div className="historico-state-card">Carregando registros de uso de IA...</div>
+              <div className="historico-state-card">Carregando execuções com IA...</div>
             ) : iaError ? (
               <div className="historico-state-card historico-state-card--error">{iaError}</div>
             ) : iaVisibleItems.length === 0 ? (
-              <div className="historico-state-card">Nenhum registro de uso de IA encontrado com os filtros atuais.</div>
+              <div className="historico-state-card">Nenhuma execução com IA encontrada com os filtros atuais.</div>
             ) : (
               <div className="table-responsive">
                 <table className="historico-table">
@@ -530,7 +573,7 @@ function HistoricoPage() {
                     <tr>
                       <th>Quando</th>
                       <th>Produto</th>
-                      <th>Acao</th>
+                      <th>Ação</th>
                       <th>Status</th>
                       <th>Modelo</th>
                       <th>Resumo</th>
@@ -562,7 +605,7 @@ function HistoricoPage() {
                             <td>
                               <div className="historico-cell-stack">
                                 <strong>{record.modelo_ia || 'N/A'}</strong>
-                                <span>{record.provedor_ia || 'Provedor nao informado'}</span>
+                                <span>{record.provedor_ia || 'Provedor não informado'}</span>
                                 <span>{tokenTotal ? `${tokenTotal} tokens` : 'Sem tokens'}</span>
                               </div>
                             </td>
@@ -589,14 +632,14 @@ function HistoricoPage() {
                                   <div className="historico-detail-grid">
                                     <div>
                                       <span className="historico-detail-label">Provedor</span>
-                                      <strong>{record.provedor_ia || 'Nao informado'}</strong>
+                                      <strong>{record.provedor_ia || 'Não informado'}</strong>
                                     </div>
                                     <div>
                                       <span className="historico-detail-label">Modelo</span>
-                                      <strong>{record.modelo_ia || 'Nao informado'}</strong>
+                                      <strong>{record.modelo_ia || 'Não informado'}</strong>
                                     </div>
                                     <div>
-                                      <span className="historico-detail-label">Creditos</span>
+                                      <span className="historico-detail-label">Créditos</span>
                                       <strong>{record.creditos_consumidos ?? 0}</strong>
                                     </div>
                                     <div>
@@ -604,7 +647,7 @@ function HistoricoPage() {
                                       <strong>
                                         {record.custo_estimado_usd != null
                                           ? `US$ ${Number(record.custo_estimado_usd).toFixed(4)}`
-                                          : 'Nao informado'}
+                                          : 'Não informado'}
                                       </strong>
                                     </div>
                                   </div>
@@ -657,7 +700,7 @@ function HistoricoPage() {
               <label className="historico-filter-field">
                 <span>Entidade</span>
                 <select
-                  aria-label="Entidade do historico do sistema"
+                  aria-label="Entidade do histórico do sistema"
                   value={systemFilters.entidade}
                   onChange={(event) => handleSystemFilterChange('entidade', event.target.value)}
                   disabled={systemLoading}
@@ -671,9 +714,9 @@ function HistoricoPage() {
               </label>
 
               <label className="historico-filter-field">
-                <span>Acao do sistema</span>
+                <span>Ação do sistema</span>
                 <select
-                  aria-label="Acao do historico do sistema"
+                  aria-label="Ação do histórico do sistema"
                   value={systemFilters.acao}
                   onChange={(event) => handleSystemFilterChange('acao', event.target.value)}
                   disabled={systemLoading}
@@ -691,8 +734,8 @@ function HistoricoPage() {
                 <div className="historico-filter-search">
                   <LuFilter />
                   <input
-                    aria-label="Busca textual no historico do sistema"
-                    placeholder="Entidade, ID, acao ou detalhe"
+                    aria-label="Busca textual no histórico do sistema"
+                    placeholder="Entidade, ID, ação ou detalhe"
                     type="search"
                     value={systemFilters.query}
                     onChange={(event) => handleSystemFilterChange('query', event.target.value)}
@@ -702,15 +745,15 @@ function HistoricoPage() {
             </div>
 
             <p className="historico-filter-note">
-              Entidade e acao filtram direto na API. A busca textual desta tela atua sobre os itens carregados.
+              Entidade e ação filtram direto na API. A busca textual desta tela atua apenas sobre os eventos carregados.
             </p>
 
             {systemLoading ? (
-              <div className="historico-state-card">Carregando eventos do sistema...</div>
+              <div className="historico-state-card">Carregando eventos da plataforma...</div>
             ) : systemError ? (
               <div className="historico-state-card historico-state-card--error">{systemError}</div>
             ) : systemVisibleItems.length === 0 ? (
-              <div className="historico-state-card">Nenhum evento do sistema encontrado com os filtros atuais.</div>
+              <div className="historico-state-card">Nenhum evento da plataforma encontrado com os filtros atuais.</div>
             ) : (
               <div className="table-responsive">
                 <table className="historico-table">
@@ -718,7 +761,7 @@ function HistoricoPage() {
                     <tr>
                       <th>Quando</th>
                       <th>Entidade</th>
-                      <th>Acao</th>
+                      <th>Ação</th>
                       <th>Registro</th>
                       <th>Resumo</th>
                       <th>Detalhes</th>
@@ -740,7 +783,7 @@ function HistoricoPage() {
                             <td>
                               <div className="historico-cell-stack">
                                 <strong>{record.entity_id || 'N/A'}</strong>
-                                <span>Historico #{record.id}</span>
+                                <span>Evento #{record.id}</span>
                               </div>
                             </td>
                             <td>
@@ -765,19 +808,19 @@ function HistoricoPage() {
                                 <div className="historico-detail-panel">
                                   <div className="historico-detail-grid">
                                     <div>
-                                      <span className="historico-detail-label">Usuario</span>
-                                      <strong>{record.user_id || 'Nao informado'}</strong>
+                                      <span className="historico-detail-label">Usuário</span>
+                                      <strong>{record.user_id || 'Não informado'}</strong>
                                     </div>
                                     <div>
                                       <span className="historico-detail-label">Entidade</span>
                                       <strong>{formatEntity(record.entidade)}</strong>
                                     </div>
                                     <div>
-                                      <span className="historico-detail-label">Acao</span>
+                                      <span className="historico-detail-label">Ação</span>
                                       <strong>{formatSystemAction(record.acao)}</strong>
                                     </div>
                                     <div>
-                                      <span className="historico-detail-label">Horario</span>
+                                      <span className="historico-detail-label">Horário</span>
                                       <strong>{formatDateTime(record.created_at)}</strong>
                                     </div>
                                   </div>

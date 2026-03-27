@@ -8,9 +8,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  LuBox,
-  LuBoxes,
-  LuCircleAlert,
   LuDownload,
   LuPlus,
   LuSearch,
@@ -30,7 +27,7 @@ import {
 import './ProdutosPage.css';
 import { useProductTypes } from '../contexts/ProductTypeContext';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
-import OperationalStatChip from '../components/common/OperationalStatChip.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import {
   normalizeProductListPayload,
   resolveGenerationHandler,
@@ -117,8 +114,31 @@ function _formatContentTypeLabel(contentType) {
   return contentType === 'titulo' ? 'título' : 'descrição';
 }
 
-function hasFailureStatus(statusValue) {
-  return FAILURE_STATUSES.has(String(statusValue || '').toUpperCase());
+function CatalogHealthPanel({ stats }) {
+  if (!stats || stats.total === 0) return null;
+
+  const cards = [
+    { key: 'total', label: 'Total', value: stats.total, tone: 'neutral' },
+    { key: 'com_sku', label: 'Com SKU', value: stats.com_sku, tone: 'muted' },
+    { key: 'com_marca', label: 'Com Marca', value: stats.com_marca, tone: 'muted' },
+    { key: 'enriquecidos', label: 'Enriquecidos', value: stats.enriquecidos, tone: 'info' },
+    { key: 'com_titulo_ia', label: 'Conteúdo IA', value: stats.com_titulo_ia, tone: 'success' },
+    { key: 'criticos', label: 'Críticos', value: stats.criticos, tone: stats.criticos > 0 ? 'danger' : 'muted' },
+  ];
+
+  return (
+    <div className="catalog-health-panel">
+      <div className="catalog-health-title">Saúde do Catálogo</div>
+      <div className="catalog-health-grid">
+        {cards.map((card) => (
+          <div key={card.key} className={`catalog-health-card tone-${card.tone}`}>
+            <strong>{card.value}</strong>
+            <span>{card.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function ProdutosPage() {
@@ -160,6 +180,12 @@ function ProdutosPage() {
   const isMountedRef = React.useRef(true);
 
   const { productTypes, isLoading: loadingProductTypes, error: productTypesError } = useProductTypes();
+
+  const { data: catalogStats } = useQuery({
+    queryKey: queryKeys.catalogStats(),
+    queryFn: productService.getCatalogStats,
+    staleTime: 2 * 60_000,
+  });
 
   useEffect(() => {
     if (productTypesError) {
@@ -855,11 +881,6 @@ function ProdutosPage() {
   ]);
 
   const totalPages = Math.ceil(totalProdutos / limitPerPage);
-  const produtosComFalhaNaPagina = produtos.filter((produto) =>
-    hasFailureStatus(produto.status_enriquecimento_web)
-    || hasFailureStatus(produto.status_titulo_ia)
-    || hasFailureStatus(produto.status_descricao_ia)
-  ).length;
   const selectionSummary = formatProductSelectionSummary(selectedProdutos.size, selectionScope);
   const productSelectionMenuItems = [
     {
@@ -892,138 +913,110 @@ function ProdutosPage() {
 
   return (
     <div className="app-page-shell ops-page-shell produtos-page-shell">
-      <section className="ops-card ops-toolbar-card produtos-stats-card">
-        <div className="produtos-stats-header">
-          <div className="ops-metrics-row produtos-metrics-row">
-            <OperationalStatChip
-              icon={<LuBoxes />}
-              label="Na base"
-              value={totalProdutos}
-              tone="neutral"
-            />
-            <OperationalStatChip
-              icon={<LuBox />}
-              label="Na página"
-              value={produtos.length}
-              tone="info"
-            />
-            <OperationalStatChip
-              icon={<LuCircleAlert />}
-              label="Com falha"
-              value={produtosComFalhaNaPagina}
-              tone={produtosComFalhaNaPagina > 0 ? 'danger' : 'success'}
-            />
-            {selectedProdutos.size > 0 ? (
-              <OperationalStatChip
-                icon={<LuBox />}
-                label="Selecionados"
-                value={selectedProdutos.size}
-                tone="warn"
-              />
-            ) : null}
-          </div>
-          <button onClick={() => handleOpenModal(null)} className="ops-primary-btn">
-            <LuPlus />
-            Novo Produto
-          </button>
-        </div>
-      </section>
-
+      <PageHeader title="Catálogo de Produtos" subtitle="Gerencie, importe e enriqueça seus produtos" />
+      <CatalogHealthPanel stats={catalogStats} />
       <section className="ops-card ops-table-card produtos-table-card">
         <div className="produtos-list-toolbar">
-          <div className="ops-search-field produtos-search-field">
-            <div className="ops-search-input-wrap">
-              <LuSearch />
-              <input
-                id="produtos-search"
-                type="text"
-                aria-label="Buscar produtos"
-                placeholder="Buscar por nome, SKU, EAN..."
-                value={searchTerm}
-                onChange={(event) => {
-                  setSearchTerm(event.target.value);
-                  setCurrentPage(0);
-                  clearSelectionState();
-                }}
-              />
+          <div className="produtos-toolbar-main">
+            <div className="ops-search-field produtos-search-field">
+              <div className="ops-search-input-wrap">
+                <LuSearch />
+                <input
+                  id="produtos-search"
+                  type="text"
+                  aria-label="Buscar produtos"
+                  placeholder="Buscar por nome, SKU, EAN..."
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setCurrentPage(0);
+                    clearSelectionState();
+                  }}
+                />
+              </div>
             </div>
+
+            <button onClick={() => handleOpenModal(null)} className="ops-primary-btn produtos-create-btn">
+              <LuPlus />
+              Novo Produto
+            </button>
           </div>
 
           <div className="ops-filters-row produtos-filters-row">
-          <select
-            id="produtos-status-filter"
-            value={filtroStatusEnriquecimento}
-            onChange={(event) => {
-              setFiltroStatusEnriquecimento(event.target.value);
-              setCurrentPage(0);
-              clearSelectionState();
-            }}
-            className="ops-select produtos-filter-select"
-          >
-            <option value="">Status</option>
-            <option value="NAO_INICIADO">Não iniciado</option>
-            <option value="PENDENTE">Pendente</option>
-            <option value="EM_PROGRESSO">Em progresso</option>
-            <option value="CONCLUIDO_SUCESSO">Concluído</option>
-            <option value="FALHA">Falha</option>
-          </select>
+            <select
+              id="produtos-status-filter"
+              value={filtroStatusEnriquecimento}
+              onChange={(event) => {
+                setFiltroStatusEnriquecimento(event.target.value);
+                setCurrentPage(0);
+                clearSelectionState();
+              }}
+              className="ops-select produtos-filter-select"
+            >
+              <option value="">Status</option>
+              <option value="NAO_INICIADO">Não iniciado</option>
+              <option value="PENDENTE">Pendente</option>
+              <option value="EM_PROGRESSO">Em progresso</option>
+              <option value="CONCLUIDO_SUCESSO">Concluído</option>
+              <option value="FALHA">Falha</option>
+            </select>
 
-          {showAiFeatures ? (
-            <>
-              <select
-                value={filtroStatusTituloIA}
-                onChange={(event) => {
-                  setFiltroStatusTituloIA(event.target.value);
-                  setCurrentPage(0);
-                  clearSelectionState();
-                }}
-                className="ops-select produtos-filter-select"
-              >
-                <option value="">Status Título IA</option>
-                <option value="NAO_INICIADO">Não iniciado</option>
-                <option value="PENDENTE">Pendente</option>
-                <option value="EM_PROGRESSO">Em progresso</option>
-                <option value="CONCLUIDO">Concluído</option>
-                <option value="FALHA">Falha</option>
-              </select>
+            {showAiFeatures ? (
+              <>
+                <select
+                  value={filtroStatusTituloIA}
+                  onChange={(event) => {
+                    setFiltroStatusTituloIA(event.target.value);
+                    setCurrentPage(0);
+                    clearSelectionState();
+                  }}
+                  className="ops-select produtos-filter-select"
+                >
+                  <option value="">Título IA</option>
+                  <option value="NAO_INICIADO">Não iniciado</option>
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="EM_PROGRESSO">Em progresso</option>
+                  <option value="CONCLUIDO">Concluído</option>
+                  <option value="FALHA">Falha</option>
+                </select>
 
-              <select
-                value={filtroStatusDescricaoIA}
-                onChange={(event) => {
-                  setFiltroStatusDescricaoIA(event.target.value);
-                  setCurrentPage(0);
-                  clearSelectionState();
-                }}
-                className="ops-select produtos-filter-select"
-              >
-                <option value="">Status Descrição IA</option>
-                <option value="NAO_INICIADO">Não iniciado</option>
-                <option value="PENDENTE">Pendente</option>
-                <option value="EM_PROGRESSO">Em progresso</option>
-                <option value="CONCLUIDO">Concluído</option>
-                <option value="FALHA">Falha</option>
-              </select>
-            </>
-          ) : null}
+                <select
+                  value={filtroStatusDescricaoIA}
+                  onChange={(event) => {
+                    setFiltroStatusDescricaoIA(event.target.value);
+                    setCurrentPage(0);
+                    clearSelectionState();
+                  }}
+                  className="ops-select produtos-filter-select"
+                >
+                  <option value="">Descrição IA</option>
+                  <option value="NAO_INICIADO">Não iniciado</option>
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="EM_PROGRESSO">Em progresso</option>
+                  <option value="CONCLUIDO">Concluído</option>
+                  <option value="FALHA">Falha</option>
+                </select>
+              </>
+            ) : null}
 
-          <select
-            aria-label="Filtrar por tipo de produto"
-            value={filtroTipoProduto}
-            onChange={(event) => {
-              setFiltroTipoProduto(event.target.value);
-              setCurrentPage(0);
-              clearSelectionState();
-            }}
-            className="ops-select produtos-filter-select produtos-filter-select-wide"
-            disabled={loadingProductTypes || (productTypes && productTypes.length === 0)}
-          >
-            <option value="">{loadingProductTypes ? 'Carregando tipos...' : 'Todos os tipos'}</option>
-            {productTypes && productTypes.map((productType) => (
-              <option key={productType.id} value={productType.id}>
-                {productType.friendly_name}
-              </option>
-            ))}
-          </select>
+            <select
+              aria-label="Filtrar por tipo de produto"
+              value={filtroTipoProduto}
+              onChange={(event) => {
+                setFiltroTipoProduto(event.target.value);
+                setCurrentPage(0);
+                clearSelectionState();
+              }}
+              className="ops-select produtos-filter-select produtos-filter-select-wide"
+              disabled={loadingProductTypes || (productTypes && productTypes.length === 0)}
+            >
+              <option value="">{loadingProductTypes ? 'Carregando tipos...' : 'Todos os tipos'}</option>
+              {productTypes && productTypes.map((productType) => (
+                <option key={productType.id} value={productType.id}>
+                  {productType.friendly_name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

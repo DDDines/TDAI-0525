@@ -3,25 +3,18 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  LuArrowRight,
   LuBadgeAlert,
-  LuBell,
   LuBox,
-  LuCheckCheck,
   LuClock3,
-  LuLayers,
-  LuListTodo,
   LuSearch,
-  LuSparkles,
-  LuWorkflow,
   LuZap,
 } from 'react-icons/lu';
 import adminService from '../services/adminService';
 import authService from '../services/authService';
 import dashboardService from '../services/dashboardService';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import { showErrorToast } from '../utils/notifications';
 import { extractErrorMessage } from '../utils/errorDetails';
 import './DashboardPage.css';
@@ -111,237 +104,6 @@ function formatActionLabel(value) {
   return ACTION_LABELS[normalized] || String(value || '').trim().toLowerCase() || 'registrado';
 }
 
-function pluralize(value, singular, plural) {
-  return Number(value || 0) === 1 ? singular : plural;
-}
-
-function buildAdminHighlights(statusCounts) {
-  const items = Array.isArray(statusCounts) ? statusCounts : [];
-  const getTotal = (...keys) =>
-    items.reduce((total, item) => (
-      keys.includes(normalizeStatusKey(item?.status)) ? total + Number(item?.total || 0) : total
-    ), 0);
-
-  return [
-    {
-      title: 'Falhas para revisar',
-      value: getTotal('FALHA', 'FALHOU', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA'),
-      helper: 'Produtos com erro no fluxo',
-      tone: 'danger',
-      icon: <LuBadgeAlert />,
-      route: '/enriquecimento',
-      actionLabel: 'Revisar',
-    },
-    {
-      title: 'Em processamento',
-      value: getTotal('EM_PROGRESSO', 'PENDENTE'),
-      helper: 'Itens aguardando conclusão',
-      tone: 'info',
-      icon: <LuWorkflow />,
-      route: '/produtos',
-      actionLabel: 'Abrir fila',
-    },
-    {
-      title: 'Concluídos',
-      value: getTotal('CONCLUIDO', 'CONCLUIDO_SUCESSO'),
-      helper: 'Produtos finalizados',
-      tone: 'success',
-      icon: <LuCheckCheck />,
-      route: '/produtos',
-      actionLabel: 'Ver itens',
-    },
-    {
-      title: 'Dados incompletos',
-      value: getTotal('CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA'),
-      helper: 'Casos que ainda pedem ajuste',
-      tone: 'warn',
-      icon: <LuListTodo />,
-      route: '/enriquecimento',
-      actionLabel: 'Completar',
-    },
-  ];
-}
-
-function buildUserHighlights(userDashboard) {
-  const productLimit = Number(userDashboard?.limites?.produtos ?? 0);
-  const webLimit = Number(userDashboard?.limites?.enriquecimento_web ?? 0);
-  const aiLimit = Number(userDashboard?.limites?.geracao_ia ?? 0);
-  const webUsage = Number(userDashboard?.uso_mes_atual?.enriquecimento_web ?? 0);
-  const aiUsage = Number(userDashboard?.uso_mes_atual?.geracao_ia ?? 0);
-
-  return [
-    {
-      title: 'Espaço de catálogo',
-      value: Math.max(productLimit - Number(userDashboard?.totais?.produtos ?? 0), 0),
-      helper: 'Produtos ainda disponíveis no plano',
-      tone: 'info',
-      icon: <LuBox />,
-      route: '/produtos',
-      actionLabel: 'Ver catálogo',
-    },
-    {
-      title: 'Busca web restante',
-      value: Math.max(webLimit - webUsage, 0),
-      helper: 'Enriquecimentos restantes neste mês',
-      tone: webUsage >= webLimit && webLimit > 0 ? 'danger' : 'success',
-      icon: <LuSearch />,
-      route: '/enriquecimento',
-      actionLabel: 'Usar agora',
-    },
-    {
-      title: 'IA restante',
-      value: Math.max(aiLimit - aiUsage, 0),
-      helper: 'Gerações disponíveis neste mês',
-      tone: aiUsage >= aiLimit && aiLimit > 0 ? 'warn' : 'success',
-      icon: <LuZap />,
-      route: '/plano',
-      actionLabel: 'Ver plano',
-    },
-  ];
-}
-
-function buildAdminSummaryLine(statusCounts) {
-  const failures = getTotalByStatus(
-    statusCounts,
-    'FALHA',
-    'FALHOU',
-    'FALHA_API_EXTERNA',
-    'FALHA_CONFIGURACAO_API_EXTERNA'
-  );
-  const partial = getTotalByStatus(statusCounts, 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA');
-  const pending = getTotalByStatus(statusCounts, 'EM_PROGRESSO', 'PENDENTE');
-  const notStarted = getTotalByStatus(statusCounts, 'NAO_INICIADO');
-
-  return [
-    `${failures} ${pluralize(failures, 'falha pede', 'falhas pedem')} revisão imediata`,
-    `${partial} ${pluralize(partial, 'produto está', 'produtos estão')} com dados incompletos`,
-    `${pending} ${pluralize(pending, 'item segue', 'itens seguem')} em andamento`,
-    `${notStarted} ${pluralize(notStarted, 'produto ainda não foi iniciado', 'produtos ainda não foram iniciados')}`,
-  ].join('. ');
-}
-
-function buildUserSummaryLine(userDashboard, currentUser) {
-  const planName = userDashboard?.plano_nome || currentUser?.plano?.nome || 'Gratuito';
-  const productLimit = Number(userDashboard?.limites?.produtos ?? 0);
-  const totalProducts = Number(userDashboard?.totais?.produtos ?? 0);
-  const webLimit = Number(userDashboard?.limites?.enriquecimento_web ?? 0);
-  const webUsage = Number(userDashboard?.uso_mes_atual?.enriquecimento_web ?? 0);
-  const aiLimit = Number(userDashboard?.limites?.geracao_ia ?? 0);
-  const aiUsage = Number(userDashboard?.uso_mes_atual?.geracao_ia ?? 0);
-
-  return [
-    `Plano ${planName}`,
-    `${Math.max(productLimit - totalProducts, 0)} vagas livres para produtos`,
-    `${Math.max(webLimit - webUsage, 0)} buscas web restantes`,
-    `${Math.max(aiLimit - aiUsage, 0)} gerações IA restantes`,
-  ].join('. ');
-}
-
-function buildAdminHeroStats(adminStats) {
-  if (!adminStats) {
-    return [];
-  }
-  return [
-    { label: 'Usuários', value: adminStats.total_usuarios || 0 },
-    { label: 'Fornecedores', value: adminStats.total_fornecedores || 0 },
-    { label: 'Enriquecimentos no mês', value: adminStats.total_enriquecimentos_mes || 0 },
-  ];
-}
-
-function MetricCard({ value, label, helper, icon, barColor, tone = 'neutral' }) {
-  return (
-    <article
-      className={`pro-card-metric dashboard-metric-card tone-${tone}`}
-      style={{ '--dashboard-metric-color': barColor }}
-    >
-      <div className="pro-metric-bar-bg">
-        <div className="pro-metric-bar" style={{ width: '100%', background: 'var(--dashboard-metric-color)' }} />
-      </div>
-      <div className="pro-metric-icon">{icon}</div>
-      <div className="pro-metric-value">{value}</div>
-      <div className="pro-metric-label">{label}</div>
-      {helper ? <div className="pro-metric-comp">{helper}</div> : null}
-    </article>
-  );
-}
-
-function HighlightsPanel({ title, helper, items, emptyMessage, onNavigate, className = '' }) {
-  return (
-    <section className={`dashboard-section-card dashboard-highlights-card ${className}`.trim()}>
-      <div className="dashboard-section-head">
-        <div>
-          <h3>{title}</h3>
-          {helper ? <p>{helper}</p> : null}
-        </div>
-      </div>
-      {Array.isArray(items) && items.length > 0 ? (
-        <div className="dashboard-highlight-grid">
-          {items.map((item) => (
-            <article key={item.title} className={`dashboard-highlight-item tone-${item.tone || 'muted'}`}>
-              <span className="dashboard-highlight-icon">{item.icon}</span>
-              <strong className="dashboard-highlight-value">{item.value}</strong>
-              <span className="dashboard-highlight-title">{item.title}</span>
-              {item.helper ? <span className="dashboard-highlight-helper">{item.helper}</span> : null}
-              {item.route ? (
-                <button
-                  type="button"
-                  className="dashboard-highlight-action"
-                  onClick={() => onNavigate?.(item.route)}
-                >
-                  {item.actionLabel || 'Abrir'}
-                  <LuArrowRight />
-                </button>
-              ) : null}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className="dashboard-empty-note">{emptyMessage}</p>
-      )}
-    </section>
-  );
-}
-
-function CommandCenter({ kicker, summary, pills, sideStats, badgeLabel }) {
-  const hasSideContent = Boolean(badgeLabel) || (Array.isArray(sideStats) && sideStats.length > 0);
-  return (
-    <section className={`dashboard-command-card ${hasSideContent ? '' : 'without-side'}`.trim()}>
-      <div className="dashboard-command-copy">
-        <span className="dashboard-kicker">{kicker}</span>
-        <p className="dashboard-command-summary">{summary}</p>
-        <div className="dashboard-command-pill-row">
-          {(pills || []).map((item) => (
-            <article
-              key={`${item.title}-${item.value}`}
-              className={`dashboard-command-pill tone-${item.tone || 'muted'}`}
-            >
-              <span className="dashboard-command-pill-icon">{item.icon}</span>
-              <div className="dashboard-command-pill-copy">
-                <strong>{item.value}</strong>
-                <span>{item.title}</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      {hasSideContent ? (
-        <aside className="dashboard-command-side">
-          {badgeLabel ? <span className="dashboard-command-badge">{badgeLabel}</span> : null}
-          <div className="dashboard-command-side-grid">
-            {(sideStats || []).map((item) => (
-              <article key={item.label} className="dashboard-side-stat">
-                <span className="dashboard-side-stat-label">{item.label}</span>
-                <strong className="dashboard-side-stat-value">{item.value}</strong>
-              </article>
-            ))}
-          </div>
-        </aside>
-      ) : null}
-    </section>
-  );
-}
-
 function StatusPanel({ title, helper, items, emptyMessage, className = '' }) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const maxValue = Math.max(1, ...(normalizedItems.map((item) => Number(item.total || 0)) || [1]));
@@ -418,6 +180,33 @@ function ActivityFeed({ title, helper, items, emptyMessage, className = '' }) {
   );
 }
 
+function OverviewPanel({ items, className = '' }) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+
+  return (
+    <section className={`dashboard-section-card dashboard-overview-card ${className}`.trim()}>
+      <div className="dashboard-section-head">
+        <div>
+          <h3>Visão geral</h3>
+          <p>Resumo rápido do que precisa de atenção.</p>
+        </div>
+      </div>
+      <div className="dashboard-overview-grid">
+        {normalizedItems.map((item) => (
+          <article key={item.label} className={`dashboard-overview-item tone-${item.tone || 'neutral'}`}>
+            <span className="dashboard-overview-icon">{item.icon}</span>
+            <div className="dashboard-overview-copy">
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
+              {item.helper ? <small>{item.helper}</small> : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PlanUsagePanel({ userDashboard, className = '' }) {
   const items = [
     {
@@ -471,8 +260,13 @@ function PlanUsagePanel({ userDashboard, className = '' }) {
   );
 }
 
+const PERIOD_OPTIONS = [
+  { label: '7D', days: 7 },
+  { label: '30D', days: 30 },
+  { label: '90D', days: 90 },
+];
+
 function DashboardPage() {
-  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [adminStats, setAdminStats] = useState(null);
   const [userDashboard, setUserDashboard] = useState(null);
@@ -481,6 +275,7 @@ function DashboardPage() {
   const [statusCounts, setStatusCounts] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [reloadToken, setReloadToken] = useState(0);
+  const [period, setPeriod] = useState(30);
 
   useEffect(() => {
     let cancelled = false;
@@ -493,16 +288,14 @@ function DashboardPage() {
         setCurrentUser(user);
 
         if (user?.is_superuser) {
-          const counts = await adminService.getTotalCounts();
-          if (cancelled) return;
-          setAdminStats(counts);
-
           try {
-            const [statusData, activities] = await Promise.all([
+            const [counts, statusData, activities] = await Promise.all([
+              adminService.getTotalCounts(),
               adminService.getProductStatusCounts(),
               adminService.getRecentHistorico(5),
             ]);
             if (cancelled) return;
+            setAdminStats(counts);
             setStatusCounts(statusData);
             setRecentActivities(activities);
           } catch (innerErr) {
@@ -511,7 +304,7 @@ function DashboardPage() {
           return;
         }
 
-        const dashboardPayload = await dashboardService.getMyDashboard();
+        const dashboardPayload = await dashboardService.getMyDashboard(period);
         if (cancelled) return;
         setUserDashboard(dashboardPayload);
       } catch (err) {
@@ -530,102 +323,73 @@ function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [reloadToken]);
+  }, [reloadToken, period]);
 
   const adminCounts = useMemo(() => ({
-    notStarted: getTotalByStatus(statusCounts, 'NAO_INICIADO'),
     failures: getTotalByStatus(statusCounts, 'FALHA', 'FALHOU', 'FALHA_API_EXTERNA', 'FALHA_CONFIGURACAO_API_EXTERNA'),
     partial: getTotalByStatus(statusCounts, 'CONCLUIDO_COM_DADOS_PARCIAIS', 'NENHUMA_FONTE_ENCONTRADA'),
+    inProgress: getTotalByStatus(statusCounts, 'EM_PROGRESSO', 'PENDENTE'),
   }), [statusCounts]);
 
-  const adminCards = useMemo(() => {
-    if (!adminStats) return [];
-    return [
-      {
-        value: adminStats.total_produtos?.toString() || '0',
-        label: 'Total Produtos',
-        helper: 'Base operacional',
-        icon: <LuBox />,
-        barColor: '#111111',
-        tone: 'neutral',
-      },
-      {
-        value: adminCounts.notStarted?.toString() || '0',
-        label: 'Aguardando início',
-        helper: 'Fila bruta do catálogo',
-        icon: <LuClock3 />,
-        barColor: '#2563eb',
-        tone: 'info',
-      },
-      {
-        value: (adminCounts.failures + adminCounts.partial)?.toString() || '0',
-        label: 'Em atencao',
-        helper: 'Falhas e dados incompletos',
-        icon: <LuBadgeAlert />,
-        barColor: '#dc2626',
-        tone: 'danger',
-      },
-      {
-        value: adminStats.total_geracoes_ia_mes?.toString() || '0',
-        label: 'Gerações IA no mês',
-        helper: 'Consumo atual',
-        icon: <LuSparkles />,
-        barColor: '#d97706',
-        tone: 'warn',
-      },
-    ];
-  }, [adminCounts.failures, adminCounts.notStarted, adminCounts.partial, adminStats]);
-
-  const userCards = useMemo(() => {
-    if (!userDashboard) return [];
-    const productsRemaining = Math.max(
-      Number(userDashboard?.limites?.produtos ?? 0) - Number(userDashboard?.totais?.produtos ?? 0),
-      0
-    );
-    const webRemaining = Math.max(
-      Number(userDashboard?.limites?.enriquecimento_web ?? 0) - Number(userDashboard?.uso_mes_atual?.enriquecimento_web ?? 0),
-      0
-    );
-    const aiRemaining = Math.max(
-      Number(userDashboard?.limites?.geracao_ia ?? 0) - Number(userDashboard?.uso_mes_atual?.geracao_ia ?? 0),
-      0
-    );
+  const overviewItems = useMemo(() => {
+    if (currentUser?.is_superuser) {
+      return [
+        {
+          label: 'Total produtos',
+          value: Number(adminStats?.total_produtos ?? 0),
+          helper: 'Base operacional',
+          icon: <LuBox />,
+          tone: 'neutral',
+        },
+        {
+          label: 'Em atenção',
+          value: Number(adminCounts.failures) + Number(adminCounts.partial),
+          helper: 'Falhas e dados incompletos',
+          icon: <LuBadgeAlert />,
+          tone: 'danger',
+        },
+        {
+          label: 'Em andamento',
+          value: Number(adminCounts.inProgress),
+          helper: 'Fila ativa do catálogo',
+          icon: <LuClock3 />,
+          tone: 'info',
+        },
+      ];
+    }
 
     return [
       {
-        value: userDashboard?.totais?.produtos?.toString() || '0',
         label: 'Produtos',
-        helper: 'Catalogo atual',
+        value: Number(userDashboard?.totais?.produtos ?? 0),
+        helper: 'Catálogo atual',
         icon: <LuBox />,
-        barColor: '#111111',
         tone: 'neutral',
       },
       {
-        value: productsRemaining.toString(),
-        label: 'Produtos restantes',
-        helper: 'Espaço ainda disponível',
-        icon: <LuLayers />,
-        barColor: '#2563eb',
+        label: 'Busca web disponível',
+        value: Math.max(
+          Number(userDashboard?.limites?.enriquecimento_web ?? 0)
+            - Number(userDashboard?.uso_mes_atual?.enriquecimento_web ?? 0),
+          0
+        ),
+        helper: 'Operações restantes',
+        icon: <LuSearch />,
         tone: 'info',
       },
       {
-        value: webRemaining.toString(),
-        label: 'Busca web restante',
-        helper: 'Operacoes disponiveis',
-        icon: <LuBell />,
-        barColor: '#059669',
-        tone: 'success',
-      },
-      {
-        value: aiRemaining.toString(),
-        label: 'IA restante',
-        helper: 'Geracoes disponiveis',
+        label: 'IA disponível',
+        value: Math.max(
+          Number(userDashboard?.limites?.geracao_ia ?? 0)
+            - Number(userDashboard?.uso_mes_atual?.geracao_ia ?? 0),
+          0
+        ),
+        helper: 'Gerações restantes',
         icon: <LuZap />,
-        barColor: '#d97706',
         tone: 'warn',
       },
     ];
-  }, [userDashboard]);
+  }, [adminCounts.failures, adminCounts.inProgress, adminCounts.partial, adminStats, currentUser?.is_superuser, userDashboard]);
 
   const userStatusCounts = useMemo(
     () => (userDashboard?.status_produtos || []).map((item) => ({
@@ -634,20 +398,11 @@ function DashboardPage() {
     })),
     [userDashboard]
   );
-  const adminHighlights = useMemo(() => buildAdminHighlights(statusCounts), [statusCounts]);
-  const userHighlights = useMemo(() => buildUserHighlights(userDashboard), [userDashboard]);
-  const dashboardSubtitle = currentUser?.is_superuser
-    ? buildAdminSummaryLine(statusCounts)
-    : buildUserSummaryLine(userDashboard, currentUser);
-  const dashboardHeroStats = currentUser?.is_superuser
-    ? buildAdminHeroStats(adminStats)
-    : [];
-
   if (loading) {
     return <LoadingOverlay isOpen={true} message="Carregando dashboard..." />;
   }
 
-  if (loadErrorMessage && !currentUser && !adminStats && !userDashboard) {
+  if (loadErrorMessage && !currentUser && !userDashboard) {
     return (
       <div className="dashboard-error-state" role="alert">
         <p>{loadErrorMessage}</p>
@@ -662,25 +417,27 @@ function DashboardPage() {
     );
   }
 
+  const periodFilters = !currentUser?.is_superuser ? (
+    PERIOD_OPTIONS.map((opt) => (
+      <button
+        key={opt.days}
+        type="button"
+        className={`dashboard-period-btn${period === opt.days ? ' active' : ''}`}
+        onClick={() => setPeriod(opt.days)}
+      >
+        {opt.label}
+      </button>
+    ))
+  ) : null;
+
   return (
     <div id="dashboard-pro-main" className="dashboard-page-shell">
-      <CommandCenter
-        kicker={currentUser?.is_superuser ? 'Painel administrativo' : 'Painel do cliente'}
-        summary={dashboardSubtitle}
-        pills={(currentUser?.is_superuser ? adminHighlights : userHighlights).slice(0, 3)}
-        sideStats={dashboardHeroStats}
-        badgeLabel={
-          currentUser?.is_superuser
-            ? 'Operacao central'
-            : null
-        }
+      <PageHeader
+        title="Dashboard"
+        subtitle={currentUser?.is_superuser ? 'Visão operacional do sistema' : 'Resumo do seu catálogo e uso do plano'}
+        filters={periodFilters}
       />
-
-      <section className="pro-stats-row">
-        {(currentUser?.is_superuser ? adminCards : userCards).map((card) => (
-          <MetricCard key={card.label} {...card} />
-        ))}
-      </section>
+      <OverviewPanel items={overviewItems} className="dashboard-overview-strip" />
 
       <div className={`dashboard-main-grid ${currentUser?.is_superuser ? 'admin' : 'user'}`}>
         <StatusPanel
@@ -695,19 +452,6 @@ function DashboardPage() {
           className="dashboard-grid-panel dashboard-panel-status"
         />
 
-        <HighlightsPanel
-          title={currentUser?.is_superuser ? 'Prioridades do dia' : 'Onde agir agora'}
-          helper={
-            currentUser?.is_superuser
-              ? 'Cards com leitura direta e atalho para as áreas que precisam de ação.'
-              : 'Pontos do plano e do catálogo que valem sua próxima ação.'
-          }
-          items={currentUser?.is_superuser ? adminHighlights : userHighlights}
-          emptyMessage="Ainda não há indicadores suficientes para destacar."
-          onNavigate={navigate}
-          className="dashboard-grid-panel dashboard-panel-priorities"
-        />
-
         {currentUser?.is_superuser ? null : (
           <PlanUsagePanel
             userDashboard={userDashboard}
@@ -719,8 +463,8 @@ function DashboardPage() {
           title="Atividade recente"
           helper={
             currentUser?.is_superuser
-              ? 'Ultimas alteracoes registradas na operacao.'
-              : 'Ultimas movimentacoes na sua conta.'
+              ? 'Últimas alterações registradas na operação.'
+              : 'Últimas movimentações na sua conta.'
           }
           items={currentUser?.is_superuser ? recentActivities : userDashboard?.atividade_recente || []}
           emptyMessage="Nenhuma atividade recente encontrada."
@@ -732,3 +476,4 @@ function DashboardPage() {
 }
 
 export default DashboardPage;
+

@@ -304,7 +304,7 @@ async function exportarProdutos({ ids, search, fornecedor_id, categoria, status_
   const url = URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'produtos_catalogai.xlsx';
+  link.download = 'produtos_commercefolio.xlsx';
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -361,4 +361,14 @@ export default {
   gerarConteudoCanal,
   atualizarWorkflowStatus,
   batchGeneration,
+  getCatalogStats,
 };
+
+async function getCatalogStats() {
+  try {
+    const response = await apiClient.get('/produtos/stats');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || new Error('Falha ao buscar estatísticas do catálogo.');
+  }
+}

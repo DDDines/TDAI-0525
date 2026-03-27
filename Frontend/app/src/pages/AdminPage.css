@@ -65,6 +65,13 @@
   border-bottom-color: var(--primary);
 }
 
+body.dark .ap-tab-btn:hover { color: #e2e8f0; }
+
+body.dark .ap-tab-btn.active {
+  color: #93c5fd;
+  border-bottom-color: #93c5fd;
+}
+
 .ap-tab-content {
   min-height: 300px;
 }

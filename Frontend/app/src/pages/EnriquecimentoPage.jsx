@@ -30,6 +30,7 @@ import { queryKeys } from '../lib/queryKeys.js';
 import { useAppExperience } from '../contexts/AppExperienceContext.jsx';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
 import OperationalStatChip from '../components/common/OperationalStatChip.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 
 const WEB_ENRICHMENT_TERMINAL_STATUSES = new Set([
   'CONCLUIDO',
@@ -450,6 +451,7 @@ function EnriquecimentoPage() {
 
   return (
     <div className="app-page-shell ops-page-shell enriquecimento-page-shell">
+      <PageHeader title="Enriquecimento" subtitle="Produtos enriquecidos com dados da web" />
       <section className="ops-card ops-toolbar-card enriquecimento-stats-card">
         <div className="ops-metrics-row enriquecimento-metrics-row">
           <OperationalStatChip

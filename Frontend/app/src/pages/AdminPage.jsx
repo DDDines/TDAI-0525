@@ -13,6 +13,7 @@ import {
   LuRefreshCw,
 } from 'react-icons/lu';
 import adminService from '../services/adminService';
+import PageHeader from '../components/PageHeader.jsx';
 import './AdminPage.css';
 
 const TABS = [
@@ -186,6 +187,7 @@ function AdminPage() {
 
   return (
     <div className="ap-container">
+      <PageHeader title="Admin" subtitle="Painel administrativo do sistema" />
       <div className="ap-header">
         <LuShieldCheck className="ap-header-icon" />
         <div>

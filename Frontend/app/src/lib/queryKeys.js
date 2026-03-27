@@ -37,6 +37,7 @@ const queryKeys = {
   catalogImportStatus: (fileId) => ['catalog-import-status', String(fileId ?? '')],
   catalogImportResult: (fileId) => ['catalog-import-result', String(fileId ?? '')],
   fornecedorImportProgress: (jobId) => ['fornecedor-import-progress', String(jobId ?? '')],
+  catalogStats: () => ['catalog-stats'],
 };
 
 export { buildListQueryKey, normalizeKeyValue, queryKeys };

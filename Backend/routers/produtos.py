@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 import pdfplumber
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from Backend import models
@@ -570,7 +571,7 @@ class _EndpointHandlers:
             enrichment_scope=enrichment_scope,
         )
         import io
-        filename = 'produtos_catalogai.xlsx'
+        filename = 'produtos_commercefolio.xlsx'
         return StreamingResponse(
             io.BytesIO(xlsx_bytes),
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -581,6 +582,43 @@ class _EndpointHandlers:
     def read_produto_ids(search: Optional[str]=Query(None, description='Termo de busca para nome, descricao, SKU, EAN'), fornecedor_id: Optional[int]=Query(None, description='ID do fornecedor para filtrar produtos'), categoria: Optional[str]=Query(None, description='Categoria para filtrar produtos'), status_enriquecimento_web: Optional[models.StatusEnriquecimentoEnum]=Query(None, description='Filtrar por status de enriquecimento web'), status_titulo_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de titulo por IA'), status_descricao_ia: Optional[models.StatusGeracaoIAEnum]=Query(None, description='Filtrar por status de geracao de descricao por IA'), product_type_id: Optional[int]=Query(None, description='ID do tipo de produto'), enrichment_scope: Optional[str]=Query(None, description='Escopo agrupado do enriquecimento: all, enriched, pending, failed'), current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
         """Lista leve de IDs filtrados para selecao em massa entre paginas."""
         return request_services.product_management_service.list_produto_ids(search=search, fornecedor_id=fornecedor_id, categoria=categoria, status_enriquecimento_web=status_enriquecimento_web, status_titulo_ia=status_titulo_ia, status_descricao_ia=status_descricao_ia, product_type_id=product_type_id, enrichment_scope=enrichment_scope, current_user=current_user)
+
+    @router.get('/stats', response_model=schemas.CatalogHealthStats)
+    def get_catalog_stats(
+        current_user: models.User = Depends(_CURRENT_ACTIVE_USER_PROVIDER),
+        session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
+    ):
+        """Retorna métricas de saúde do catálogo para o usuário autenticado."""
+        p = models.Produto
+        enriquecido_statuses = {
+            models.StatusEnriquecimentoEnum.CONCLUIDO,
+            models.StatusEnriquecimentoEnum.CONCLUIDO_SUCESSO,
+            models.StatusEnriquecimentoEnum.CONCLUIDO_COM_DADOS_PARCIAIS,
+        }
+        ia_done = models.StatusGeracaoIAEnum.CONCLUIDO
+
+        row = session.query(
+            func.count(p.id),
+            func.sum(case((p.nome_base.isnot(None), 1), else_=0)),
+            func.sum(case((p.marca.isnot(None), 1), else_=0)),
+            func.sum(case((p.sku.isnot(None), 1), else_=0)),
+            func.sum(case((p.status_enriquecimento_web.in_(enriquecido_statuses), 1), else_=0)),
+            func.sum(case((p.status_titulo_ia == ia_done, 1), else_=0)),
+            func.sum(case((p.status_descricao_ia == ia_done, 1), else_=0)),
+            func.sum(case(((p.nome_base.is_(None)) | (p.sku.is_(None)), 1), else_=0)),
+        ).filter(p.user_id == current_user.id).one()
+
+        total, com_nome, com_marca, com_sku, enriquecidos, com_titulo_ia, com_descricao_ia, criticos = row
+        return schemas.CatalogHealthStats(
+            total=total or 0,
+            com_nome=com_nome or 0,
+            com_marca=com_marca or 0,
+            com_sku=com_sku or 0,
+            enriquecidos=enriquecidos or 0,
+            com_titulo_ia=com_titulo_ia or 0,
+            com_descricao_ia=com_descricao_ia or 0,
+            criticos=criticos or 0,
+        )
 
     @router.get('/{produto_id}', response_model=schemas.ProdutoResponse)
     def read_produto(produto_id: int, current_user: models.User=Depends(_CURRENT_ACTIVE_USER_PROVIDER), request_services: _ProdutosRequestServices=Depends(_build_produtos_request_services)):
@@ -680,6 +718,5 @@ class _EndpointHandlers:
 router.add_api_route('/{produto_id}/', _EndpointHandlers.read_produto, methods=['GET'], response_model=schemas.ProdutoResponse, include_in_schema=False)
 router.add_api_route('/{produto_id}/', _EndpointHandlers.update_produto, methods=['PUT'], response_model=schemas.ProdutoResponse, include_in_schema=False)
 router.add_api_route('/{produto_id}/', _EndpointHandlers.delete_produto, methods=['DELETE'], response_model=schemas.ProdutoResponse, include_in_schema=False)
-
 
 

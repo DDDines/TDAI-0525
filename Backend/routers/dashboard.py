@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from Backend import models, schemas
@@ -43,6 +43,7 @@ _resolve_user_limit = _DashboardEndpointHelpers._resolve_user_limit
 
 @router.get("/me", response_model=schemas.DashboardMeResponse)
 def read_my_dashboard(
+    days: int = Query(default=30, ge=7, le=365, description="Período de uso em dias"),
     current_user: models.User = Depends(auth_utils._AuthUtilsActiveUserDependency.get_current_active_user),
     session: Session = Depends(ServiceContainerDependencySupport.get_request_db_session),
 ):
@@ -51,7 +52,7 @@ def read_my_dashboard(
     historico_repo = HistoricoRepository(session)
     fornecedor_repo = FornecedorRepository(session)
 
-    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    period_start = datetime.now(timezone.utc) - timedelta(days=days)
     plano_nome = str(getattr(getattr(current_user, "plano", None), "nome", "") or "Gratuito")
 
     status_counts = [
@@ -76,11 +77,11 @@ def read_my_dashboard(
         uso_mes_atual={
             "geracao_ia": analytics_repo.count_ia_usage_by_user_since(
                 user_id=current_user.id,
-                start_at=month_start,
+                start_at=period_start,
             ),
             "enriquecimento_web": analytics_repo.count_web_enrichment_usage_by_user_since(
                 user_id=current_user.id,
-                start_at=month_start,
+                start_at=period_start,
             ),
         },
         totais={

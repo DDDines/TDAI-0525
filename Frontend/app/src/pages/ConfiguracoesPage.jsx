@@ -3,6 +3,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import authService from '../services/authService';
 import basicTemplateService from '../services/basicTemplateService';
 import credentialsService from '../services/credentialsService';
@@ -14,6 +15,7 @@ import ChangePasswordModal from '../components/user/ChangePasswordModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppExperience } from '../contexts/AppExperienceContext';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import './ConfiguracoesPage.css';
 
 const FALLBACK_BASIC_TEMPLATE_STATE = {
@@ -52,6 +54,14 @@ const PROVIDER_DEFINITIONS = [
       { key: 'lm_studio_model', label: 'Modelo', placeholder: 'mistral-7b-instruct' },
     ],
   },
+];
+
+const SETTINGS_TABS = [
+  { id: 'perfil', label: 'Perfil & Base' },
+  { id: 'ai', label: 'Política de IA' },
+  { id: 'credentials', label: 'Credenciais' },
+  { id: 'importacao', label: 'Importação' },
+  { id: 'plano', label: 'Plano' },
 ];
 
 function emptyCredentialDraft() {
@@ -118,6 +128,7 @@ function buildTemplatesFromScope(overview, scope = 'user') {
 }
 
 function ConfiguracoesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, setUser } = useAuth();
   const {
     effectiveMode,
@@ -129,6 +140,10 @@ function ConfiguracoesPage() {
     clearAdminPreviewMode,
   } = useAppExperience();
   const isCompleteMode = effectiveMode === 'complete';
+  const requestedTab = searchParams.get('tab');
+  const activeSettingsTab = SETTINGS_TABS.some((tab) => tab.id === requestedTab)
+    ? requestedTab
+    : 'perfil';
 
   const [profileData, setProfileData] = useState({
     nome_completo: '',
@@ -506,6 +521,7 @@ function ConfiguracoesPage() {
   const profileAvatarFallback = (profileData.nome_completo || profileData.email || 'U')
     .slice(0, 1)
     .toUpperCase();
+  const companyContextLabel = profileData.nome_empresa || 'sua empresa';
 
   const handleAiPolicyDraftChange = (field, value) => {
     setAiPolicyDraft((prev) => ({ ...prev, [field]: value }));
@@ -550,12 +566,49 @@ function ConfiguracoesPage() {
     }
   };
 
+  const handleSelectSettingsTab = (tabId) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (tabId === 'perfil') {
+      nextParams.delete('tab');
+    } else {
+      nextParams.set('tab', tabId);
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
   if ((!initialUserDataLoaded && loadingProfile) || loadingTemplates) {
     return <LoadingOverlay isOpen={true} message="Carregando configurações..." />;
   }
 
   return (
     <div className="settings-page-shell">
+      <PageHeader title="Configurações" subtitle="Preferências, chaves de API e política de geração" />
+      <section className="settings-section-card settings-shell-header">
+        <div className="settings-shell-copy">
+          <span className="settings-context-chip">{companyContextLabel}</span>
+          <h1>Configurações</h1>
+          <p className="settings-help-text">
+            Organize perfil, IA, credenciais e operação por responsabilidade.
+          </p>
+        </div>
+        <div className="settings-tabbar" role="tablist" aria-label="Navegação das configurações">
+          {SETTINGS_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeSettingsTab === tab.id}
+              className={`settings-tab ${activeSettingsTab === tab.id ? 'active' : ''}`}
+              onClick={() => handleSelectSettingsTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {activeSettingsTab === 'perfil' ? (
+        <>
       <section className="settings-section-card">
         <h2>Perfil do Usuário</h2>
         <div className="settings-profile-layout">
@@ -588,7 +641,7 @@ function ConfiguracoesPage() {
             </button>
           </form>
 
-          <aside className="settings-profile-panel" aria-label="Informacoes pessoais">
+          <aside className="settings-profile-panel" aria-label="Informações pessoais">
             <div className="settings-profile-avatar-wrap">
               <div className="settings-profile-avatar" aria-hidden="true">
                 {profileData.avatar_url ? <img src={profileData.avatar_url} alt="" referrerPolicy="no-referrer" /> : <span>{profileAvatarFallback}</span>}
@@ -755,7 +808,10 @@ function ConfiguracoesPage() {
           </form>
         </section>
       </div>
+      </>
+      ) : null}
 
+      {activeSettingsTab === 'credentials' ? (
       <section className="settings-section-card">
         <h2>Credenciais e Integrações</h2>
         <p className="settings-help-text">
@@ -948,7 +1004,9 @@ function ConfiguracoesPage() {
           </>
         )}
       </section>
+      ) : null}
 
+      {activeSettingsTab === 'importacao' ? (
       <section className="settings-section-card">
         <h2>Regras de Validação de Importação</h2>
         <p className="settings-help-text">
@@ -986,7 +1044,9 @@ function ConfiguracoesPage() {
           </ul>
         )}
       </section>
+      ) : null}
 
+      {activeSettingsTab === 'ai' ? (
       <section className="settings-section-card">
         <h2>Política de IA</h2>
         <p className="settings-help-text">
@@ -1092,6 +1152,40 @@ function ConfiguracoesPage() {
           </form>
         ) : null}
       </section>
+      ) : null}
+
+      {activeSettingsTab === 'plano' ? (
+        <section className="settings-section-card">
+          <h2>Plano e faturamento</h2>
+          <p className="settings-help-text">
+            Centralize assinatura, crédito e cobrança no contexto da empresa ativa.
+          </p>
+          <div className="settings-billing-grid">
+            <div className="settings-billing-card">
+              <span className="settings-profile-detail-label">Empresa ativa</span>
+              <strong className="settings-billing-value">{companyContextLabel}</strong>
+              <p className="settings-help-text">
+                Tudo nesta área deve respeitar o workspace selecionado.
+              </p>
+            </div>
+            <div className="settings-billing-card">
+              <span className="settings-profile-detail-label">Plano atual</span>
+              <strong className="settings-billing-value">{userPlanDisplay}</strong>
+              <p className="settings-help-text">
+                Use um único fluxo para upgrade, gerenciamento de consumo e cobrança.
+              </p>
+            </div>
+          </div>
+          <div className="settings-template-actions">
+            <Link to="/financeiro" className="settings-primary-btn settings-inline-link-button">
+              Abrir plano e faturamento
+            </Link>
+            <Link to="/workspace?tab=financeiro" className="settings-mode-reset-btn settings-inline-link-button">
+              Ir para financeiro da empresa
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       <ChangePasswordModal isOpen={isChangePasswordModalOpen} onClose={() => setIsChangePasswordModalOpen(false)} userId={user?.id} />
     </div>

@@ -279,6 +279,19 @@ class FilteredIdsResponse(BaseModel):
     total_items: int
 
 
+class CatalogHealthStats(BaseModel):
+    """Saúde do catálogo do usuário — métricas de completude e enriquecimento."""
+
+    total: int
+    com_nome: int
+    com_marca: int
+    com_sku: int
+    enriquecidos: int
+    com_titulo_ia: int
+    com_descricao_ia: int
+    criticos: int
+
+
 # Schemas para AttributeTemplate
 class AttributeTemplateBase(BaseModel):
     """Represent Attribute Template Base and centralize its responsibilities inside this module."""

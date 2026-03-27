@@ -23,6 +23,7 @@ import { showErrorToast } from '../utils/notifications';
 import { extractErrorMessage } from '../utils/errorDetails';
 import { queryKeys } from '../lib/queryKeys.js';
 import LoadingOverlay from '../components/common/LoadingOverlay.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import './FornecedoresPage.css';
 
 function normalizeFornecedoresPayload(responseData) {
@@ -271,6 +272,7 @@ function FornecedoresPage() {
 
   return (
     <div className="app-page-shell ops-page-shell fornecedores-page-shell">
+      <PageHeader title="Fornecedores" subtitle="Gerencie seus fornecedores e arquivos de catálogo" />
       <section className="ops-card ops-toolbar-card fornecedores-stats-card">
         <div className="fornecedores-stats-header">
           <div className="ops-metrics-row fornecedores-metrics-row">
