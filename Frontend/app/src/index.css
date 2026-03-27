@@ -1517,6 +1517,34 @@ tr:hover {
   filter: none;
 }
 
+/* Mobile-only header bar — hamburger only, no topbar */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 1rem;
+  background: var(--card-bg, #fff);
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  flex-shrink: 0;
+  z-index: 50;
+}
+
+.mobile-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: transparent;
+  color: var(--text-color, #334155);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mobile-menu-btn:hover { background: var(--main-bg, #f5f7fa); }
+
 @media (max-width: 768px) {
   .topbar {
     padding: 0.9rem 0.95rem;
