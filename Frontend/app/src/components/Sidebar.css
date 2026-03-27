@@ -1,4 +1,6 @@
-/* Sidebar — light clean theme */
+/* ================================================================
+   Sidebar — CommerceFolio
+   ================================================================ */
 
 .sidebar {
   position: relative;
@@ -31,10 +33,10 @@
   transform: translateX(-110%);
 }
 
-.sidebar.mobile.open { transform: translateX(0); }
+.sidebar.mobile.open  { transform: translateX(0); }
 .sidebar.mobile.closed { width: min(80vw, 260px); min-width: min(80vw, 260px); }
 
-/* Header */
+/* ── Header ───────────────────────────────────────────────────── */
 .sidebar-header {
   padding: 1rem 0.9rem 0.75rem;
   border-bottom: 1px solid var(--sidebar-border, #e8ecf0);
@@ -53,7 +55,7 @@
 .sidebar-close-btn:hover { background: var(--main-bg, #f5f7fa); }
 
 /* Brand */
-.sidebar-brand-row { display: flex; align-items: center; }
+.sidebar-brand-row  { display: flex; align-items: center; }
 .sidebar-brand-stack { width: 100%; }
 .sidebar-brand-lockup {
   display: flex;
@@ -67,16 +69,11 @@
   object-fit: contain;
   flex-shrink: 0;
   border-radius: 6px;
-  /* logo escura em fundo branco — adicionar bg escuro para contrastar */
   background: var(--primary, #1d2537);
   padding: 3px;
 }
 
-.sidebar-brand-copy {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+.sidebar-brand-copy { display: flex; flex-direction: column; min-width: 0; }
 
 .sidebar-title {
   margin: 0;
@@ -137,44 +134,45 @@
   font-size: 0.85rem;
 }
 
-/* Nav */
+/* ── Navigation ───────────────────────────────────────────────── */
 .sidebar-nav {
   flex: 1;
-  padding: 0.6rem 0.55rem;
+  padding: 0.5rem 0.55rem 0.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
 }
 
-.sidebar-section { display: flex; flex-direction: column; }
-.sidebar-section + .sidebar-section { margin-top: 0.5rem; }
-
-.sidebar-section-label {
-  padding: 0.5rem 0.75rem 0.2rem;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-color-light, #94a3b8);
-  white-space: nowrap;
+/* List resets */
+.sidebar-nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
-.sidebar-nav li { margin-bottom: 2px; }
+.sidebar-nav-item { margin-bottom: 2px; }
 
+/* Gap between groups/sections */
+.sidebar-nav-list--section-gap {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--sidebar-border, #e8ecf0);
+}
+
+/* ── Nav links ────────────────────────────────────────────────── */
 .nav-link {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.58rem 0.75rem;
   border-radius: 9px;
   color: var(--sidebar-text, #475569);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
   transition: background 0.15s, color 0.15s;
+  cursor: pointer;
 }
 
 .sidebar.desktop.closed .nav-link {
@@ -187,7 +185,7 @@
   color: #0f172a;
 }
 
-/* higher specificity beats the legacy .sidebar nav a.active rule in index.css */
+/* Active — higher specificity to beat index.css legacy rule */
 .sidebar .nav-link.active,
 .sidebar .nav-link.active:hover {
   background: #1d2537;
@@ -195,10 +193,14 @@
   font-weight: 600;
 }
 
-body.dark .sidebar .nav-link.active,
-body.dark .sidebar .nav-link.active:hover {
-  background: #334155;
-  color: #f1f5f9;
+/* Sub-item variant — slight indent and smaller text */
+.nav-link.nav-link--sub {
+  font-size: 0.85rem;
+  padding-left: 1.15rem;
+}
+
+.sidebar.desktop.closed .nav-link.nav-link--sub {
+  padding-left: 0;
 }
 
 .nav-icon {
@@ -213,7 +215,165 @@ body.dark .sidebar .nav-link.active:hover {
 .nav-text { transition: opacity 0.18s; }
 .sidebar.desktop.closed .nav-text { opacity: 0; width: 0; display: none; }
 
-/* Footer */
+/* ── Collapsible section ──────────────────────────────────────── */
+.sidebar-section { display: flex; flex-direction: column; }
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+  user-select: none;
+  margin-bottom: 1px;
+}
+
+.sidebar-section-header:hover {
+  background: var(--main-bg, #f5f7fa);
+}
+
+.sidebar-section-header.section-has-active .sidebar-section-label {
+  color: var(--primary, #1d2537);
+}
+
+.sidebar-section-label {
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-color-light, #94a3b8);
+  white-space: nowrap;
+}
+
+.sidebar-section-chevron {
+  font-size: 0.75rem;
+  color: var(--text-color-light, #94a3b8);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-section-chevron.rotated {
+  transform: rotate(90deg);
+}
+
+/* Animate the collapse */
+.sidebar-subitems {
+  overflow: hidden;
+  max-height: 300px;
+  transition: max-height 0.24s ease, opacity 0.18s ease;
+  opacity: 1;
+}
+
+.sidebar-subitems.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* ── Collapsed-sidebar section trigger ───────────────────────── */
+.sidebar-section-trigger {
+  justify-content: center;
+  padding: 0.62rem 0;
+  border-radius: 9px;
+  color: var(--sidebar-text, #475569);
+  cursor: pointer;
+  position: relative;
+  border: none;
+  background: transparent;
+}
+
+.sidebar-section-trigger:hover {
+  background: var(--main-bg, #f5f7fa);
+  color: #0f172a;
+}
+
+/* Dot indicator when section has active item and sidebar is collapsed */
+.sidebar-section-trigger.section-has-active {
+  color: var(--primary, #1d2537);
+}
+
+.sidebar-section-trigger.section-has-active::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary, #1d2537);
+}
+
+/* ── Flyout panel ─────────────────────────────────────────────── */
+.sidebar-flyout {
+  position: fixed;
+  left: 68px; /* sidebar collapsed width (64) + gap (4) */
+  z-index: 300;
+  min-width: 192px;
+  background: #ffffff;
+  border: 1px solid #dce4ee;
+  border-radius: 14px;
+  box-shadow:
+    0 4px 6px rgba(15, 23, 42, 0.04),
+    0 12px 28px rgba(15, 23, 42, 0.1);
+  padding: 0.45rem;
+  animation: flyout-appear 0.14s ease;
+}
+
+@keyframes flyout-appear {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.sidebar-flyout-label {
+  padding: 0.35rem 0.7rem 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-color-light, #94a3b8);
+}
+
+.sidebar-flyout-link {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 9px;
+  color: #334155;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.sidebar-flyout-link:hover {
+  background: var(--main-bg, #f5f7fa);
+  color: #0f172a;
+}
+
+.sidebar-flyout-link.active {
+  background: #1d2537;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar-flyout-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+/* ── Footer ───────────────────────────────────────────────────── */
 .sidebar-footer {
   padding: 0.6rem 0.55rem 0.8rem;
   border-top: 1px solid var(--sidebar-border, #e8ecf0);
@@ -262,7 +422,7 @@ body.dark .sidebar .nav-link.active:hover {
   color: #0f172a;
 }
 
-/* ── Usage widget ───────────────────────────────────── */
+/* ── Usage widget ─────────────────────────────────────────────── */
 .sidebar-usage-widget {
   display: flex;
   flex-direction: column;
@@ -340,12 +500,43 @@ body.dark .sidebar .nav-link.active:hover {
 }
 
 .sidebar-usage-dot {
-  width: 8px;
-  height: 8px;
+  width: 8px; height: 8px;
   border-radius: 50%;
   display: inline-block;
 }
 
+/* ── Dark mode ────────────────────────────────────────────────── */
+body.dark .sidebar .nav-link.active,
+body.dark .sidebar .nav-link.active:hover {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+body.dark .sidebar-flyout {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+body.dark .sidebar-flyout-link {
+  color: #cbd5e1;
+}
+
+body.dark .sidebar-flyout-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f1f5f9;
+}
+
+body.dark .sidebar-flyout-link.active {
+  background: #334155;
+  color: #f1f5f9;
+}
+
+body.dark .sidebar-section-trigger.section-has-active::after {
+  background: #93c5fd;
+}
+
+/* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .sidebar-logo { width: 30px; height: 30px; }
   .sidebar-title { font-size: 0.92rem; }

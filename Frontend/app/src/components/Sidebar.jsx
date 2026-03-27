@@ -4,13 +4,14 @@
  * Defines responsibilities and integration points for components.
  */
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LuBox,
   LuBoxes,
   LuBuilding2,
   LuChevronDown,
+  LuChevronRight,
   LuGlobe,
   LuHistory,
   LuLayoutDashboard,
@@ -97,45 +98,119 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
   const { workspace, hasWorkspace } = useWorkspace();
   const location = useLocation();
   const isAdmin = user?.is_superuser;
+
   const companyLabel = workspace?.nome || user?.nome_empresa || 'Configurar empresa';
   const companyHint = hasWorkspace ? 'Empresa ativa' : 'Crie ou entre em uma empresa';
 
+  // Persist collapsed state per section in localStorage
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('sidebar-collapsed-sections') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
-  const sections = [
+  // Flyout for collapsed sidebar mode
+  const [flyout, setFlyout] = useState(null); // { sectionId, top, items, label }
+  const flyoutTimerRef = useRef(null);
+
+  // --- Navigation structure ---
+  const SECTIONS = [
     {
-      label: null,
-      items: [
-        { path: '/dashboard', name: 'Dashboard', icon: <LuLayoutDashboard />, matches: ['/dashboard'] },
-      ],
-    },
-    {
+      id: 'catalog',
       label: 'Catálogo',
+      icon: <LuBoxes />,
       items: [
-        { path: '/produtos', name: 'Produtos', icon: <LuBox />, matches: ['/produtos'] },
-        { path: '/fornecedores', name: 'Fornecedores', icon: <LuTruck />, matches: ['/fornecedores'] },
-        { path: '/tipos-de-produto', name: 'Tipos de Produto', icon: <LuTag />, matches: ['/tipos-de-produto'] },
+        { path: '/produtos',        name: 'Produtos',          icon: <LuBox />,     matches: ['/produtos'] },
+        { path: '/fornecedores',    name: 'Fornecedores',      icon: <LuTruck />,   matches: ['/fornecedores'] },
+        { path: '/tipos-de-produto',name: 'Tipos de Produto',  icon: <LuTag />,     matches: ['/tipos-de-produto', '/importacoes'] },
       ],
     },
     {
+      id: 'ops',
       label: 'Operações',
+      icon: <LuZap />,
       items: [
-        { path: '/enriquecimento', name: 'Enriquecimento', icon: <LuGlobe />, matches: ['/enriquecimento'] },
-        { path: '/monitoramento', name: 'Monitoramento', icon: <LuHistory />, matches: ['/monitoramento', '/historico'] },
-      ],
-    },
-    {
-      label: null,
-      items: [
-        { path: '/workspace', name: 'Empresa', icon: <LuBuilding2 />, matches: ['/workspace', '/financeiro'] },
-        { path: '/configuracoes', name: 'Configurações', icon: <LuSettings />, matches: ['/configuracoes', ...(isAdmin ? ['/admin'] : [])] },
+        { path: '/enriquecimento',  name: 'Enriquecimento',    icon: <LuGlobe />,   matches: ['/enriquecimento'] },
+        { path: '/monitoramento',   name: 'Monitoramento',     icon: <LuHistory />, matches: ['/monitoramento', '/historico'] },
       ],
     },
   ];
 
-  const isItemActive = (item) => item.matches.some((p) => location.pathname.startsWith(p));
+  const STANDALONE_TOP = [
+    { path: '/dashboard', name: 'Dashboard', icon: <LuLayoutDashboard />, matches: ['/dashboard'] },
+  ];
+
+  const STANDALONE_BOTTOM = [
+    { path: '/workspace',     name: 'Empresa',       icon: <LuBuilding2 />, matches: ['/workspace', '/financeiro'] },
+    { path: '/configuracoes', name: 'Configurações',  icon: <LuSettings />, matches: ['/configuracoes', ...(isAdmin ? ['/admin'] : [])] },
+  ];
+
+  // Helpers
+  const isItemActive = (item) =>
+    (item.matches || [item.path]).some((p) => location.pathname.startsWith(p));
+
+  const isSectionActive = (section) =>
+    section.items.some((item) => isItemActive(item));
+
+  // Auto-expand section when route changes to one of its pages
+  useEffect(() => {
+    SECTIONS.forEach((section) => {
+      if (isSectionActive(section) && collapsedSections[section.id]) {
+        setCollapsedSections((prev) => {
+          const next = { ...prev, [section.id]: false };
+          localStorage.setItem('sidebar-collapsed-sections', JSON.stringify(next));
+          return next;
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  const toggleSection = (sectionId) => {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [sectionId]: !prev[sectionId] };
+      localStorage.setItem('sidebar-collapsed-sections', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Close flyout when sidebar opens
+  useEffect(() => {
+    if (isOpen) setFlyout(null);
+  }, [isOpen]);
+
+  const showFlyout = (e, section) => {
+    if (isOpen) return;
+    clearTimeout(flyoutTimerRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setFlyout({ sectionId: section.id, top: rect.top, items: section.items, label: section.label });
+  };
+
+  const scheduleFlyoutHide = () => {
+    flyoutTimerRef.current = setTimeout(() => setFlyout(null), 160);
+  };
+
+  const cancelFlyoutHide = () => clearTimeout(flyoutTimerRef.current);
+
+  const renderStandaloneLink = (item) => (
+    <li key={item.path} className="sidebar-nav-item">
+      <NavLink
+        to={item.path}
+        className={isItemActive(item) ? 'nav-link active' : 'nav-link'}
+        title={item.name}
+      >
+        <span className="nav-icon">{item.icon}</span>
+        {isOpen ? <span className="nav-text">{item.name}</span> : null}
+      </NavLink>
+    </li>
+  );
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'} ${isMobileViewport ? 'mobile' : 'desktop'}`}>
+
+      {/* ── Header ────────────────────────────────────── */}
       <div className="sidebar-header">
         {isMobileViewport ? (
           <button
@@ -165,9 +240,7 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
 
         {isOpen ? (
           <NavLink to="/workspace" className="sidebar-company-switcher" title={companyLabel}>
-            <span className="sidebar-company-icon">
-              <LuBuilding2 />
-            </span>
+            <span className="sidebar-company-icon"><LuBuilding2 /></span>
             <span className="sidebar-company-copy">
               <strong>{companyLabel}</strong>
               <small>{companyHint}</small>
@@ -177,30 +250,105 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
         ) : null}
       </div>
 
+      {/* ── Navigation ────────────────────────────────── */}
       <nav className="sidebar-nav">
-        {sections.map((section, si) => (
-          <div key={si} className="sidebar-section">
-            {section.label && isOpen ? (
-              <span className="sidebar-section-label">{section.label}</span>
-            ) : null}
-            <ul>
-              {section.items.map((item) => (
-                <li key={item.name}>
-                  <NavLink
-                    to={item.path}
-                    className={isItemActive(item) ? 'nav-link active' : 'nav-link'}
-                    title={item.name}
+
+        {/* Standalone top items (Dashboard) */}
+        <ul className="sidebar-nav-list">
+          {STANDALONE_TOP.map(renderStandaloneLink)}
+        </ul>
+
+        {/* Collapsible sections */}
+        {SECTIONS.map((section) => {
+          const isCollapsed = !!collapsedSections[section.id];
+          const sectionActive = isSectionActive(section);
+
+          if (!isOpen) {
+            // Icon-only mode → flyout trigger
+            return (
+              <ul key={section.id} className="sidebar-nav-list sidebar-nav-list--section-gap">
+                <li className="sidebar-nav-item">
+                  <div
+                    className={`nav-link sidebar-section-trigger${sectionActive ? ' section-has-active' : ''}`}
+                    onMouseEnter={(e) => showFlyout(e, section)}
+                    onMouseLeave={scheduleFlyoutHide}
+                    title={section.label}
+                    role="button"
+                    tabIndex={0}
                   >
-                    <span className="nav-icon">{item.icon}</span>
-                    {isOpen ? <span className="nav-text">{item.name}</span> : null}
-                  </NavLink>
+                    <span className="nav-icon">{section.icon}</span>
+                  </div>
                 </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+              </ul>
+            );
+          }
+
+          // Expanded mode → collapsible section
+          return (
+            <div key={section.id} className="sidebar-section sidebar-nav-list--section-gap">
+              <button
+                type="button"
+                className={`sidebar-section-header${sectionActive ? ' section-has-active' : ''}`}
+                onClick={() => toggleSection(section.id)}
+                aria-expanded={!isCollapsed}
+              >
+                <span className="sidebar-section-label">{section.label}</span>
+                <LuChevronRight
+                  className={`sidebar-section-chevron${isCollapsed ? '' : ' rotated'}`}
+                />
+              </button>
+
+              <div className={`sidebar-subitems${isCollapsed ? ' collapsed' : ''}`}>
+                <ul className="sidebar-nav-list">
+                  {section.items.map((item) => (
+                    <li key={item.path} className="sidebar-nav-item">
+                      <NavLink
+                        to={item.path}
+                        className={isItemActive(item) ? 'nav-link nav-link--sub active' : 'nav-link nav-link--sub'}
+                        title={item.name}
+                      >
+                        <span className="nav-icon">{item.icon}</span>
+                        <span className="nav-text">{item.name}</span>
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Standalone bottom items (Empresa, Configurações) */}
+        <ul className="sidebar-nav-list sidebar-nav-list--section-gap">
+          {STANDALONE_BOTTOM.map(renderStandaloneLink)}
+        </ul>
+
       </nav>
 
+      {/* ── Flyout panel (collapsed mode only) ────────── */}
+      {flyout && !isOpen ? (
+        <div
+          className="sidebar-flyout"
+          style={{ top: flyout.top }}
+          onMouseEnter={cancelFlyoutHide}
+          onMouseLeave={scheduleFlyoutHide}
+        >
+          <div className="sidebar-flyout-label">{flyout.label}</div>
+          {flyout.items.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={isItemActive(item) ? 'sidebar-flyout-link active' : 'sidebar-flyout-link'}
+              onClick={() => setFlyout(null)}
+            >
+              <span className="sidebar-flyout-icon">{item.icon}</span>
+              {item.name}
+            </NavLink>
+          ))}
+        </div>
+      ) : null}
+
+      {/* ── Footer ────────────────────────────────────── */}
       <div className="sidebar-footer">
         <SidebarUsageWidget isOpen={isOpen} user={user} />
         {isOpen && user ? (
@@ -214,6 +362,7 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
           {isOpen ? <span className="nav-text">Sair</span> : null}
         </button>
       </div>
+
     </aside>
   );
 }
