@@ -336,11 +336,12 @@ function Sidebar({ isOpen, toggleSidebar, isMobileViewport = false }) {
             <div key={section.id} className="sidebar-section sidebar-nav-list--gap">
               <button
                 type="button"
-                className={`sidebar-section-header${sectionActive ? ' section-has-active' : ''}`}
+                className={`nav-link sidebar-section-header${sectionActive ? ' section-has-active' : ''}`}
                 onClick={() => toggleSection(section.id)}
                 aria-expanded={!isCollapsed}
               >
-                <span className="sidebar-section-label">{section.label}</span>
+                <span className="nav-icon">{section.icon}</span>
+                <span className="nav-text">{section.label}</span>
                 <LuChevronRight className={`sidebar-section-chevron${isCollapsed ? '' : ' rotated'}`} />
               </button>
               <div className={`sidebar-subitems${isCollapsed ? ' collapsed' : ''}`}>

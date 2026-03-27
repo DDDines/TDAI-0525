@@ -244,39 +244,27 @@
 .sidebar-section { display: flex; flex-direction: column; }
 
 .sidebar-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.28rem 0.75rem;
-  border-radius: 8px;
+  /* inherits all visual styles from .nav-link */
   border: none;
-  background: transparent;
-  cursor: pointer;
   width: 100%;
   text-align: left;
-  transition: background 0.15s;
   user-select: none;
-  margin-bottom: 1px;
 }
-.sidebar-section-header:hover { background: var(--main-bg, #f5f7fa); }
-.sidebar-section-header.section-has-active .sidebar-section-label { color: var(--primary, #1d2537); }
 
-.sidebar-section-label {
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-color-light, #94a3b8);
-  white-space: nowrap;
-  line-height: 1;
+/* push chevron to the far right */
+.sidebar-section-header .nav-text {
+  flex: 1;
 }
 
 .sidebar-section-chevron {
-  font-size: 0.75rem;
+  flex: none;
+  width: 14px;
+  height: 14px;
   color: var(--text-color-light, #94a3b8);
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
+.sidebar-section-chevron svg { display: block; width: 14px; height: 14px; }
 .sidebar-section-chevron.rotated { transform: rotate(90deg); }
 
 /* Collapse animation via max-height */
