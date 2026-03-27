@@ -188,8 +188,6 @@
   overflow: hidden;
   transition: background 0.15s, color 0.15s;
   cursor: pointer;
-  /* prevent icon + text from stretching vertically */
-  line-height: 1;
 }
 
 .sidebar.desktop.closed .nav-link {
@@ -220,29 +218,24 @@
   padding-left: 0;
 }
 
-/* Icons — flex (not inline-flex) eliminates baseline shift inside flex row */
+/* Icons — fixed-size box, parent align-items:center handles vertical alignment */
 .nav-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;   /* explicit: don't stretch to row height */
-  width: 18px;
-  min-width: 18px;
-  flex-shrink: 0;
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 
 .nav-icon svg {
-  display: block;       /* block removes any residual inline baseline */
+  display: block;
   width: 16px;
   height: 16px;
-  flex-shrink: 0;
 }
 
-.sidebar.desktop.closed .nav-icon { width: 20px; min-width: 20px; }
+.sidebar.desktop.closed .nav-icon { width: 18px; height: 18px; }
+.sidebar.desktop.closed .nav-icon svg { width: 18px; height: 18px; }
 
 .nav-text {
-  line-height: 1.25;
-  align-self: center;   /* match icon alignment */
+  line-height: 1.2;
   transition: opacity 0.18s;
 }
 .sidebar.desktop.closed .nav-text { display: none; }
@@ -363,9 +356,9 @@
 .sidebar-flyout-link.active { background: #1d2537; color: #ffffff; font-weight: 600; }
 
 .sidebar-flyout-icon {
-  display: flex; align-items: center; justify-content: center;
-  align-self: center;
-  width: 18px; min-width: 18px; flex-shrink: 0;
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 .sidebar-flyout-icon svg { display: block; width: 16px; height: 16px; }
 
@@ -455,9 +448,9 @@
 }
 
 .sidebar-dropdown-icon {
-  display: flex; align-items: center; justify-content: center;
-  align-self: center;
-  width: 18px; min-width: 18px; flex-shrink: 0;
+  flex: none;
+  width: 16px;
+  height: 16px;
 }
 .sidebar-dropdown-icon svg { display: block; width: 16px; height: 16px; }
 

@@ -453,11 +453,7 @@ body.dark .theme-toggle-logo-fallback {
   height: 1.2rem;
   display: block;
 }
-.nav-icon svg {
-  width: 1.1rem;
-  height: 1.1rem;
-  display: block;
-}
+/* .nav-icon svg sized in Sidebar.css */
 .topbar-actions .theme-toggle-btn {
   visibility: visible;
   opacity: 1;
