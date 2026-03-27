@@ -33,3 +33,4 @@ PyMuPDF
 pytesseract
 Pillow
 pytesseract==0.3.10
+stripe>=5.0.0
